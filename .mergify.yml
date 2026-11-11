@@ -1,0 +1,104 @@
+# Mergify merge queue for bogworks/synadia-agents.go, modeled on bogworks/mash's .mergify.yml (its comments explain each choice).
+# The checks named here are the herd's ci.yml job names plus the codex-review commit status the review watcher posts. When the
+# herd adds label-reset and adr-lint workflows like mash's, add them to queue_conditions below.
+merge_queue:
+  mode: serial
+  max_parallel_checks: 1
+
+merge_protections_settings:
+  auto_merge_conditions:
+    - -draft
+    - label != hold
+
+queue_rules:
+  - name: default
+    # To enter the queue: CI green (pr-check), the watcher's codex-review, and a recorded approval by the maintainer or the
+    # lead's `lead-approved` label. Authorship is not a condition (agents push as the maintainer's login). `hold` is the brake.
+    queue_conditions:
+      - base = main
+      - -draft
+      - -conflict
+      - label != hold
+      - check-success = codex-review
+      - check-success = pr-check
+      - or:
+          - approved-reviews-by = randybias
+          - label = lead-approved
+    merge_conditions:
+      - check-success = pr-check
+    batch_size:
+      min: 1
+      max: 5
+    max_checks_retries: 1
+    checks_timeout: 60 min
+    # A merge commit through the pull request API: the branch ruleset requires a pull request, and this needs no bypass actor.
+    merge_method: merge
+
+priority_rules:
+  - name: pipeline
+    conditions:
+      - label = pipeline
+    priority: 4000
+  - name: critical
+    conditions:
+      - label = critical
+    priority: 3000
+    allow_checks_interruption: true
+  - name: docs
+    conditions:
+      - label = docs
+    priority: 1000
+
+pull_request_rules:
+  - name: dismiss approvals when an outside author pushes
+    conditions:
+      - base = main
+      - -author = randybias
+    actions:
+      dismiss_reviews:
+        approved: true
+        changes_requested: false
+        when: synchronize
+        message: "A new commit was pushed after this approval, so it is dismissed: a maintainer approves the new head."
+  - name: docs label when every changed file is docs/** or *.md
+    conditions:
+      - base = main
+      - "#files >= 1"
+      - -files ~= ^(?!docs/|.*\.md$)
+    actions:
+      label:
+        toggle:
+          - docs
+  - name: pipeline label when the pipeline changes
+    conditions:
+      - base = main
+      - files ~= ^(\.github/|\.mergify\.yml$|scripts/)
+    actions:
+      label:
+        add:
+          - pipeline
+  - name: label reverts critical
+    conditions:
+      - base = main
+      - title ~= (?i)^revert
+    actions:
+      label:
+        toggle:
+          - critical
+  - name: tell the author about a conflict
+    conditions:
+      - base = main
+      - conflict
+      - -closed
+    actions:
+      label:
+        toggle:
+          - conflict
+      comment:
+        message: "@{{author}} this pull request conflicts with main: rebase it onto origin/main and push; the review watcher reviews the new head."
+  - name: tell the author about an ejection
+    conditions:
+      - queue-dequeue-reason = checks-failed
+    actions:
+      comment:
+        message: "@{{author}} dequeued: the queue run of your pull request failed. Read the failing job and fix it in a new commit; Mergify queues it again once codex-review and pr-check pass."
