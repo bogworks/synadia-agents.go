@@ -1,0 +1,11 @@
+--- a/identity/agentid.go
++++ b/identity/agentid.go
+@@ -54,7 +54,7 @@
+ 	if err := validateUser(user); err != nil {
+ 		return "", err
+ 	}
+-	return AgentID(account + "." + user), nil
++	return AgentID(strings.ToUpper(account) + "." + user), nil
+ }
+ 
+ // ParseAgentID parses the canonical text form and nothing else. See SAP

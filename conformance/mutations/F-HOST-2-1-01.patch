@@ -1,0 +1,12 @@
+--- a/host/host.go
++++ b/host/host.go
+@@ -379,8 +379,7 @@
+ 
+ 	if err := svc.AddEndpoint(agents.EndpointPrompt, micro.HandlerFunc(h.onPrompt),
+ 		micro.WithEndpointSubject(h.subject.Prompt()),
+-		micro.WithEndpointQueueGroup(agents.QueueGroup),
+-		micro.WithEndpointMetadata(cloneMap(h.promptMeta))); err != nil {
++		micro.WithEndpointQueueGroup(agents.QueueGroup)); err != nil {
+ 		return fmt.Errorf("host: register prompt endpoint: %w", err)
+ 	}
+ 	if err := svc.AddEndpoint(agents.EndpointStatus, micro.HandlerFunc(h.onStatus),

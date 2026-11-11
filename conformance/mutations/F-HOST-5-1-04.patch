@@ -1,0 +1,11 @@
+--- a/envelope.go
++++ b/envelope.go
+@@ -260,7 +260,7 @@
+ // enforcement a MAY (§5.4) and lists both as 400 (§9.2). It returns nil or a
+ // [*ServiceError].
+ func (l PromptLimits) CheckInbound(payloadSize int, env Envelope) error {
+-	if l.AttachmentsOK != nil && !*l.AttachmentsOK && len(env.Attachments) > 0 {
++	if false {
+ 		return badRequest("attachments are not accepted by this endpoint")
+ 	}
+ 	if l.MaxPayload > 0 && int64(payloadSize) > l.MaxPayload {

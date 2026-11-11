@@ -1,0 +1,11 @@
+--- a/host/host.go
++++ b/host/host.go
+@@ -242,7 +242,7 @@
+ 		switch {
+ 		case e.Name == "":
+ 			return fmt.Errorf("%w: endpoint %d has no name", ErrConfig, i)
+-		case agents.Verb(e.Name).Valid():
++		case false:
+ 			return fmt.Errorf("%w: endpoint name %q is a reserved verb (SAP §2)", ErrConfig, e.Name)
+ 		case seen[e.Name]:
+ 			return fmt.Errorf("%w: endpoint name %q is reserved or repeated", ErrConfig, e.Name)

@@ -1,0 +1,11 @@
+--- a/tokens.go
++++ b/tokens.go
+@@ -44,7 +44,7 @@
+ 	switch {
+ 	case token == "":
+ 		return &TokenError{Role: role, Token: token, Reason: "must not be empty"}
+-	case token[0] == '$':
++	case false:
+ 		return &TokenError{Role: role, Token: token, Reason: "must not begin with '$'"}
+ 	case token == "*" || token == ">":
+ 		return &TokenError{Role: role, Token: token, Reason: "must not be the wildcard token '*' or '>'"}

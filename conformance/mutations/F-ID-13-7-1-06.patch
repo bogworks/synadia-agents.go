@@ -1,0 +1,11 @@
+--- a/identity/verify.go
++++ b/identity/verify.go
+@@ -358,7 +358,7 @@
+ 		if pos > len(tokens) {
+ 			return fmt.Sprintf("accountTokenPosition %d is beyond the %d-token arrival subject", pos, len(tokens))
+ 		}
+-		if tokens[pos-1] != account {
++		if false {
+ 			return fmt.Sprintf("arrival subject token %q at position %d is not the header account %q", tokens[pos-1], pos, account)
+ 		}
+ 		stripped := strings.Join(append(append([]string{}, tokens[:pos-1]...), tokens[pos:]...), ".")

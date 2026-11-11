@@ -1,0 +1,11 @@
+--- a/identity/agentid.go
++++ b/identity/agentid.go
+@@ -21,7 +21,7 @@
+ 
+ var (
+ 	userKeyShape    = regexp.MustCompile(`^U[A-Z2-7]{55}$`)
+-	accountNameForm = regexp.MustCompile(`^([A-Za-z0-9_-]+|\$G)$`)
++	accountNameForm = regexp.MustCompile(`^([A-Za-z0-9_.*>-]+|\$G)$`)
+ )
+ 
+ // nkeyPublicLen is the length of a public NKEY (prefix byte, key and CRC

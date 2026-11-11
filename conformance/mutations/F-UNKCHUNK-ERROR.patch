@@ -1,0 +1,13 @@
+--- a/caller/stream.go
++++ b/caller/stream.go
+@@ -336,8 +336,8 @@
+ 			meta: meta{m.Header}, ID: ch.ID, ReplySubject: ch.ReplySubject, Prompt: ch.Prompt,
+ 			Attachments: ch.Attachments, Extra: ch.Extra, c: s.c, policy: s.queryPol,
+ 		}, false, nil
+-	default: // agents.UnknownChunk: silently ignored (SAP §6.2, §6.6)
+-		return nil, false, nil
++	default:
++		return nil, false, fmt.Errorf("caller: unknown chunk type")
+ 	}
+ }
+ 

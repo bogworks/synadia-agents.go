@@ -1,0 +1,11 @@
+--- a/host/heartbeat.go
++++ b/host/heartbeat.go
+@@ -200,7 +200,7 @@
+ 	}
+ 	subj := h.subject.Heartbeat()
+ 	msg := &nats.Msg{Subject: subj, Data: data}
+-	if h.signer != nil && h.hasID {
++	if false && h.signer != nil && h.hasID {
+ 		hdr, err := h.signBeat(ctx, SignHeartbeatOptions{
+ 			Sender:  HeartbeatSigner{ID: h.agentID, Signer: h.signer},
+ 			Subject: subj, TS: hb.TS, Data: data,

@@ -1,0 +1,10 @@
+--- a/host/host.go
++++ b/host/host.go
+@@ -409,6 +409,7 @@
+ 	if err := h.nc.FlushWithContext(fctx); err != nil {
+ 		return fmt.Errorf("host: flush: %w", err)
+ 	}
++	_ = svc.Stop()
+ 
+ 	// First beat out before Start returns (SAP §8.2: after registration).
+ 	// A beat skipped for a signing failure is already counted and logged; the

@@ -1,0 +1,20 @@
+--- a/identity/verify.go
++++ b/identity/verify.go
+@@ -365,7 +365,7 @@
+ 		if sub == arrival || sub == stripped {
+ 			return ""
+ 		}
+-		if want, ok := renamed(rules, arrival); ok && sub == want {
++		if _, ok := renamed(rules, arrival); ok {
+ 			return ""
+ 		}
+ 		return fmt.Sprintf("sub %q is neither the arrival subject %q nor %q", sub, arrival, stripped)
+@@ -373,7 +373,7 @@
+ 	if sub == arrival {
+ 		return ""
+ 	}
+-	if want, ok := renamed(rules, arrival); ok && sub == want {
++	if _, ok := renamed(rules, arrival); ok {
+ 		return ""
+ 	}
+ 	return fmt.Sprintf("sub %q is not the arrival subject %q", sub, arrival)
