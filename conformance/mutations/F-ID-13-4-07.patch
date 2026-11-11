@@ -1,0 +1,12 @@
+--- a/identity/selfid.go
++++ b/identity/selfid.go
+@@ -220,6 +220,9 @@
+ 		if callerGone && err != nil {
+ 			return "", ctx.Err()
+ 		}
++		if err != nil {
++			return r.id, nil
++		}
+ 		return id, err
+ 	}
+ }

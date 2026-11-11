@@ -1,0 +1,11 @@
+--- a/host/host.go
++++ b/host/host.go
+@@ -354,7 +354,7 @@
+ 	}
+ 	// Required keys win over extras.
+ 	maps.Copy(meta, agents.ServiceMetadata{
+-		Agent: h.subject.Agent(), Owner: h.subject.Owner(), Session: h.cfg.session,
++		Agent: h.subject.Agent(), Owner: h.subject.Owner(),
+ 	}.Map())
+ 
+ 	desc := h.cfg.description

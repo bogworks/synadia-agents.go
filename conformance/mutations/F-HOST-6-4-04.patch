@@ -1,0 +1,17 @@
+--- a/host/dispatch.go
++++ b/host/dispatch.go
+@@ -192,13 +192,11 @@
+ 		hctx, hcancel := context.WithCancel(c)
+ 		defer hcancel()
+ 		defer context.AfterFunc(h.base, hcancel)()
+-		if err := w.ack(); err != nil {
+-			h.log.Debug("ack not published")
+-		}
+ 		if h.cfg.keepalive > 0 {
+ 			w.startKeepalive(h.cfg.keepalive)
+ 		}
+ 		err := h.callHandler(hctx, request, w)
++		_ = w.ack()
+ 		if err == nil {
+ 			answered.Store(true)
+ 		}

@@ -1,0 +1,12 @@
+--- a/host/heartbeat.go
++++ b/host/heartbeat.go
+@@ -194,6 +194,9 @@
+ 
+ // publishHeartbeat publishes one beat, signed when the host holds a seed.
+ func (h *Host) publishHeartbeat(ctx context.Context) error {
++	if true {
++		return nil
++	}
+ 	hb, data, err := h.buildHeartbeat()
+ 	if err != nil {
+ 		return fmt.Errorf("host: build heartbeat: %w", err)

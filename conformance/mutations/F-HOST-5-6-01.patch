@@ -1,0 +1,12 @@
+--- a/envelope.go
++++ b/envelope.go
+@@ -136,6 +136,9 @@
+ 		return Envelope{}, badRequest("envelope prompt must be non-empty")
+ 	}
+ 	env := Envelope{Prompt: prompt, Extra: withoutKeys(obj, "prompt", "attachments")}
++	if len(env.Extra) > 0 {
++		return Envelope{}, badRequest("unknown envelope field")
++	}
+ 	if raw, present := obj["attachments"]; present {
+ 		atts, err := decodeAttachmentList(raw, "envelope")
+ 		if err != nil {

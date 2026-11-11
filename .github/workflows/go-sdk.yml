@@ -54,7 +54,7 @@ jobs:
         run: go test -race -count=1 ./...
       - name: Test integration module
         working-directory: test
-        run: go test -race -count=1 ./...
+        run: go test -race -count=1 -timeout 8m ./...
 
   vet:
     name: vet and gofmt (go ${{ matrix.go }})
@@ -225,7 +225,29 @@ jobs:
         with:
           go-version: '1.26.x'
           cache: false
+      # The catalog is checked against the pinned spec on every run. The
+      # upstream docs repository carries no license that permits
+      # redistribution, so the spec is fetched at the commit the catalog pins
+      # and its sha256 (also pinned in the catalog) is verified before use.
+      - name: Fetch the pinned spec
+        shell: bash
+        run: |
+          if [ -d conformance ]; then
+            set -euo pipefail
+            pin() { sed -nE 's/^ *"'"$1"'": *"([^"]+)".*/\1/p' conformance/catalog.json | head -n1; }
+            repo=$(pin repo); commit=$(pin commit); path=$(pin path); sha=$(pin sha256)
+            [[ "$commit" =~ ^[0-9a-f]{40}$ && "$sha" =~ ^[0-9a-f]{64}$ && "$repo" == https://github.com/* ]]
+            mkdir -p conformance/testdata/spec
+            curl -fsSL --retry 3 -o conformance/testdata/spec/core-protocol.md \
+              "https://raw.githubusercontent.com/${repo#https://github.com/}/${commit}/${path}"
+            echo "${sha}  conformance/testdata/spec/core-protocol.md" | sha256sum -c -
+          else
+            echo "no conformance package yet"
+          fi
       - name: Catalog test
+        env:
+          # A missing spec fails this job; it must never skip.
+          SAP_REQUIRE_SPEC: 'true'
         run: if [ -d conformance ]; then go test -race -count=1 ./conformance/... -run TestCatalog; else echo "no conformance package yet"; fi
 
   # The one required check. It needs every job above, runs even when one fails or

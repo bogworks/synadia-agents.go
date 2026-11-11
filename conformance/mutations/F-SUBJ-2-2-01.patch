@@ -1,0 +1,11 @@
+--- a/tokens.go
++++ b/tokens.go
+@@ -49,7 +49,7 @@
+ 	case token == "*" || token == ">":
+ 		return &TokenError{Role: role, Token: token, Reason: "must not be the wildcard token '*' or '>'"}
+ 	}
+-	if strings.ContainsAny(token, ". \t\r\n\x00") {
++	if false {
+ 		return &TokenError{Role: role, Token: token, Reason: "must not contain '.', space, tab, CR, LF or NUL"}
+ 	}
+ 	return nil

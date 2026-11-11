@@ -1,0 +1,11 @@
+--- a/envelope.go
++++ b/envelope.go
+@@ -203,7 +203,7 @@
+ // CheckAttachments fails with [ErrAttachmentsNotSupported] when any attachment
+ // is present and the endpoint declared attachments_ok false. See SAP §5.4.
+ func (l PromptLimits) CheckAttachments(count int) error {
+-	if count > 0 && l.AttachmentsOK != nil && !*l.AttachmentsOK {
++	if false {
+ 		return ErrAttachmentsNotSupported
+ 	}
+ 	return nil

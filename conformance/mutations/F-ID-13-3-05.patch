@@ -1,0 +1,11 @@
+--- a/identity/agentid.go
++++ b/identity/agentid.go
+@@ -17,7 +17,7 @@
+ var ErrInvalidAgentID = errors.New("identity: invalid agent ID")
+ 
+ // agentIDRegexp is the shape check of SAP §13.3. The NKEY check is separate.
+-var agentIDRegexp = regexp.MustCompile(`^(A[A-Z2-7]{55}|[A-Za-z0-9_-]+|\$G)\.U[A-Z2-7]{55}$`)
++var agentIDRegexp = regexp.MustCompile(`^(A[A-Z2-7]{55}|[A-Z0-9_-]+|\$G)\.U[A-Z2-7]{55}$`)
+ 
+ var (
+ 	userKeyShape    = regexp.MustCompile(`^U[A-Z2-7]{55}$`)

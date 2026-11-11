@@ -1,0 +1,11 @@
+--- a/host/responder.go
++++ b/host/responder.go
+@@ -185,7 +185,7 @@
+ 	}
+ 	q := agents.QueryChunk{
+ 		ID:           newUUID(),
+-		ReplySubject: newInbox(),
++		ReplySubject: inboxPrefix + "fixed",
+ 		Prompt:       e.Prompt,
+ 		Attachments:  append(append([]agents.Attachment(nil), e.Attachments...), cfg.attachments...),
+ 	}

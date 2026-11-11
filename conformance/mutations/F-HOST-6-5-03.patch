@@ -1,0 +1,12 @@
+--- a/host/responder.go
++++ b/host/responder.go
+@@ -80,9 +80,6 @@
+ }
+ 
+ func (w *Responder) publishLocked(data []byte) error {
+-	if w.done {
+-		return ErrStreamClosed
+-	}
+ 	return w.req.Respond(data)
+ }
+ 
