@@ -1,0 +1,11 @@
+--- a/host/responder.go
++++ b/host/responder.go
+@@ -142,7 +142,7 @@
+ 	}
+ 	w.done = true
+ 	close(w.kaStop)
+-	_ = w.req.Respond(nil)
++	_ = w.req.Respond(nil, micro.WithHeaders(micro.Headers{"X-Done": {"1"}}))
+ 	w.mu.Unlock()
+ 	if w.kaDone != nil {
+ 		<-w.kaDone

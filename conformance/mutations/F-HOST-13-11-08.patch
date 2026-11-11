@@ -1,0 +1,21 @@
+--- a/host/dispatch.go
++++ b/host/dispatch.go
+@@ -352,7 +352,17 @@
+ 		})
+ 		h.log.Debug("status request", "sender", res.Sender.Describe())
+ 	}()
+-	_, data, err := h.buildHeartbeat()
++	hb, data, err := h.buildHeartbeat()
++	if err == nil && h.signer != nil && h.hasID {
++		hdr, serr := SignHeartbeat(context.Background(), SignHeartbeatOptions{
++			Sender:  HeartbeatSigner{ID: h.agentID, Signer: h.signer},
++			Subject: req.Reply(), TS: hb.TS, Data: data,
++		})
++		if serr == nil {
++			_ = req.Respond(data, micro.WithHeaders(micro.Headers(hdr)))
++			return
++		}
++	}
+ 	if err != nil {
+ 		h.log.Error("status handler failed")
+ 		_ = req.Error("500", descStatus, nil)

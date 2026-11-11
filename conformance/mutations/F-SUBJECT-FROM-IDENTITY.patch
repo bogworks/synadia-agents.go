@@ -1,0 +1,11 @@
+--- a/caller/agent.go
++++ b/caller/agent.go
+@@ -215,7 +215,7 @@
+ 	if err := limits.CheckAttachments(len(env.Attachments)); err != nil {
+ 		return nil, err
+ 	}
+-	subject := a.info.Prompt.Subject
++	subject := "agents.prompt." + a.info.Agent + "." + a.info.Owner + "." + a.info.Name
+ 	if pc.subject != "" {
+ 		subject = pc.subject
+ 	}

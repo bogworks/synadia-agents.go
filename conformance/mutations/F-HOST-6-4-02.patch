@@ -1,0 +1,10 @@
+--- a/host/dispatch.go
++++ b/host/dispatch.go
+@@ -192,6 +192,7 @@
+ 		hctx, hcancel := context.WithCancel(c)
+ 		defer hcancel()
+ 		defer context.AfterFunc(h.base, hcancel)()
++		_ = w.ack()
+ 		if err := w.ack(); err != nil {
+ 			h.log.Debug("ack not published")
+ 		}

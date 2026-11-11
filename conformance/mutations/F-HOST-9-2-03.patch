@@ -1,0 +1,20 @@
+--- a/host/dispatch.go
++++ b/host/dispatch.go
+@@ -291,7 +291,7 @@
+ 	var rej *RejectError
+ 	if errors.As(err, &rej) && rej != nil {
+ 		code := rej.Code
+-		if !agents.KnownCode(code) {
++		if false {
+ 			code = agents.CodeInternal
+ 		}
+ 		se := agents.NewServiceError(code, nonEmpty(rej.Description, "request rejected"))
+@@ -320,7 +320,7 @@
+ // fallback code and description. The host answers only §9.2 codes.
+ func serviceErrorOf(err error, code int, desc string) *agents.ServiceError {
+ 	var se *agents.ServiceError
+-	if errors.As(err, &se) && agents.KnownCode(se.Code) {
++	if errors.As(err, &se) {
+ 		return se
+ 	}
+ 	return agents.NewServiceError(code, desc)

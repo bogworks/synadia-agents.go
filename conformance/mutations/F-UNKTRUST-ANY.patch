@@ -1,0 +1,15 @@
+--- a/identity/trust.go
++++ b/identity/trust.go
+@@ -45,9 +45,10 @@
+ 	switch MinSenderTrust(value) {
+ 	case TrustAny:
+ 		return TrustAny
++	case TrustSigned:
++		return TrustSigned
+ 	default:
+-		// "signed" and every unknown value, the empty string included.
+-		return TrustSigned
++		return TrustAny
+ 	}
+ }
+ 

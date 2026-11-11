@@ -1,0 +1,11 @@
+--- a/chunks.go
++++ b/chunks.go
+@@ -139,7 +139,7 @@
+ 	if !ok {
+ 		return nil, &ProtocolError{Reason: "`response` chunk `data.text` must be a string"}
+ 	}
+-	rc := ResponseChunk{Text: text, Extra: withoutKeys(obj, "text", "attachments")}
++	rc := ResponseChunk{Text: text}
+ 	if a, present := obj["attachments"]; present {
+ 		atts, err := decodeAttachmentList(a, "`response` chunk")
+ 		if err != nil {

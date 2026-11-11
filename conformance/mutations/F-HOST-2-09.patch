@@ -1,0 +1,15 @@
+--- a/host/host.go
++++ b/host/host.go
+@@ -377,12 +377,6 @@
+ 	h.agentID, h.hasID, h.signer = id, hasID, signer
+ 	h.mu.Unlock()
+ 
+-	if err := svc.AddEndpoint(agents.EndpointPrompt, micro.HandlerFunc(h.onPrompt),
+-		micro.WithEndpointSubject(h.subject.Prompt()),
+-		micro.WithEndpointQueueGroup(agents.QueueGroup),
+-		micro.WithEndpointMetadata(cloneMap(h.promptMeta))); err != nil {
+-		return fmt.Errorf("host: register prompt endpoint: %w", err)
+-	}
+ 	if err := svc.AddEndpoint(agents.EndpointStatus, micro.HandlerFunc(h.onStatus),
+ 		micro.WithEndpointSubject(h.subject.Status()),
+ 		micro.WithEndpointQueueGroup(agents.QueueGroup)); err != nil {

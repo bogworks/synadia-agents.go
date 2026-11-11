@@ -1,0 +1,11 @@
+--- a/discovery.go
++++ b/discovery.go
+@@ -283,7 +283,7 @@
+ 		ProtocolVersion: pv,
+ 		Description:     si.Description,
+ 		Version:         si.Version,
+-		Metadata:        copyStringMap(si.Metadata),
++		Metadata:        map[string]string{MetaAgent: agent, MetaOwner: owner, MetaProtocolVersion: pv, MetaSession: si.Metadata[MetaSession]},
+ 		Endpoints:       append([]EndpointInfo(nil), si.Endpoints...),
+ 	}
+ 	havePrompt := false

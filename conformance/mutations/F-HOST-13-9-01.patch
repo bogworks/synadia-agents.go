@@ -1,0 +1,10 @@
+--- a/host/host.go
++++ b/host/host.go
+@@ -196,7 +196,6 @@
+ 	h.cfg = cfg
+ 	pm := agents.PromptEndpointMetadata{MaxPayload: cfg.maxPayload, AttachmentsOK: cfg.attachmentsOK}
+ 	h.promptMeta = pm.Map()
+-	maps.Copy(h.promptMeta, identity.PromptMetadata(cfg.minTrust))
+ 	h.limits = pm.Limits()
+ 
+ 	var accept identity.AcceptFunc

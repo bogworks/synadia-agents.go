@@ -1,0 +1,11 @@
+--- a/envelope.go
++++ b/envelope.go
+@@ -113,7 +113,7 @@
+ // never repeats the payload. See SAP §5.3, §9.2.
+ func DecodeEnvelope(data []byte) (Envelope, error) {
+ 	if len(data) == 0 {
+-		return Envelope{}, badRequest("zero-byte request payload")
++		return Envelope{}, nil
+ 	}
+ 	if !startsWithBrace(data) {
+ 		if !utf8.Valid(data) {

@@ -1,0 +1,12 @@
+--- a/identity/agentid.go
++++ b/identity/agentid.go
+@@ -96,9 +96,6 @@
+ 	if !userKeyShape.MatchString(user) {
+ 		return fmt.Errorf("%w: user token is not a user public NKEY (U and 55 base32 characters)", ErrInvalidAgentID)
+ 	}
+-	if !nkeys.IsValidPublicUserKey(user) {
+-		return fmt.Errorf("%w: user key fails the NKEY check", ErrInvalidAgentID)
+-	}
+ 	return nil
+ }
+ 

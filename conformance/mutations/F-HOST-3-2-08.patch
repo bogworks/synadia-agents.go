@@ -1,0 +1,11 @@
+--- a/discovery.go
++++ b/discovery.go
+@@ -67,7 +67,7 @@
+ func (m ServiceMetadata) Map() map[string]string {
+ 	pv := m.ProtocolVersion
+ 	if pv == "" {
+-		pv = ProtocolVersion
++		pv = "v0.3"
+ 	}
+ 	out := map[string]string{MetaAgent: m.Agent, MetaOwner: m.Owner, MetaProtocolVersion: pv}
+ 	if m.Session != "" {

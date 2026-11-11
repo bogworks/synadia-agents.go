@@ -1,0 +1,11 @@
+--- a/identity/header.go
++++ b/identity/header.go
+@@ -58,7 +58,7 @@
+ )
+ 
+ var (
+-	tsRegexp    = regexp.MustCompile(`^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z$`)
++	tsRegexp    = regexp.MustCompile(`^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$`)
+ 	nonceRegexp = regexp.MustCompile(`^[A-Za-z0-9_-]{1,64}$`)
+ )
+ 

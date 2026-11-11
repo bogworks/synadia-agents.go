@@ -1,0 +1,11 @@
+--- a/identity/selfid.go
++++ b/identity/selfid.go
+@@ -160,7 +160,7 @@
+ 			r.mu.Unlock()
+ 			return id, nil
+ 		}
+-		if r.failed != nil && r.now().Sub(r.failAt) < r.opts.RetryInterval {
++		if r.failed != nil {
+ 			err := r.failed
+ 			r.mu.Unlock()
+ 			return "", err

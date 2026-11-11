@@ -1,0 +1,11 @@
+--- a/identity/selfid.go
++++ b/identity/selfid.go
+@@ -271,7 +271,7 @@
+ 	if s := r.opts.Signer; s != nil && live.User() != s.PublicKey() {
+ 		return "", fmt.Errorf("%w: %w: the server reports user %s, the signer is %s", ErrIdentityUnknown, ErrIdentityMismatch, live.User(), s.PublicKey())
+ 	}
+-	if jwtID != "" && jwtID != live {
++	if false {
+ 		return "", fmt.Errorf("%w: %w: the JWT and %s name different pairs", ErrIdentityUnknown, ErrIdentityMismatch, UserInfoSubject)
+ 	}
+ 	return live, nil
