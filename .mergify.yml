@@ -1,6 +1,7 @@
 # Mergify merge queue for bogworks/synadia-agents.go: a serial queue, one batch at a time, that merges a pull request only
 # after the required checks pass; the comments below explain each choice.
-# The checks named here are the go-sdk.yml pr-check job, the label-reset and adr-lint workflow jobs, and the codex-review
+# The checks named here are the go-sdk.yml pr-check job, the interop.yml interop-check job (interop with the official
+# TypeScript and Python SDKs in both directions), the label-reset and adr-lint workflow jobs, and the codex-review
 # commit status the review watcher posts.
 merge_queue:
   mode: serial
@@ -13,8 +14,8 @@ merge_protections_settings:
 
 queue_rules:
   - name: default
-    # To enter the queue: CI green (pr-check), label-reset and adr-lint (each runs on every head, so a head without a green
-    # one cannot enter), the watcher's codex-review, and a recorded approval by the maintainer or the
+    # To enter the queue: CI green (pr-check), interop green (interop-check), label-reset and adr-lint (each runs on
+    # every head, so a head without a green one cannot enter), the watcher's codex-review, and a recorded approval by the maintainer or the
     # lead's `lead-approved` label. Authorship is not a condition (agents push as the maintainer's login). `hold` is the brake.
     queue_conditions:
       - base = main
@@ -25,11 +26,13 @@ queue_rules:
       - check-success = pr-check
       - check-success = label-reset
       - check-success = adr-lint
+      - check-success = interop-check
       - or:
           - approved-reviews-by = randybias
           - label = lead-approved
     merge_conditions:
       - check-success = pr-check
+      - check-success = interop-check
     batch_size:
       min: 1
       max: 5
