@@ -65,7 +65,10 @@ jobs:
           git -C pr fetch --no-tags "$GITHUB_WORKSPACE/trusted" "+$BASE_SHA:refs/remotes/origin/$BASE_REF"
       - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
         with:
-          go-version-file: trusted/go.mod
+          # The gate only builds a tool, so it needs no particular Go: a seeded 1.27.x, never the module's
+          # minimum (go-version-file resolves `go 1.26` to exactly 1.26.0, which no runner seeds).
+          go-version: '1.27.x'
+          check-latest: false
           cache: false
       - name: Build the checker from the base branch
         id: build
