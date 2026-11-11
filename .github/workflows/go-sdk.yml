@@ -1,0 +1,258 @@
+# Copyright 2026 The synadia-agents.go Authors
+# SPDX-License-Identifier: Apache-2.0
+#
+# CI for the Go SDK. Written as a single workflow so that it can be adopted
+# upstream as a path-filtered go-sdk.yml (add a `paths:` filter for go/** then).
+#
+# Every job runs on self-hosted runners only, on one of exactly two label sets:
+# [self-hosted, rh-linux] (build, test, lint) or [self-hosted, rh-gate] (the light
+# pr-check aggregate, so it never queues behind a test job). No GitHub-hosted
+# runner, no other label; test/ci/workflows_test.go enforces this.
+#
+# pr-check is the single required check for branch protection and the merge queue.
+# A pull request from a fork skips every other job (no untrusted code runs on a
+# self-hosted runner); pr-check still runs, executes no checkout and no fork code,
+# and fails because the needed jobs were skipped. A skipped required check would
+# count as passing on GitHub, so pr-check must not skip itself.
+name: go-sdk
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  merge_group:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: go-sdk-${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.ref || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  GOLANGCI_LINT_VERSION: v2.15.0
+  GOVULNCHECK_VERSION: v1.9.0
+
+jobs:
+  test:
+    name: test (go ${{ matrix.go }})
+    if: github.event.pull_request.head.repo.full_name == github.repository || github.event_name != 'pull_request'
+    runs-on: [self-hosted, rh-linux]
+    strategy:
+      fail-fast: false
+      matrix:
+        go: ['1.26.x', '1.27.x']
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
+        with:
+          go-version: ${{ matrix.go }}
+          cache: false
+      - name: Test root module
+        run: go test -race -count=1 ./...
+      - name: Test integration module
+        working-directory: test
+        run: go test -race -count=1 ./...
+
+  vet:
+    name: vet and gofmt (go ${{ matrix.go }})
+    if: github.event.pull_request.head.repo.full_name == github.repository || github.event_name != 'pull_request'
+    runs-on: [self-hosted, rh-linux]
+    strategy:
+      fail-fast: false
+      matrix:
+        go: ['1.26.x', '1.27.x']
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
+        with:
+          go-version: ${{ matrix.go }}
+          cache: false
+      - name: go vet (root module)
+        run: go vet ./...
+      - name: go vet (integration module)
+        working-directory: test
+        run: go vet ./...
+      - name: gofmt
+        run: |
+          unformatted="$(gofmt -l .)"
+          if [ -n "$unformatted" ]; then
+            echo "These files are not gofmt-clean:"
+            echo "$unformatted"
+            exit 1
+          fi
+
+  lint:
+    name: golangci-lint
+    if: github.event.pull_request.head.repo.full_name == github.repository || github.event_name != 'pull_request'
+    runs-on: [self-hosted, rh-linux]
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
+        with:
+          go-version: '1.26.x'
+          cache: false
+      - name: Install golangci-lint
+        run: |
+          go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@${GOLANGCI_LINT_VERSION}
+          echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
+      - name: Lint root module
+        run: golangci-lint run ./...
+      - name: Lint integration module
+        working-directory: test
+        run: golangci-lint run --config ../.golangci.yml ./...
+
+  govulncheck:
+    name: govulncheck
+    if: github.event.pull_request.head.repo.full_name == github.repository || github.event_name != 'pull_request'
+    runs-on: [self-hosted, rh-linux]
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
+        with:
+          go-version: '1.26.x'
+          cache: false
+      - name: Install govulncheck
+        run: |
+          go install golang.org/x/vuln/cmd/govulncheck@${GOVULNCHECK_VERSION}
+          echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
+      - name: Scan root module
+        run: govulncheck ./...
+      - name: Scan integration module
+        working-directory: test
+        run: govulncheck ./...
+
+  tidy:
+    name: go mod tidy
+    if: github.event.pull_request.head.repo.full_name == github.repository || github.event_name != 'pull_request'
+    runs-on: [self-hosted, rh-linux]
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
+        with:
+          go-version: '1.26.x'
+          cache: false
+      - name: Tidy both modules
+        run: |
+          go mod tidy
+          (cd test && go mod tidy)
+      - name: Fail on a diff
+        run: |
+          if ! git diff --exit-code -- go.mod go.sum test/go.mod test/go.sum; then
+            echo "go.mod or go.sum is not tidy. Run 'go mod tidy' in the root and in test/."
+            exit 1
+          fi
+
+  independence:
+    name: independence check
+    if: github.event.pull_request.head.repo.full_name == github.repository || github.event_name != 'pull_request'
+    runs-on: [self-hosted, rh-linux]
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      # The SDK implements SAP 0.3 and nothing else. It must not import any
+      # other github.com/bogworks/ module (its own module path is fine) and must
+      # not carry identifiers or concepts from outside the protocol.
+      - name: Check imports and identifiers
+        shell: bash
+        run: |
+          set -u
+          fail=0
+          # docs/mash-mapping.md is the one exemption: it maps a downstream
+          # consumer's code onto this SDK, so it has to name that consumer. It is
+          # not part of the upstream landing. No other path is exempt.
+          # Every tracked file is searched, not only *.go and *.md: grep -I skips
+          # binary files, so any tracked text file (YAML, JSON, scripts, notices)
+          # is covered. Names are NUL-separated so no path can split.
+          files() { git ls-files -z -- ':(exclude).github' ':(exclude)docs/mash-mapping.md'; }
+
+          echo "Checking imports of github.com/bogworks/ outside this module"
+          if git ls-files -- '*.go' ':(exclude).github' | xargs -r grep -nE '"github\.com/bogworks/' \
+              | grep -vE '"github\.com/bogworks/synadia-agents\.go(/|")'; then
+            echo "error: import of a github.com/bogworks/ package outside this module"
+            fail=1
+          fi
+
+          echo "Checking for identifiers from outside SAP 0.3"
+          if files | xargs -0 -r grep -InE 'SignInstance|SignUrgent|SignInReplyTo|SignVia'; then
+            echo "error: identifier from outside SAP 0.3"
+            fail=1
+          fi
+
+          echo "Checking for concepts from outside SAP 0.3"
+          # The consumer's name is searched in every tracked text file.
+          if files | xargs -0 -r grep -InwiE 'mash'; then
+            echo "error: 'mash' is not a protocol concept"
+            fail=1
+          fi
+          # "zone" stays on Go and Markdown sources: a data fixture may carry
+          # the word legitimately (an NTFS stream name). Go's time.Time.Zone()
+          # and "time zone" are not the protocol concept.
+          if git ls-files -z -- '*.go' '*.md' ':(exclude).github' ':(exclude)docs/mash-mapping.md' \
+              | xargs -0 -r grep -InwiE 'zone' | grep -viE '\.Zone\(|time ?zone|no zone'; then
+            echo "error: 'zone' used as a protocol concept"
+            fail=1
+          fi
+
+          echo "Checking for a 'mail' verb or endpoint literal"
+          if git ls-files -- '*.go' ':(exclude).github' ':(exclude)test/ci' | xargs -r grep -nE '"mail"'; then
+            echo "error: 'mail' is not a SAP verb or endpoint name"
+            fail=1
+          fi
+
+          exit "$fail"
+
+  catalog:
+    name: conformance catalog
+    if: github.event.pull_request.head.repo.full_name == github.repository || github.event_name != 'pull_request'
+    runs-on: [self-hosted, rh-linux]
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
+        with:
+          go-version: '1.26.x'
+          cache: false
+      - name: Catalog test
+        run: if [ -d conformance ]; then go test -race -count=1 ./conformance/... -run TestCatalog; else echo "no conformance package yet"; fi
+
+  # The one required check. It needs every job above, runs even when one fails or
+  # is skipped (always()), and passes only if every one succeeded. It checks out
+  # nothing, so a fork pull request runs no fork code here; the skipped jobs make
+  # it fail, which is the intended hold for a person to handle the fork.
+  pr-check:
+    name: pr-check
+    needs: [test, vet, lint, govulncheck, tidy, independence, catalog]
+    if: always()
+    timeout-minutes: 5
+    runs-on: [self-hosted, rh-gate]
+    steps:
+      - name: Every required job succeeded
+        env:
+          TEST: ${{ needs.test.result }}
+          VET: ${{ needs.vet.result }}
+          LINT: ${{ needs.lint.result }}
+          VULN: ${{ needs.govulncheck.result }}
+          TIDY: ${{ needs.tidy.result }}
+          INDEPENDENCE: ${{ needs.independence.result }}
+          CATALOG: ${{ needs.catalog.result }}
+        run: |
+          set -u
+          fail=0
+          for kv in "test=$TEST" "vet=$VET" "lint=$LINT" "govulncheck=$VULN" "tidy=$TIDY" "independence=$INDEPENDENCE" "catalog=$CATALOG"; do
+            echo "$kv"
+            [ "${kv#*=}" = success ] || fail=1
+          done
+          exit "$fail"

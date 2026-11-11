@@ -1,6 +1,7 @@
-# Mergify merge queue for bogworks/synadia-agents.go, modeled on bogworks/mash's .mergify.yml (its comments explain each choice).
-# The checks named here are the herd's ci.yml job names plus the codex-review commit status the review watcher posts. When the
-# herd adds label-reset and adr-lint workflows like mash's, add them to queue_conditions below.
+# Mergify merge queue for bogworks/synadia-agents.go: a serial queue, one batch at a time, that merges a pull request only
+# after the required checks pass; the comments below explain each choice.
+# The checks named here are the go-sdk.yml pr-check job, the label-reset and adr-lint workflow jobs, and the codex-review
+# commit status the review watcher posts.
 merge_queue:
   mode: serial
   max_parallel_checks: 1
@@ -12,7 +13,8 @@ merge_protections_settings:
 
 queue_rules:
   - name: default
-    # To enter the queue: CI green (pr-check), the watcher's codex-review, and a recorded approval by the maintainer or the
+    # To enter the queue: CI green (pr-check), label-reset and adr-lint (each runs on every head, so a head without a green
+    # one cannot enter), the watcher's codex-review, and a recorded approval by the maintainer or the
     # lead's `lead-approved` label. Authorship is not a condition (agents push as the maintainer's login). `hold` is the brake.
     queue_conditions:
       - base = main
@@ -21,6 +23,8 @@ queue_rules:
       - label != hold
       - check-success = codex-review
       - check-success = pr-check
+      - check-success = label-reset
+      - check-success = adr-lint
       - or:
           - approved-reviews-by = randybias
           - label = lead-approved

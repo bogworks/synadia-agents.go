@@ -1,0 +1,65 @@
+# Copyright 2026 The synadia-agents.go Authors
+# SPDX-License-Identifier: Apache-2.0
+#
+# The lead-approved label lets a pull request into the merge queue (.mergify.yml), and adr-lint accepts the
+# decision-confirmed label even when it was applied to an earlier head. Neither may cover code pushed after it was
+# applied, so this removes both on every push, again on reopen, and on open too: a label preset at open (a pull request
+# can be created with labels) does not count. Running on open also means the label-reset check exists on every head:
+# the queue requires it (fail closed), and a head with no green label-reset check cannot enter.
+#
+# Trust: pull_request_target gives a token that can edit labels on a pull request from a fork, and runs THIS file from
+# the base branch. So there is no checkout and nothing from the pull request is built, sourced or run; the only input
+# is the pull request number from the event, passed through env, never through the text of the script. A pull request
+# from a fork is therefore not skipped: its labels are reset like any other.
+# It runs on the gate runners ([self-hosted, rh-gate]); no GitHub-hosted runner is used. If no runner with those labels
+# is online the job never starts, the label-reset check never appears and the queue condition keeps the pull request
+# out (fail closed).
+# The workflow token is read-only; the one job holds pull-requests: write (edit labels) and contents: read and nothing
+# else. Nothing here swallows an error: a failed API call fails the job.
+name: label-reset
+
+on:
+  pull_request_target:
+    types: [opened, reopened, synchronize]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: label-reset-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+
+jobs:
+  label-reset:
+    name: label-reset
+    runs-on: [self-hosted, rh-gate]
+    timeout-minutes: 5
+    permissions:
+      pull-requests: write
+      contents: read
+    steps:
+      - name: Remove lead-approved and decision-confirmed
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          PR: ${{ github.event.pull_request.number }}
+          LABELS: |
+            lead-approved
+            decision-confirmed
+        run: |
+          set -euo pipefail
+          # The current labels, not the event payload's snapshot, which can be stale.
+          current=$(gh pr view "$PR" --json labels --jq '.labels[].name')
+          for label in $LABELS; do
+            if printf '%s\n' "$current" | grep -Fxq -- "$label"; then
+              gh pr edit "$PR" --remove-label "$label"
+            fi
+          done
+          # Read again: a label re-applied while this ran, or a removal that did not take, must fail the job.
+          after=$(gh pr view "$PR" --json labels --jq '.labels[].name')
+          for label in $LABELS; do
+            if printf '%s\n' "$after" | grep -Fxq -- "$label"; then
+              echo "label $label is still set after the removal" >&2
+              exit 1
+            fi
+          done
