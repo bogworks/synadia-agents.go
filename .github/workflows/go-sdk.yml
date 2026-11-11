@@ -250,13 +250,29 @@ jobs:
           SAP_REQUIRE_SPEC: 'true'
         run: if [ -d conformance ]; then go test -race -count=1 ./conformance/... -run TestCatalog; else echo "no conformance package yet"; fi
 
+  mutate:
+    name: mutation run
+    if: github.event.pull_request.head.repo.full_name == github.repository || github.event_name != 'pull_request'
+    runs-on: [self-hosted, rh-linux]
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
+        with:
+          go-version: '1.26.x'
+          cache: false
+      - name: Mutation run
+        run: go run ./internal/cmd/mutate
+
   # The one required check. It needs every job above, runs even when one fails or
   # is skipped (always()), and passes only if every one succeeded. It checks out
   # nothing, so a fork pull request runs no fork code here; the skipped jobs make
   # it fail, which is the intended hold for a person to handle the fork.
   pr-check:
     name: pr-check
-    needs: [test, vet, lint, govulncheck, tidy, independence, catalog]
+    needs: [test, vet, lint, govulncheck, tidy, independence, catalog, mutate]
     if: always()
     timeout-minutes: 5
     runs-on: [self-hosted, rh-gate]
@@ -270,10 +286,11 @@ jobs:
           TIDY: ${{ needs.tidy.result }}
           INDEPENDENCE: ${{ needs.independence.result }}
           CATALOG: ${{ needs.catalog.result }}
+          MUTATE: ${{ needs.mutate.result }}
         run: |
           set -u
           fail=0
-          for kv in "test=$TEST" "vet=$VET" "lint=$LINT" "govulncheck=$VULN" "tidy=$TIDY" "independence=$INDEPENDENCE" "catalog=$CATALOG"; do
+          for kv in "test=$TEST" "vet=$VET" "lint=$LINT" "govulncheck=$VULN" "tidy=$TIDY" "independence=$INDEPENDENCE" "catalog=$CATALOG" "mutate=$MUTATE"; do
             echo "$kv"
             [ "${kv#*=}" = success ] || fail=1
           done
