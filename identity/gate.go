@@ -191,16 +191,16 @@ func (g *Gate) classifyDeferred(msg Message) (*Sender, func() *Error, error) {
 }
 
 // AdmitPrompt runs the full admission of a prompt request, in this order:
-// header parse (400), ts, sub, nonce lookup, signature and the atomic nonce
-// record (401 for a replay, a full set or a sender over its quota), then
-// min_sender_trust (401 when signed is required and the sender is not
-// verified), the admission hook (403, 401 or 500), and last the atomic nonce
-// record. The nonce is recorded only after the signature, [GateOptions.PreAccept],
-// min_sender_trust and the hook all passed, so a stale or transplanted header,
-// or a request refused by policy, cannot poison the set or consume its capacity.
-// A known replay is still refused early (the Seen check), and the final record
-// is atomic, so concurrent identical requests are admitted at most once. Every
-// refusal is logged with its detail.
+// header parse (400); ts, sub and the nonce Seen lookup; signature
+// verification (401); [GateOptions.PreAccept] if set (403); min_sender_trust (401
+// when signed is required and the sender is not verified); the admission hook
+// (403, 401 or 500); and last the atomic nonce record, where a replay, a full
+// set or a sender over its quota is 401. The nonce is recorded only after the
+// signature, PreAccept, min_sender_trust and the hook all passed, so a stale
+// or transplanted header, or a request refused by policy, cannot poison the
+// set or consume its capacity. A known replay is still refused early (the Seen
+// check), and the final record is atomic, so concurrent identical requests are
+// admitted at most once. Every refusal is logged with its detail.
 func (g *Gate) AdmitPrompt(ctx context.Context, msg Message) Admission {
 	sender, commit, err := g.classifyDeferred(msg)
 	if err != nil {

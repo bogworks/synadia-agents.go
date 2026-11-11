@@ -6,9 +6,9 @@ Checklist for a release, in order. Do not tag until every box is ticked.
       modules, the conformance catalog check, and the interoperability tests
       (the `interop` workflow, `interop-check` green, with
       `SAP_INTEROP_REQUIRED=1` so no scenario is skipped).
-- [ ] Mutation run passes (required before a release, AT-002):
-      `go run ./internal/cmd/mutate`. Every fault in `conformance/catalog.json`
-      is killed by a linked test, and no mutation is reported `timeout` or
+- [ ] Mutation run passes (required before a release, AT-002; CI runs it on
+      every PR as the `mutate` job): `go run ./internal/cmd/mutate`. Every
+      fault in `conformance/catalog.json` is killed by a linked test, and no mutation is reported `timeout` or
       `ERROR`, and the summary line shows 0 timeout, 0 survived or errored. See [conformance/README.md](conformance/README.md), "Mutation
       testing". Record the result (faults run, killed, seconds) in the release
       notes.
