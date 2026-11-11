@@ -1,0 +1,8 @@
+# Pins for the interop harness (AT-003). Read by setup.sh and, through go:embed, by the Go helpers.
+# KEY=VALUE, one per line; comments start with '#'.
+UPSTREAM_REPO=https://github.com/synadia-ai/synadia-agents
+UPSTREAM_SHA=a1bfb4755c3d902a8ccb8b679ddaf53ebf6fa2d9
+# Python the official SDKs run on (uv fetches it if absent). The SDKs support 3.11 to 3.13.
+PYTHON_VERSION=3.13
+# Node: the TS packages declare engines node >= 20. setup.sh refuses anything older and records the exact version used.
+NODE_MIN_MAJOR=20

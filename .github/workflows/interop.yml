@@ -1,0 +1,80 @@
+# Copyright 2026 The synadia-agents.go Authors
+# SPDX-License-Identifier: Apache-2.0
+#
+# Interop tests (AT-003): this SDK against the official TypeScript and Python
+# SDKs at the commit pinned in test/interop/PINNED, over a real nats-server.
+#
+# This job is required for a release (see RELEASING.md): the tests skip when the
+# interop cache is missing, and SAP_INTEROP_REQUIRED=1 turns every skip into a
+# failure, so a green run here means every interop scenario ran and passed.
+#
+# Same rules as go-sdk.yml: self-hosted runners with exactly [self-hosted, rh-linux]
+# (rh-gate for the pr-check aggregate), actions pinned by full commit SHA, a
+# pull request from a fork skips the job (no untrusted code on a self-hosted
+# runner), and test/ci/workflows_test.go enforces all of it. The job installs
+# node 22 (setup.sh needs >= 20) and uv with their setup actions, pinned by SHA
+# with caching off; setup.sh installs from the committed locks in
+# test/interop/locks and fetches only what those locks name.
+name: interop
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  merge_group:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: interop-${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.ref || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  interop:
+    name: interop (official TypeScript and Python SDKs)
+    if: github.event.pull_request.head.repo.full_name == github.repository || github.event_name != 'pull_request'
+    runs-on: [self-hosted, rh-linux]
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
+        with:
+          go-version: '1.26.x'
+          cache: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '22'
+      - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6.8.0
+        with:
+          version: '0.13.7'
+          python-version: '3.13'
+          enable-cache: false
+      - name: Fetch and build the official SDKs
+        run: test/interop/setup.sh
+      - name: Interop tests
+        working-directory: test
+        env:
+          SAP_INTEROP_REQUIRED: '1'
+        run: go test -count=1 ./interop/...
+
+  # Aggregate for the merge queue, as in go-sdk.yml. It runs even when interop
+  # fails or is skipped (always()), checks out nothing, and fails unless interop
+  # succeeded, so a fork pull request (job skipped) is held for a person.
+  pr-check:
+    name: interop-check
+    needs: [interop]
+    if: always()
+    timeout-minutes: 5
+    runs-on: [self-hosted, rh-gate]
+    steps:
+      - name: Interop succeeded
+        env:
+          INTEROP: ${{ needs.interop.result }}
+        run: |
+          set -u
+          echo "interop=$INTEROP"
+          [ "$INTEROP" = success ]

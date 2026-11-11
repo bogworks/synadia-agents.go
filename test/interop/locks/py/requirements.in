@@ -1,0 +1,12 @@
+# Runtime dependencies of the two official Python packages.
+nats-py>=2.7
+pydantic>=2.5
+nkeys>=0.2
+pynacl>=1.5
+# Build backend of both packages (build-system.requires), installed from the lock so
+# the editable installs can run with --no-build-isolation and resolve nothing.
+hatchling
+hatchling
+# hatchling imports this to build editable installs (it is not in hatchling's own
+# dependencies), which setup.sh needs under --no-build-isolation.
+editables
