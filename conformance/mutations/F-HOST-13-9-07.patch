@@ -1,0 +1,23 @@
+--- a/host/dispatch.go
++++ b/host/dispatch.go
+@@ -345,13 +345,19 @@
+ 	if !h.replyAllowed(req, "status") || !h.running() {
+ 		return
+ 	}
++	refused := false
+ 	func() {
+ 		defer func() { _ = recover() }()
+ 		res := h.gate.ClassifyStatus(identity.Message{
+ 			Subject: req.Subject(), Data: req.Data(), Header: natsHeader(req.Headers()),
+ 		})
+ 		h.log.Debug("status request", "sender", res.Sender.Describe())
+-	}()
++		refused = res.Rejection != nil
++	}()
++	if refused {
++		_ = req.Error("401", "signature required", nil)
++		return
++	}
+ 	_, data, err := h.buildHeartbeat()
+ 	if err != nil {
+ 		h.log.Error("status handler failed")

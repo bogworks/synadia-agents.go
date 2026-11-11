@@ -1,0 +1,79 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/bogworks/synadia-agents.go/conformance/catalog.schema.json",
+  "title": "SAP conformance catalog",
+  "description": "Every normative statement of the pinned SAP revision, split into atomic obligations, with the tests that cover each.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["catalog_version", "spec", "entries"],
+  "properties": {
+    "catalog_version": { "const": 1 },
+    "spec": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "version", "repo", "commit", "path", "sha256", "lines"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "version": { "type": "string", "minLength": 1 },
+        "repo": { "type": "string", "format": "uri" },
+        "commit": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+        "path": { "type": "string", "minLength": 1 },
+        "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+        "lines": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "entries": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/entry" }
+    }
+  },
+  "$defs": {
+    "entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "section", "spec_line", "level", "role", "summary", "capability", "tests", "status"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^SAP-[0-9A-Z]+(\\.[0-9]+)*-[0-9]{2,}$" },
+        "section": { "type": "string", "pattern": "^([0-9]+(\\.[0-9]+)*|[A-Z](\\.[0-9]+[a-z]?)?)$" },
+        "spec_line": { "type": "integer", "minimum": 1 },
+        "level": { "enum": ["MUST", "MUST NOT", "SHOULD", "SHOULD NOT", "MAY", "RECOMMENDED", "WIRE"] },
+        "role": { "enum": ["caller", "host", "both", "operator"] },
+        "summary": { "type": "string", "minLength": 1, "maxLength": 220 },
+        "capability": { "enum": ["black-box", "needs-configuration", "sdk-internal", "not-applicable"] },
+        "not_applicable_reason": { "type": "string", "minLength": 1 },
+        "same_as": { "type": "string", "pattern": "^SAP-" },
+        "tests": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "type": "string", "pattern": "^([A-Za-z0-9_./-]+:)?Test[A-Za-z0-9_]*$" }
+        },
+        "fault_id": { "type": "string", "pattern": "^F-[A-Z0-9-]+$" },
+        "mutation": { "type": "string", "minLength": 1 },
+        "assertion_note": { "type": "string", "minLength": 1 },
+        "deferred_reason": { "type": "string", "minLength": 1 },
+        "tracking": { "type": "string", "minLength": 1 },
+        "status": { "enum": ["planned", "covered", "not-applicable", "deferred"] }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "capability": { "const": "not-applicable" } }, "required": ["capability"] },
+          "then": {
+            "required": ["not_applicable_reason"],
+            "properties": { "status": { "const": "not-applicable" }, "tests": { "maxItems": 0 } }
+          },
+          "else": {
+            "not": { "required": ["not_applicable_reason"] },
+            "properties": { "status": { "enum": ["planned", "covered", "deferred"] } }
+          }
+        },
+        {
+          "if": { "properties": { "status": { "const": "deferred" } }, "required": ["status"] },
+          "then": { "required": ["deferred_reason", "tracking"] },
+          "else": { "not": { "anyOf": [{ "required": ["deferred_reason"] }, { "required": ["tracking"] }] } }
+        },
+        { "dependentRequired": { "fault_id": ["mutation"], "mutation": ["fault_id"] } }
+      ]
+    }
+  }
+}

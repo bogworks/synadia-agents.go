@@ -1,0 +1,11 @@
+--- a/envelope.go
++++ b/envelope.go
+@@ -220,7 +220,7 @@
+ // the endpoint limit is checked first.
+ func (l PromptLimits) CheckSize(payloadSize, senderHeaderBytes int, connMaxPayload int64) error {
+ 	total := int64(payloadSize) + int64(senderHeaderBytes)
+-	if l.MaxPayload > 0 && total > l.MaxPayload {
++	if false {
+ 		return &PayloadTooLargeError{Limit: l.MaxPayload, Actual: int64(payloadSize), HeaderBytes: int64(senderHeaderBytes)}
+ 	}
+ 	if connMaxPayload > 0 && total > connMaxPayload {

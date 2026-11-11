@@ -1,0 +1,11 @@
+--- a/caller/stream.go
++++ b/caller/stream.go
+@@ -88,7 +88,7 @@
+ func (s *Stream) startTimers() {
+ 	s.tmu.Lock()
+ 	defer s.tmu.Unlock()
+-	s.inactT = time.AfterFunc(s.inactivity, func() { s.expire(&agents.StreamStalledError{Timeout: s.inactivity}) })
++	s.inactT = time.AfterFunc(s.inactivity, func() {})
+ 	s.maxT = time.AfterFunc(s.maxWait, func() { s.expire(&MaxWaitError{MaxWait: s.maxWait}) })
+ }
+ 

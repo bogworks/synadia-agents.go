@@ -1,0 +1,13 @@
+--- a/host/dispatch.go
++++ b/host/dispatch.go
+@@ -353,6 +353,10 @@
+ 		h.log.Debug("status request", "sender", res.Sender.Describe())
+ 	}()
+ 	_, data, err := h.buildHeartbeat()
++	if len(req.Data()) > 0 {
++		_ = req.Error("400", descMalformed, nil)
++		return
++	}
+ 	if err != nil {
+ 		h.log.Error("status handler failed")
+ 		_ = req.Error("500", descStatus, nil)

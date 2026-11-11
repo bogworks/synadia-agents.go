@@ -1,0 +1,11 @@
+--- a/discovery.go
++++ b/discovery.go
+@@ -69,7 +69,7 @@
+ 	if pv == "" {
+ 		pv = ProtocolVersion
+ 	}
+-	out := map[string]string{MetaAgent: m.Agent, MetaOwner: m.Owner, MetaProtocolVersion: pv}
++	out := map[string]string{MetaOwner: m.Owner, MetaProtocolVersion: pv}
+ 	if m.Session != "" {
+ 		out[MetaSession] = m.Session
+ 	}

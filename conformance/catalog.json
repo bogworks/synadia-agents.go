@@ -1,0 +1,4171 @@
+{
+ "catalog_version": 1,
+ "spec": {
+  "name": "Synadia Agent Protocol for NATS",
+  "version": "0.3.0",
+  "repo": "https://github.com/synadia-ai/synadia-agent-sdk-docs",
+  "commit": "c48cea5f07965cc8fd4054e120459f1833b3ed2b",
+  "path": "core-protocol.md",
+  "sha256": "5371619a0cb0da7b1a3d403eb151dd23c1d416c6d79bde7ffdb81f506ad4f523",
+  "lines": 1321
+ },
+ "entries": [
+  {
+   "id": "SAP-1.1-01",
+   "section": "1.1",
+   "spec_line": 28,
+   "level": "WIRE",
+   "role": "both",
+   "summary": "Defines the meaning of the normative keywords (RFC 2119, RFC 8174).",
+   "capability": "not-applicable",
+   "not_applicable_reason": "Definition of terms; no behaviour to test.",
+   "tests": [],
+   "status": "not-applicable"
+  },
+  {
+   "id": "SAP-2-01",
+   "section": "2",
+   "spec_line": 56,
+   "level": "MUST NOT",
+   "role": "both",
+   "summary": "The reserved verb tokens (prompt, hb, status, attachments) are not used for any other purpose.",
+   "capability": "sdk-internal",
+   "tests": [
+    "test/host:TestEndpoints_ReservedVerbsRefused"
+   ],
+   "status": "covered",
+   "fault_id": "F-HOST-2-01",
+   "mutation": "Allow an extra endpoint to take a reserved verb name (hb, attachments, prompt, status)."
+  },
+  {
+   "id": "SAP-2-02",
+   "section": "2",
+   "spec_line": 57,
+   "level": "SHOULD",
+   "role": "host",
+   "summary": "The agent subject token is the harness identifier or an abbreviation of metadata.agent.",
+   "capability": "black-box",
+   "tests": [
+    "test/host:TestRegistration_SessionAndExtraMetadata"
+   ],
+   "status": "covered"
+  },
+  {
+   "id": "SAP-2-03",
+   "section": "2",
+   "spec_line": 58,
+   "level": "SHOULD",
+   "role": "host",
+   "summary": "The owner subject token matches metadata.owner.",
+   "capability": "black-box",
+   "tests": [
+    "test/host:TestRegistration_SessionAndExtraMetadata"
+   ],
+   "status": "covered"
+  },
+  {
+   "id": "SAP-2-04",
+   "section": "2",
+   "spec_line": 61,
+   "level": "MUST",
+   "role": "host",
+   "summary": "Each registered endpoint's name equals its verb token, as reported in the $SRV.INFO record.",
+   "capability": "black-box",
+   "tests": [
+    "test/host:TestRegistration_Endpoints"
+   ],
+   "status": "covered",
+   "fault_id": "F-HOST-2-04",
+   "mutation": "Register an endpoint under a name that differs from its verb token."
+  },
+  {
+   "id": "SAP-2-05",
+   "section": "2",
+   "spec_line": 65,
+   "level": "WIRE",
+   "role": "host",
+   "summary": "The default prompt subject has the form agents.prompt.{agent}.{owner}.{name}.",
+   "capability": "black-box",
+   "tests": [
+    "test/host:TestRegistration_Endpoints"
+   ],
+   "status": "covered"
+  },
+  {
+   "id": "SAP-2-06",
+   "section": "2",
+   "spec_line": 66,
+   "level": "WIRE",
+   "role": "host",
+   "summary": "The heartbeat subject is protocol-fixed and cannot be overridden.",
+   "capability": "black-box",
+   "same_as": "SAP-8.1-01",
+   "tests": [],
+   "status": "covered"
+  },
+  {
+   "id": "SAP-2-07",
+   "section": "2",
+   "spec_line": 67,
+   "level": "WIRE",
+   "role": "host",
+   "summary": "The default status subject has the form agents.status.{agent}.{owner}.{name}.",
+   "capability": "black-box",
+   "tests": [
+    "test/host:TestRegistration_Endpoints"
+   ],
+   "status": "covered"
+  },
+  {
+   "id": "SAP-2-08",
+   "section": "2",
+   "spec_line": 68,
+   "level": "WIRE",
+   "role": "host",
+   "summary": "The default attachments subject has the form agents.attachments.{agent}.{owner}.{name}.",
+   "capability": "not-applicable",
+   "not_applicable_reason": "The attachments endpoint is deferred in 0.3 (SAP 5.5); there is nothing to implement.",
+   "tests": [],
+   "status": "not-applicable"
+  },
+  {
+   "id": "SAP-2-09",
+   "section": "2",
+   "spec_line": 72,
+   "level": "MUST",
+   "role": "host",
+   "summary": "The agent registers an endpoint whose name is prompt.",
+   "capability": "black-box",
+   "tests": [
+    "test/host:TestRegistration_Endpoints"
+   ],
+   "status": "covered",
+   "fault_id": "F-HOST-2-09",
+   "mutation": "Skip registering the prompt endpoint."
+  },
+  {
+   "id": "SAP-2-10",
+   "section": "2",
+   "spec_line": 73,
+   "level": "MUST",
+   "role": "host",
+   "summary": "The agent registers an endpoint whose name is status.",
+   "capability": "black-box",
+   "tests": [
+    "test/host:TestRegistration_Endpoints"
+   ],
+   "status": "covered",
+   "fault_id": "F-HOST-2-10",
+   "mutation": "Skip registering the status endpoint."
+  },
+  {
+   "id": "SAP-2-11",
+   "section": "2",
+   "spec_line": 74,
+   "level": "MUST",
+   "role": "host",
+   "summary": "An agent that exposes the future artifact endpoint names it attachments.",
+   "capability": "not-applicable",
+   "not_applicable_reason": "The attachments endpoint is deferred in 0.3 (SAP 5.5) and the SDK does not expose it.",
+   "tests": [],
+   "status": "not-applicable"
+  },
+  {
+   "id": "SAP-2-12",
+   "section": "2",
+   "spec_line": 76,
+   "level": "MUST",
+   "role": "caller",
+   "summary": "The caller learns endpoint subjects from $SRV.INFO.agents.",
+   "capability": "black-box",
+   "fault_id": "F-SUBJECT-FROM-IDENTITY",
+   "mutation": "build the prompt subject from identity instead of discovery",
+   "status": "covered",
+   "tests": [
+    "test/caller:TestPrompt_UsesTheDiscoveredSubject"
+   ]
+  },
+  {
+   "id": "SAP-2-13",
+   "section": "2",
+   "spec_line": 76,
+   "level": "MUST NOT",
+   "role": "caller",
+   "summary": "The caller does not build an endpoint subject from identity alone.",
+   "capability": "black-box",
+   "fault_id": "F-SUBJECT-FROM-IDENTITY",
+   "mutation": "build the prompt subject from identity instead of discovery",
+   "status": "covered",
+   "tests": [
+    "test/caller:TestPrompt_UsesTheDiscoveredSubject"
+   ]
+  },
+  {
+   "id": "SAP-2-14",
+   "section": "2",
+   "spec_line": 76,
+   "level": "WIRE",
+   "role": "caller",
+   "summary": "A caller can listen for heartbeats on agents.hb.*.*.* without a prior lookup.",
+   "capability": "black-box",
+   "status": "covered",
+   "tests": [
+    "test/caller:TestTracker_ListensWithoutLookup"
+   ]
+  },
+  {
+   "id": "SAP-2.1-01",
+   "section": "2.1",
+   "spec_line": 80,
+   "level": "MUST",
+   "role": "host",
+   "summary": "The prompt endpoint registration declares endpoint metadata.",
+   "capability": "black-box",
+   "tests": [
+    "test/host:TestRegistration_PromptMetadata"
+   ],
+   "status": "covered",
+   "fault_id": "F-HOST-2-1-01",
+   "mutation": "Register the prompt endpoint without endpoint metadata."
+  },
+  {
+   "id": "SAP-2.1-02",
+   "section": "2.1",
+   "spec_line": 91,
+   "level": "WIRE",
+   "role": "host",
+   "summary": "The metadata key max_payload is a required string: a whole number above zero with a unit suffix of B, KB, MB or GB.",
+   "capability": "black-box",
+   "tests": [
+    "test/host:TestRegistration_PromptMetadata"
+   ],
+   "status": "covered"
+  },
+  {
+   "id": "SAP-2.1-03",
+   "section": "2.1",
+   "spec_line": 91,
+   "level": "MUST",
+   "role": "caller",
+   "summary": "The caller enforces max_payload locally.",
+   "capability": "black-box",
+   "same_as": "SAP-5.4-03",
+   "tests": [],
+   "status": "covered"
+  },
+  {
+   "id": "SAP-2.1-04",
+   "section": "2.1",
+   "spec_line": 92,
+   "level": "WIRE",
+   "role": "host",
+   "summary": "The metadata key attachments_ok is required and says whether attachments are accepted.",
+   "capability": "black-box",
+   "tests": [
+    "test/host:TestRegistration_PromptMetadata"
+   ],
+   "status": "covered"
+  },
+  {
+   "id": "SAP-2.1-05",
+   "section": "2.1",
+   "spec_line": 92,
+   "level": "MUST NOT",
+   "role": "caller",
+   "summary": "The caller sends no attachments when attachments_ok is false.",
+   "capability": "black-box",
+   "same_as": "SAP-5.4-02",
+   "tests": [],
+   "status": "covered"
+  },
+  {
+   "id": "SAP-2.1-06",
+   "section": "2.1",
+   "spec_line": 92,
+   "level": "WIRE",
+   "role": "caller",
+   "summary": "When attachments_ok is false, plain text and JSON without attachments remain valid requests.",
+   "capability": "black-box",
+   "status": "covered",
+   "tests": [
+    "test/caller:TestPrompt_AttachmentsNotAcceptedStillTakesText"
+   ]
+  },
+  {
+   "id": "SAP-2.2-01",
+   "section": "2.2",
+   "spec_line": 96,
+   "level": "MUST",
+   "role": "host",
+   "summary": "Subject tokens conform to NATS subject naming rules.",
+   "capability": "black-box",
+   "tests": [
+    "TestToken_MustRules"
+   ],
+   "fault_id": "F-SUBJ-2-2-01",
+   "mutation": "ValidateToken accepts a token containing '.', '*', '>', whitespace or NUL.",
+   "status": "covered"
+  },
+  {
+   "id": "SAP-2.2-02",
+   "section": "2.2",
+   "spec_line": 98,
+   "level": "MUST NOT",
+   "role": "host",
+   "summary": "A subject token does not begin with a dollar sign.",
+   "capability": "black-box",
+   "tests": [
+    "TestToken_MustRules"
+   ],
+   "fault_id": "F-SUBJ-2-2-02",
+   "mutation": "ValidateToken accepts a token that begins with '$'.",
+   "status": "covered"
+  },
+  {
+   "id": "SAP-2.2-03",
+   "section": "2.2",
+   "spec_line": 99,
+   "level": "SHOULD",
+   "role": "host",
+   "summary": "Tokens use only a-z, 0-9, hyphen and underscore.",
+   "capability": "black-box",
+   "tests": [
+    "TestToken_ShouldRulesAreWarningsOrStrict"
+   ],
+   "status": "covered"
+  },
+  {
+   "id": "SAP-2.2-04",
+   "section": "2.2",
+   "spec_line": 100,
+   "level": "SHOULD",
+   "role": "host",
+   "summary": "Each token is 1 to 63 characters long.",
+   "capability": "black-box",
+   "tests": [
+    "TestToken_ShouldRulesAreWarningsOrStrict"
+   ],
+   "status": "covered"
+  },
+  {
+   "id": "SAP-2.2-05",
+   "section": "2.2",
+   "spec_line": 100,
+   "level": "SHOULD",
+   "role": "host",
+   "summary": "A fully qualified subject stays under 256 characters.",
+   "capability": "black-box",
+   "tests": [
+    "TestToken_SubjectLengthWarning"
+   ],
+   "status": "covered"
+  },
+  {
+   "id": "SAP-2.4-01",
+   "section": "2.4",
+   "spec_line": 132,
+   "level": "SHOULD",
+   "role": "operator",
+   "summary": "A deployment commits to one convention (full or abbreviated agent token) per metadata.agent value.",
+   "capability": "not-applicable",
+   "not_applicable_reason": "Deployment practice; the SDK cannot observe or enforce a fleet-wide convention.",
+   "tests": [],
+   "status": "not-applicable"
+  },
+  {
+   "id": "SAP-3-01",
+   "section": "3",
+   "spec_line": 138,
+   "level": "MUST",
+   "role": "host",
+   "summary": "Every agent registers as a NATS micro service.",
+   "capability": "black-box",
+   "tests": [
+    "test/host:TestRegistration_ServiceRecord"
+   ],
+   "status": "covered",
+   "fault_id": "F-HOST-3-01",
+   "mutation": "Register the agent as something other than a micro service (no micro service record)."
+  },
+  {
+   "id": "SAP-3.1-01",
+   "section": "3.1",
+   "spec_line": 144,
+   "level": "MUST",
+   "role": "host",
+   "summary": "The service name is the literal agents.",
+   "capability": "black-box",
+   "tests": [
+    "test/host:TestRegistration_ServiceRecord"
+   ],
+   "status": "covered",
+   "fault_id": "F-HOST-3-1-01",
+   "mutation": "Register the service under a name other than agents."
+  },
+  {
+   "id": "SAP-3.1-02",
+   "section": "3.1",
+   "spec_line": 145,
+   "level": "WIRE",
+   "role": "host",
+   "summary": "The service version is a semver of the harness implementation.",
+   "capability": "black-box",
+   "tests": [
+    "test/host:TestRegistration_ServiceRecord"
+   ],
+   "status": "covered"
+  },
+  {
+   "id": "SAP-3.1-03",
+   "section": "3.1",
+   "spec_line": 146,
+   "level": "WIRE",
+   "role": "host",
+   "summary": "The service carries a human-readable description.",
+   "capability": "black-box",
+   "tests": [
+    "test/host:TestRegistration_DefaultDescription",
+    "test/host:TestRegistration_ServiceRecord"
+   ],
+   "status": "covered"
+  },
+  {
+   "id": "SAP-3.1-04",
+   "section": "3.1",
+   "spec_line": 147,
+   "level": "WIRE",
+   "role": "host",
+   "summary": "The service metadata is an object.",
+   "capability": "black-box",
+   "tests": [
+    "test/host:TestRegistration_ServiceRecord"
+   ],
+   "status": "covered"
+  },
+  {
+   "id": "SAP-3.2-01",
+   "section": "3.2",
+   "spec_line": 151,
+   "level": "MUST",
+   "role": "host",
+   "summary": "The service metadata includes the key agent as a string.",
+   "capability": "black-box",
+   "tests": [
+    "test/host:TestRegistration_ServiceRecord"
+   ],
+   "status": "covered",
+   "fault_id": "F-HOST-3-2-01",
+   "mutation": "Leave metadata.agent out of the service registration."
+  },
+  {
+   "id": "SAP-3.2-02",
+   "section": "3.2",
+   "spec_line": 151,
+   "level": "MUST",
+   "role": "host",
+   "summary": "The service metadata includes the key owner as a string.",
+   "capability": "black-box",
+   "tests": [
+    "test/host:TestRegistration_ServiceRecord"
+   ],
+   "status": "covered",
+   "fault_id": "F-HOST-3-2-02",
+   "mutation": "Leave metadata.owner out of the service registration."
+  },
+  {
+   "id": "SAP-3.2-03",
+   "section": "3.2",
+   "spec_line": 151,
+   "level": "MUST",
+   "role": "host",
+   "summary": "The service metadata includes the key protocol_version as a string.",
+   "capability": "black-box",
+   "tests": [
+    "test/host:TestRegistration_ServiceRecord"
+   ],
+   "status": "covered",
+   "fault_id": "F-HOST-3-2-03",
+   "mutation": "Leave metadata.protocol_version out of the service registration."
+  },
+  {
+   "id": "SAP-3.2-04",
+   "section": "3.2",
+   "spec_line": 164,
+   "level": "MAY",
+   "role": "host",
+   "summary": "The agent subject token may be an abbreviation of metadata.agent.",
+   "capability": "black-box",
+   "tests": [
+    "test/host:TestRegistration_SessionAndExtraMetadata"
+   ],
+   "status": "covered"
+  },
+  {
+   "id": "SAP-3.2-05",
+   "section": "3.2",
+   "spec_line": 165,
+   "level": "WIRE",
+   "role": "host",
+   "summary": "metadata.owner equals the owner subject token.",
+   "capability": "black-box",
+   "tests": [
+    "test/host:TestRegistration_SessionAndExtraMetadata"
+   ],
+   "status": "covered"
+  },
+  {
+   "id": "SAP-3.2-06",
+   "section": "3.2",
+   "spec_line": 166,
+   "level": "MUST",
+   "role": "host",
+   "summary": "A session-aware harness sets metadata.session.",
+   "capability": "needs-configuration",
+   "tests": [
+    "test/host:TestRegistration_SessionAndExtraMetadata"
+   ],
+   "status": "covered",
+   "fault_id": "F-HOST-3-2-06",
+   "mutation": "Drop WithSession from the registered metadata."
+  },
+  {
+   "id": "SAP-3.2-07",
+   "section": "3.2",
+   "spec_line": 166,
+   "level": "MAY",
+   "role": "host",
+   "summary": "A session-less harness may omit metadata.session or set it to default.",
+   "capability": "needs-configuration",
+   "tests": [
+    "test/host:TestRegistration_SessionAndExtraMetadata"
+   ],
+   "status": "covered"
+  },
+  {
+   "id": "SAP-3.2-08",
+   "section": "3.2",
+   "spec_line": 167,
+   "level": "MUST",
+   "role": "host",
+   "summary": "metadata.protocol_version matches a MAJOR.MINOR value from the known-versions table.",
+   "capability": "black-box",
+   "tests": [
+    "test/host:TestRegistration_SessionAndExtraMetadata"
+   ],
+   "status": "covered",
+   "fault_id": "F-HOST-3-2-08",
+   "mutation": "Register a protocol_version that is not a known MAJOR.MINOR."
+  },
+  {
+   "id": "SAP-3.2-09",
+   "section": "3.2",
+   "spec_line": 169,
+   "level": "WIRE",
+   "role": "caller",
+   "summary": "The caller reads the instance name from the fifth token of an endpoint subject, since metadata does not carry it.",
+   "capability": "sdk-internal",
+   "status": "covered",
+   "tests": [
+    "test/caller:TestDiscover_ReadsRecordsAndKeepsUnknowns"
+   ]
+  },
+  {
+   "id": "SAP-3.2-10",
+   "section": "3.2",
+   "spec_line": 171,
+   "level": "MAY",
+   "role": "host",
+   "summary": "The agent may add further metadata keys.",
+   "capability": "black-box",
+   "tests": [
+    "test/host:TestRegistration_SessionAndExtraMetadata"
+   ],
+   "status": "covered"
+  },
+  {
+   "id": "SAP-3.2-11",
+   "section": "3.2",
+   "spec_line": 171,
+   "level": "MUST",
+   "role": "both",
+   "summary": "Tools that relay service info preserve additional metadata keys.",
+   "capability": "sdk-internal",
+   "tests": [
+    "TestDiscovery_NewAgentInfo",
+    "test/caller:TestDiscover_ReadsRecordsAndKeepsUnknowns"
+   ],
+   "fault_id": "F-DISC-3-2-11",
+   "mutation": "NewAgentInfo keeps only the metadata keys it knows and drops additional keys.",
+   "status": "covered"
+  },
+  {
+   "id": "SAP-3.3-01",
+   "section": "3.3",
+   "spec_line": 175,
+   "level": "MUST",
+   "role": "host",
+   "summary": "The prompt endpoint is registered with the queue group agents.",
+   "capability": "black-box",
+   "tests": [
+    "test/host:TestRegistration_Endpoints"
+   ],
+   "fault_id": "F-HOST-3-3-01",
+   "mutation": "Register the prompt endpoint in the default queue group q.",
+   "status": "covered"
+  },
+  {
+   "id": "SAP-3.3-02",
+   "section": "3.3",
+   "spec_line": 180,
+   "level": "WIRE",
+   "role": "host",
+   "summary": "The queue group is set explicitly, not left to the framework default.",
+   "capability": "black-box",
+   "same_as": "SAP-3.3-01",
+   "tests": [],
+   "status": "covered"
+  },
+  {
+   "id": "SAP-3.3-03",
+   "section": "3.3",
+   "spec_line": 182,
+   "level": "WIRE",
+   "role": "host",
+   "summary": "The heartbeat subject has no queue group.",
+   "capability": "black-box",
+   "tests": [
+    "test/host:TestHeartbeat_ProtocolFixedSubject"
+   ],
+   "status": "covered"
+  },
+  {
+   "id": "SAP-3.4-01",
+   "section": "3.4",
+   "spec_line": 186,
+   "level": "MAY",
+   "role": "host",
+   "summary": "Several physical instances of one logical agent may be registered at once.",
+   "capability": "needs-configuration",
+   "tests": [
+    "test/host:TestInstances_LoadBalanced"
+   ],
+   "status": "covered"
+  },
+  {
+   "id": "SAP-3.4-02",
+   "section": "3.4",
+   "spec_line": 186,
+   "level": "WIRE",
+   "role": "host",
+   "summary": "Every instance of a logical agent registers the same endpoint subjects under the agents queue group, which the NATS micro framework balances across them.",
+   "capability": "needs-configuration",
+   "tests": [
+    "test/host:TestInstances_LoadBalanced"
+   ],
+   "status": "covered"
+  },
+  {
+   "id": "SAP-3.4-03",
+   "section": "3.4",
+   "spec_line": 188,
+   "level": "WIRE",
+   "role": "host",
+   "summary": "Each instance is distinguished by its framework-assigned service id.",
+   "capability": "black-box",
+   "same_as": "SAP-8.3-04",
+   "tests": [],
+   "status": "covered"
+  },
+  {
+   "id": "SAP-3.4-04",
+   "section": "3.4",
+   "spec_line": 190,
+   "level": "SHOULD",
+   "role": "host",
+   "summary": "Instances of one logical agent expose identical endpoints and metadata.",
+   "capability": "needs-configuration",
+   "tests": [
+    "test/host:TestInstances_LoadBalanced"
+   ],
+   "status": "covered"
+  },
+  {
+   "id": "SAP-4-01",
+   "section": "4",
+   "spec_line": 196,
+   "level": "WIRE",
+   "role": "host",
+   "summary": "Every compliant instance answers $SRV.PING.agents once.",
+   "capability": "black-box",
+   "tests": [
+    "test/host:TestDiscovery_PingAndInfo"
+   ],
+   "status": "covered"
+  },
+  {
+   "id": "SAP-4-02",
+   "section": "4",
+   "spec_line": 201,
+   "level": "WIRE",
+   "role": "host",
+   "summary": "One specific instance answers $SRV.INFO.agents.{instance_id} with its full service info.",
+   "capability": "black-box",
+   "tests": [
+    "test/host:TestDiscovery_PingAndInfo"
+   ],
+   "status": "covered"
+  },
+  {
+   "id": "SAP-4-03",
+   "section": "4",
+   "spec_line": 203,
+   "level": "MUST",
+   "role": "caller",
+   "summary": "The caller addresses an endpoint using the subject field from the discovery record.",
+   "capability": "black-box",
+   "same_as": "SAP-2-12",
+   "tests": [],
+   "status": "covered"
+  },
+  {
+   "id": "SAP-4.1-01",
+   "section": "4.1",
+   "spec_line": 212,
+   "level": "WIRE",
+   "role": "host",
+   "summary": "$SRV.INFO.agents returns a full record per instance, including endpoint capability metadata.",
+   "capability": "black-box",
+   "tests": [
+    "test/host:TestDiscovery_PingAndInfo"
+   ],
+   "status": "covered"
+  },
+  {
+   "id": "SAP-4.2-01",
+   "section": "4.2",
+   "spec_line": 222,
+   "level": "WIRE",
+   "role": "caller",
+   "summary": "Given an identity tuple but no instance_id, the caller discovers broadly and narrows the results itself.",
+   "capability": "sdk-internal",
+   "status": "covered",
+   "tests": [
+    "test/caller:TestFind_NarrowsBroadDiscovery"
+   ]
+  },
+  {
+   "id": "SAP-4.3-01",
+   "section": "4.3",
+   "spec_line": 229,
+   "level": "WIRE",
+   "role": "caller",
+   "summary": "The caller locates the prompt endpoint by name and reads its subject and metadata.",
+   "capability": "sdk-internal",
+   "status": "covered",
+   "tests": [
+    "test/caller:TestDiscover_ReadsRecordsAndKeepsUnknowns"
+   ]
+  },
+  {
+   "id": "SAP-4.3-02",
+   "section": "4.3",
+   "spec_line": 230,
+   "level": "WIRE",
+   "role": "caller",
+   "summary": "The caller derives the instance name from the endpoint subject when it follows the default pattern, else from metadata.session or treats it as opaque.",
+   "capability": "sdk-internal",
+   "tests": [
+    "TestDiscovery_NewAgentInfo",
+    "TestDiscovery_CustomPromptSubjectHasNoName"
+   ],
+   "status": "covered"
+  },
+  {
+   "id": "SAP-4.3-03",
+   "section": "4.3",
+   "spec_line": 231,
+   "level": "WIRE",
+   "role": "caller",
+   "summary": "The caller enforces the client-side validation using endpoint metadata.",
+   "capability": "sdk-internal",
+   "same_as": "SAP-5.4-02",
+   "tests": [],
+   "status": "covered"
+  },
+  {
+   "id": "SAP-4.3-04",
+   "section": "4.3",
+   "spec_line": 232,
+   "level": "WIRE",
+   "role": "caller",
+   "summary": "The caller publishes to the discovered endpoint subject exactly as reported, building nothing.",
+   "capability": "black-box",
+   "same_as": "SAP-2-13",
+   "tests": [],
+   "status": "covered"
+  },
+  {
+   "id": "SAP-5-01",
+   "section": "5",
+   "spec_line": 238,
+   "level": "WIRE",
+   "role": "caller",
+   "summary": "Each request is one NATS message addressed to the prompt endpoint's discovered subject.",
+   "capability": "black-box",
+   "status": "covered",
+   "tests": [
+    "test/caller:TestPrompt_UsesTheDiscoveredSubject"
+   ]
+  },
+  {
+   "id": "SAP-5.1-01",
+   "section": "5.1",
+   "spec_line": 244,
+   "level": "WIRE",
+   "role": "host",
+   "summary": "The host accepts a plain UTF-8 text payload as shorthand for an envelope holding only the prompt.",
+   "capability": "black-box",
+   "tests": [
+    "test/host:TestPrompt_DecodesBothForms"
+   ],
+   "status": "covered"
+  },
+  {
+   "id": "SAP-5.1-02",
+   "section": "5.1",
+   "spec_line": 245,
+   "level": "WIRE",
+   "role": "host",
+   "summary": "The host accepts a JSON envelope object with a prompt field.",
+   "capability": "black-box",
+   "tests": [
+    "test/host:TestPrompt_DecodesBothForms"
+   ],
+   "status": "covered"
+  },
+  {
+   "id": "SAP-5.1-03",
+   "section": "5.1",
+   "spec_line": 258,
+   "level": "MUST",
+   "role": "caller",
+   "summary": "The envelope prompt field is non-empty.",
+   "capability": "sdk-internal",
+   "status": "covered",
+   "tests": [
+    "test/caller:TestPrompt_LocalRefusalsPublishNothing"
+   ],
+   "assertion_note": "prompt_test.go:TestPrompt_LocalRefusalsPublishNothing asserts an empty prompt fails with ErrPromptEmpty and nothing is published."
+  },
+  {
+   "id": "SAP-5.1-04",
+   "section": "5.1",
+   "spec_line": 259,
+   "level": "MUST",
+   "role": "host",
+   "summary": "A host with attachments_ok false rejects a non-empty attachments array with status 400.",
+   "capability": "black-box",
+   "tests": [
+    "test/host:TestPrompt_MalformedIs400"
+   ],
+   "fault_id": "F-HOST-5-1-04",
+   "mutation": "Serve attachments although attachments_ok is false.",
+   "status": "covered"
+  },
+  {
+   "id": "SAP-5.1-05",
+   "section": "5.1",
+   "spec_line": 259,
+   "level": "WIRE",
+   "role": "both",
+   "summary": "The attachments field is an optional array of attachment objects.",
+   "capability": "black-box",
+   "status": "covered",
+   "tests": [
+    "test/caller:TestPrompt_EnvelopeOnTheWire"
+   ]
+  },
+  {
+   "id": "SAP-5.1-06",
+   "section": "5.1",
+   "spec_line": 261,
+   "level": "MAY",
+   "role": "both",
+   "summary": "Additional top-level fields may appear in the envelope.",
+   "capability": "black-box",
+   "status": "covered",
+   "tests": [
+    "test/caller:TestPrompt_EnvelopeOnTheWire"
+   ]
+  },
+  {
+   "id": "SAP-5.2-01",
+   "section": "5.2",
+   "spec_line": 271,
+   "level": "WIRE",
+   "role": "both",
+   "summary": "An attachment object has a string filename and a string content, both required.",
+   "capability": "black-box",
+   "status": "covered",
+   "tests": [
+    "test/caller:TestPrompt_EnvelopeOnTheWire"
+   ]
+  },
+  {
+   "id": "SAP-5.2-02",
+   "section": "5.2",
+   "spec_line": 272,
+   "level": "WIRE",
+   "role": "both",
+   "summary": "Attachment content is standard-alphabet, padded base64 (RFC 4648 section 4).",
+   "capability": "black-box",
+   "status": "covered",
+   "tests": [
+    "test/caller:TestPrompt_EnvelopeOnTheWire"
+   ]
+  },
+  {
+   "id": "SAP-5.2-03",
+   "section": "5.2",
+   "spec_line": 272,
+   "level": "MUST NOT",
+   "role": "caller",
+   "summary": "Attachment content does not use URL-safe base64.",
+   "capability": "sdk-internal",
+   "status": "covered",
+   "tests": [
+    "test/caller:TestPrompt_LocalRefusalsPublishNothing"
+   ],
+   "assertion_note": "prompt_test.go:TestPrompt_LocalRefusalsPublishNothing asserts URL-safe base64 content is refused locally with an attachment error and nothing is published."
+  },
+  {
+   "id": "SAP-5.2-04",
+   "section": "5.2",
+   "spec_line": 272,
+   "level": "MUST NOT",
+   "role": "caller",
+   "summary": "Attachment content contains no whitespace.",
+   "capability": "sdk-internal",
+   "status": "covered",
+   "tests": [
+    "test/caller:TestPrompt_LocalRefusalsPublishNothing"
+   ],
+   "assertion_note": "prompt_test.go:TestPrompt_LocalRefusalsPublishNothing asserts base64 content with a line break is refused locally with an attachment error and nothing is published."
+  },
+  {
+   "id": "SAP-5.3-01",
+   "section": "5.3",
+   "spec_line": 280,
+   "level": "WIRE",
+   "role": "host",
+   "summary": "The host skips leading whitespace bytes 0x09, 0x0A, 0x0D and 0x20 before discriminating.",
+   "capability": "black-box",
+   "tests": [
+    "test/host:TestPrompt_DecodesBothForms"
+   ],
+   "status": "covered"
+  },
+  {
+   "id": "SAP-5.3-02",
+   "section": "5.3",
+   "spec_line": 281,
+   "level": "WIRE",
+   "role": "host",
+   "summary": "When the first non-whitespace byte is an opening brace, the host parses the remainder as JSON.",
+   "capability": "black-box",
+   "tests": [
+    "test/host:TestPrompt_DecodesBothForms"
+   ],
+   "status": "covered"
+  },
+  {
+   "id": "SAP-5.3-03",
+   "section": "5.3",
+   "spec_line": 281,
+   "level": "WIRE",
+   "role": "host",
+   "summary": "The host answers 400 when the JSON does not parse.",
+   "capability": "black-box",
+   "tests": [
+    "test/host:TestPrompt_MalformedIs400"
+   ],
+   "status": "covered"
+  },
+  {
+   "id": "SAP-5.3-04",
+   "section": "5.3",
+   "spec_line": 281,
+   "level": "WIRE",
+   "role": "host",
+   "summary": "The host answers 400 when the parsed object has no prompt string field.",
+   "capability": "black-box",
+   "tests": [
+    "test/host:TestPrompt_MalformedIs400"
+   ],
+   "status": "covered"
+  },
+  {
+   "id": "SAP-5.3-05",
+   "section": "5.3",
+   "spec_line": 282,
+   "level": "WIRE",
+   "role": "host",
+   "summary": "In any other case the host reads the unmodified payload as UTF-8 text and wraps it as a prompt.",
+   "capability": "black-box",
+   "tests": [
+    "test/host:TestPrompt_DecodesBothForms"
+   ],
+   "status": "covered"
+  },
+  {
+   "id": "SAP-5.3-06",
+   "section": "5.3",
+   "spec_line": 284,
+   "level": "MUST",
+   "role": "host",
+   "summary": "A zero-byte request payload is rejected with status 400.",
+   "capability": "black-box",
+   "tests": [
+    "test/host:TestPrompt_MalformedIs400"
+   ],
+   "status": "covered",
+   "fault_id": "F-HOST-5-3-06",
+   "mutation": "Serve a zero-byte payload as an empty prompt."
+  },
+  {
+   "id": "SAP-5.4-01",
+   "section": "5.4",
+   "spec_line": 288,
+   "level": "MUST",
+   "role": "caller",
+   "summary": "Before publishing, the caller enforces the prompt endpoint's capability metadata.",
+   "capability": "sdk-internal",
+   "same_as": "SAP-5.4-03",
+   "tests": [],
+   "status": "covered"
+  },
+  {
+   "id": "SAP-5.4-02",
+   "section": "5.4",
+   "spec_line": 290,
+   "level": "MUST",
+   "role": "caller",
+   "summary": "The caller fails locally, without publishing, when an attachment is present and attachments_ok is false.",
+   "capability": "sdk-internal",
+   "fault_id": "F-ATTOK-SKIP",
+   "mutation": "publish attachments when attachments_ok is false",
+   "status": "covered",
+   "tests": [
+    "test/caller:TestPrompt_LocalRefusalsPublishNothing"
+   ]
+  },
+  {
+   "id": "SAP-5.4-03",
+   "section": "5.4",
+   "spec_line": 291,
+   "level": "MUST",
+   "role": "caller",
+   "summary": "The caller computes the final encoded payload size and fails locally when it exceeds max_payload.",
+   "capability": "sdk-internal",
+   "fault_id": "F-MAXP-SKIP",
+   "mutation": "skip the local max_payload check",
+   "status": "covered",
+   "tests": [
+    "test/caller:TestPrompt_LocalRefusalsPublishNothing",
+    "test/caller:TestPrompt_SizesTheCompletedMessage"
+   ]
+  },
+  {
+   "id": "SAP-5.4-04",
+   "section": "5.4",
+   "spec_line": 293,
+   "level": "MAY",
+   "role": "host",
+   "summary": "The host may enforce the size and attachment limits itself and respond 400.",
+   "capability": "needs-configuration",
+   "tests": [
+    "test/host:TestPrompt_OversizedPayload"
+   ],
+   "status": "covered"
+  },
+  {
+   "id": "SAP-5.5-01",
+   "section": "5.5",
+   "spec_line": 303,
+   "level": "SHOULD",
+   "role": "caller",
+   "summary": "Attachment handling is structured so that adding the attachments endpoint later is additive.",
+   "capability": "not-applicable",
+   "tests": [],
+   "status": "not-applicable",
+   "not_applicable_reason": "Design guidance on how code is structured (a SHOULD) with no observable behaviour; the SDK reserves the attachments verb and subject, but nothing can be asserted about later additivity."
+  },
+  {
+   "id": "SAP-5.6-01",
+   "section": "5.6",
+   "spec_line": 307,
+   "level": "MUST",
+   "role": "host",
+   "summary": "Envelope decoders tolerate unknown top-level fields and unknown attachment-object fields without error.",
+   "capability": "black-box",
+   "tests": [
+    "test/host:TestPrompt_UnknownFieldsTolerated"
+   ],
+   "fault_id": "F-HOST-5-6-01",
+   "mutation": "Fail a request whose envelope carries an unknown top-level or attachment field.",
+   "status": "covered"
+  },
+  {
+   "id": "SAP-5.6-02",
+   "section": "5.6",
+   "spec_line": 307,
+   "level": "MUST",
+   "role": "both",
+   "summary": "Envelope decoders preserve unknown fields when relaying.",
+   "capability": "sdk-internal",
+   "tests": [
+    "TestEnvelope_UnknownFieldsPreservedOnRelay"
+   ],
+   "fault_id": "F-ENV-5-6-02",
+   "mutation": "DecodeEnvelope or Encode drops unknown top-level fields, or unknown fields inside attachment objects.",
+   "status": "covered"
+  },
+  {
+   "id": "SAP-6-01",
+   "section": "6",
+   "spec_line": 313,
+   "level": "WIRE",
+   "role": "host",
+   "summary": "The host publishes response chunks to the request's reply subject.",
+   "capability": "black-box",
+   "tests": [
+    "test/host:TestPrompt_DecodesBothForms"
+   ],
+   "status": "covered"
+  },
+  {
+   "id": "SAP-6.2-01",
+   "section": "6.2",
+   "spec_line": 338,
+   "level": "WIRE",
+   "role": "host",
+   "summary": "The chunk type is a string; v0.1 defines response, status and query, and callers ignore any other type.",
+   "capability": "black-box",
+   "tests": [
+    "test/host:TestStream_AckFirstThenChunksThenTerminator"
+   ],
+   "status": "covered"
+  },
+  {
+   "id": "SAP-6.2-02",
+   "section": "6.2",
+   "spec_line": 341,
+   "level": "MUST",
+   "role": "host",
+   "summary": "Every non-terminating response message is a JSON object with a type discriminator and a data field, never plain text.",
+   "capability": "black-box",
+   "tests": [
+    "test/host:TestStream_AckFirstThenChunksThenTerminator"
+   ],
+   "status": "covered",
+   "fault_id": "F-HOST-6-2-02",
+   "mutation": "Send a non-terminating chunk as plain text, or without a type or data field."
+  },
+  {
+   "id": "SAP-6.2-03",
+   "section": "6.2",
+   "spec_line": 343,
+   "level": "MUST",
+   "role": "caller",
+   "summary": "The caller silently ignores unknown chunk types and keeps consuming the stream.",
+   "capability": "sdk-internal",
+   "fault_id": "F-UNKCHUNK-ERROR",
+   "mutation": "fail the stream on an unknown chunk type",
+   "status": "covered",
+   "tests": [
+    "test/caller:TestStream_ChunksInOrder"
+   ]
+  },
+  {
+   "id": "SAP-6.2-04",
+   "section": "6.2",
+   "spec_line": 343,
+   "level": "WIRE",
+   "role": "host",
+   "summary": "Errors are reported through service error headers, not a typed chunk.",
+   "capability": "black-box",
+   "tests": [
+    "test/host:TestStream_ErrorAfterChunks"
+   ],
+   "status": "covered"
+  },
+  {
+   "id": "SAP-6.3-01",
+   "section": "6.3",
+   "spec_line": 359,
+   "level": "WIRE",
+   "role": "host",
+   "summary": "A response chunk's data is a string, or an object with a string text field.",
+   "capability": "black-box",
+   "tests": [
+    "test/host:TestStream_ResponseChunkForms"
+   ],
+   "status": "covered"
+  },
+  {
+   "id": "SAP-6.3-02",
+   "section": "6.3",
+   "spec_line": 360,
+   "level": "MAY",
+   "role": "caller",
+   "summary": "The caller may ignore attachments carried in a response chunk.",
+   "capability": "not-applicable",
+   "tests": [],
+   "status": "not-applicable",
+   "not_applicable_reason": "A MAY that lets a caller ignore attachments in a response chunk; either choice conforms, and the SDK delivers them for the application to ignore."
+  },
+  {
+   "id": "SAP-6.3-03",
+   "section": "6.3",
+   "spec_line": 364,
+   "level": "MUST",
+   "role": "caller",
+   "summary": "The caller accepts both the string and the object form of response data transparently.",
+   "capability": "sdk-internal",
+   "status": "covered",
+   "tests": [
+    "test/caller:TestStream_ChunksInOrder"
+   ],
+   "assertion_note": "stream_test.go:TestStream_ChunksInOrder asserts a response sent as a string and responses sent as objects are delivered as one concatenated text."
+  },
+  {
+   "id": "SAP-6.3-04",
+   "section": "6.3",
+   "spec_line": 364,
+   "level": "MAY",
+   "role": "host",
+   "summary": "The host may emit several response chunks.",
+   "capability": "black-box",
+   "tests": [
+    "test/host:TestStream_AckFirstThenChunksThenTerminator"
+   ],
+   "status": "covered"
+  },
+  {
+   "id": "SAP-6.3-05",
+   "section": "6.3",
+   "spec_line": 364,
+   "level": "WIRE",
+   "role": "caller",
+   "summary": "The caller concatenates response text values in publication order.",
+   "capability": "sdk-internal",
+   "status": "covered",
+   "tests": [
+    "test/caller:TestStream_ChunksInOrder"
+   ]
+  },
+  {
+   "id": "SAP-6.4-01",
+   "section": "6.4",
+   "spec_line": 378,
+   "level": "WIRE",
+   "role": "caller",
+   "summary": "Any observed chunk, including the ack, resets the caller's inactivity timeout.",
+   "capability": "sdk-internal",
+   "status": "covered",
+   "tests": [
+    "test/caller:TestStream_InactivityTimeout"
+   ]
+  },
+  {
+   "id": "SAP-6.4-02",
+   "section": "6.4",
+   "spec_line": 380,
+   "level": "MUST",
+   "role": "host",
+   "summary": "The host emits exactly one ack status chunk per request.",
+   "capability": "black-box",
+   "tests": [
+    "test/host:TestStream_AckFirstThenChunksThenTerminator"
+   ],
+   "fault_id": "F-HOST-6-4-02",
+   "mutation": "Send the ack twice, or not at all.",
+   "status": "covered"
+  },
+  {
+   "id": "SAP-6.4-03",
+   "section": "6.4",
+   "spec_line": 380,
+   "level": "MUST",
+   "role": "host",
+   "summary": "The ack precedes every other message on the reply subject, response and query chunks included.",
+   "capability": "black-box",
+   "tests": [
+    "test/host:TestStream_AckFirstThenChunksThenTerminator"
+   ],
+   "fault_id": "F-HOST-6-4-03",
+   "mutation": "Publish the ack after the first response chunk.",
+   "status": "covered"
+  },
+  {
+   "id": "SAP-6.4-04",
+   "section": "6.4",
+   "spec_line": 380,
+   "level": "MUST",
+   "role": "host",
+   "summary": "The ack is emitted before any work that adds observable latency.",
+   "capability": "needs-configuration",
+   "tests": [
+    "test/host:TestStream_AckPrecedesSlowWork"
+   ],
+   "status": "covered",
+   "fault_id": "F-HOST-6-4-04",
+   "mutation": "Send the ack only after the handler returned."
+  },
+  {
+   "id": "SAP-6.4-05",
+   "section": "6.4",
+   "spec_line": 382,
+   "level": "MUST",
+   "role": "caller",
+   "summary": "The caller silently ignores unrecognized status values.",
+   "capability": "sdk-internal",
+   "status": "covered",
+   "tests": [
+    "test/caller:TestStream_ChunksInOrder"
+   ],
+   "assertion_note": "stream_test.go:TestStream_ChunksInOrder asserts an unrecognized status value yields no event: only the ack and three responses surface."
+  },
+  {
+   "id": "SAP-6.4-06",
+   "section": "6.4",
+   "spec_line": 384,
+   "level": "MAY",
+   "role": "both",
+   "summary": "An SDK may surface the empty terminator to applications as a status done event.",
+   "capability": "not-applicable",
+   "tests": [],
+   "status": "not-applicable",
+   "not_applicable_reason": "A MAY about presentation: the SDK reports the terminator through the stream's Terminated and Err and not as a status done event; either choice conforms."
+  },
+  {
+   "id": "SAP-6.5-01",
+   "section": "6.5",
+   "spec_line": 388,
+   "level": "MUST",
+   "role": "host",
+   "summary": "Every response stream ends with a zero-byte message that carries no NATS headers.",
+   "capability": "black-box",
+   "tests": [
+    "test/host:TestStream_AckFirstThenChunksThenTerminator"
+   ],
+   "fault_id": "F-HOST-6-5-01",
+   "mutation": "End the stream with a terminator that carries a header, or with no terminator.",
+   "status": "covered"
+  },
+  {
+   "id": "SAP-6.5-02",
+   "section": "6.5",
+   "spec_line": 388,
+   "level": "WIRE",
+   "role": "host",
+   "summary": "The same terminator ends successful and errored streams alike.",
+   "capability": "black-box",
+   "tests": [
+    "test/host:TestPrompt_MalformedIs400",
+    "test/host:TestStream_ErrorAfterChunks"
+   ],
+   "status": "covered"
+  },
+  {
+   "id": "SAP-6.5-03",
+   "section": "6.5",
+   "spec_line": 390,
+   "level": "MUST NOT",
+   "role": "host",
+   "summary": "The host publishes nothing further on the reply subject after the terminator.",
+   "capability": "black-box",
+   "tests": [
+    "test/host:TestStream_NothingAfterTerminator"
+   ],
+   "fault_id": "F-HOST-6-5-03",
+   "mutation": "Publish a chunk or keep-alive after the terminator.",
+   "status": "covered"
+  },
+  {
+   "id": "SAP-6.5-04",
+   "section": "6.5",
+   "spec_line": 394,
+   "level": "WIRE",
+   "role": "host",
+   "summary": "An error completion is chunks, then an error-headered message, then the terminator; the error message is not itself the terminator.",
+   "capability": "black-box",
+   "tests": [
+    "test/host:TestPrompt_MalformedIs400",
+    "test/host:TestStream_ErrorAfterChunks"
+   ],
+   "status": "covered"
+  },
+  {
+   "id": "SAP-6.5-05",
+   "section": "6.5",
+   "spec_line": 396,
+   "level": "WIRE",
+   "role": "host",
+   "summary": "A stream of one response chunk then the terminator is valid.",
+   "capability": "black-box",
+   "tests": [
+    "test/host:TestStream_AckFirstThenChunksThenTerminator",
+    "test/host:TestStream_SingleChunkIsValid"
+   ],
+   "status": "covered"
+  },
+  {
+   "id": "SAP-6.6-01",
+   "section": "6.6",
+   "spec_line": 400,
+   "level": "WIRE",
+   "role": "host",
+   "summary": "Chunks are published in order.",
+   "capability": "sdk-internal",
+   "tests": [
+    "test/host:TestStream_AckFirstThenChunksThenTerminator"
+   ],
+   "status": "covered"
+  },
+  {
+   "id": "SAP-6.6-02",
+   "section": "6.6",
+   "spec_line": 400,
+   "level": "MAY",
+   "role": "both",
+   "summary": "Individual chunks, including the terminator, may be lost.",
+   "capability": "not-applicable",
+   "not_applicable_reason": "Describes core NATS delivery semantics, not a behaviour of the SDK.",
+   "tests": [],
+   "status": "not-applicable"
+  },
+  {
+   "id": "SAP-6.6-03",
+   "section": "6.6",
+   "spec_line": 402,
+   "level": "MUST",
+   "role": "caller",
+   "summary": "The caller applies a per-stream inactivity timeout.",
+   "capability": "sdk-internal",
+   "fault_id": "F-NO-INACTIVITY",
+   "mutation": "omit the inactivity timeout",
+   "status": "covered",
+   "tests": [
+    "test/caller:TestStream_InactivityTimeout",
+    "test/caller:TestStream_TimersStartAtPublication"
+   ]
+  },
+  {
+   "id": "SAP-6.6-04",
+   "section": "6.6",
+   "spec_line": 402,
+   "level": "WIRE",
+   "role": "caller",
+   "summary": "The suggested default inactivity timeout is 60 seconds, counted from the latest chunk seen.",
+   "capability": "sdk-internal",
+   "status": "covered",
+   "tests": [
+    "caller:TestClient_DefaultInactivityTimeout"
+   ]
+  },
+  {
+   "id": "SAP-6.6-05",
+   "section": "6.6",
+   "spec_line": 402,
+   "level": "WIRE",
+   "role": "caller",
+   "summary": "When the inactivity timer fires, the caller ends the stream and reports a transport error.",
+   "capability": "sdk-internal",
+   "status": "covered",
+   "tests": [
+    "test/caller:TestStream_InactivityTimeout"
+   ]
+  },
+  {
+   "id": "SAP-6.6-06",
+   "section": "6.6",
+   "spec_line": 406,
+   "level": "MUST",
+   "role": "caller",
+   "summary": "The caller silently ignores chunks of an unrecognized type.",
+   "capability": "sdk-internal",
+   "same_as": "SAP-6.2-03",
+   "tests": [],
+   "status": "covered"
+  },
+  {
+   "id": "SAP-6.6-07",
+   "section": "6.6",
+   "spec_line": 407,
+   "level": "MUST",
+   "role": "caller",
+   "summary": "The caller tolerates unknown fields in data objects.",
+   "capability": "sdk-internal",
+   "status": "covered",
+   "tests": [
+    "test/caller:TestStream_ChunksInOrder"
+   ],
+   "assertion_note": "stream_test.go:TestStream_ChunksInOrder asserts a response data object with an unknown field is delivered and the field is kept in Extra."
+  },
+  {
+   "id": "SAP-6.6-08",
+   "section": "6.6",
+   "spec_line": 407,
+   "level": "MUST",
+   "role": "both",
+   "summary": "Unknown fields in data objects are preserved when relaying.",
+   "capability": "sdk-internal",
+   "tests": [
+    "TestChunk_UnknownDataFieldsPreserved"
+   ],
+   "fault_id": "F-CHUNK-6-6-08",
+   "mutation": "DecodeChunk drops unknown fields of a response or query data object, or EncodeChunk omits them when relaying.",
+   "status": "covered"
+  },
+  {
+   "id": "SAP-6.6-09",
+   "section": "6.6",
+   "spec_line": 409,
+   "level": "SHOULD",
+   "role": "operator",
+   "summary": "Agents needing at-least-once delivery wait for a future JetStream pattern.",
+   "capability": "not-applicable",
+   "not_applicable_reason": "Guidance to protocol users; no 0.3 behaviour.",
+   "tests": [],
+   "status": "not-applicable"
+  },
+  {
+   "id": "SAP-6.7-01",
+   "section": "6.7",
+   "spec_line": 415,
+   "level": "WIRE",
+   "role": "caller",
+   "summary": "The caller cancels by dropping the reply subscription and sends no wire signal.",
+   "capability": "sdk-internal",
+   "status": "covered",
+   "tests": [
+    "test/caller:TestStream_CancelAndClose"
+   ]
+  },
+  {
+   "id": "SAP-6.7-02",
+   "section": "6.7",
+   "spec_line": 416,
+   "level": "WIRE",
+   "role": "host",
+   "summary": "The agent is not notified of cancellation and continues to completion.",
+   "capability": "sdk-internal",
+   "tests": [
+    "test/host:TestStream_CallerGoneDoesNotCancelHandler"
+   ],
+   "status": "covered"
+  },
+  {
+   "id": "SAP-6.7-03",
+   "section": "6.7",
+   "spec_line": 417,
+   "level": "SHOULD",
+   "role": "host",
+   "summary": "An agent doing expensive work uses a mid-stream query as a liveness check when cancellation matters.",
+   "capability": "not-applicable",
+   "tests": [],
+   "status": "not-applicable",
+   "not_applicable_reason": "A SHOULD on agent authors about when to ask a mid-stream query; the SDK provides the query but cannot tell which work is expensive, so this is application practice."
+  },
+  {
+   "id": "SAP-7-01",
+   "section": "7",
+   "spec_line": 423,
+   "level": "MAY",
+   "role": "host",
+   "summary": "The host may pause its stream to put a question to the caller.",
+   "capability": "needs-configuration",
+   "tests": [
+    "test/host:TestQuery_RoundTrip"
+   ],
+   "status": "covered"
+  },
+  {
+   "id": "SAP-7.1-01",
+   "section": "7.1",
+   "spec_line": 431,
+   "level": "WIRE",
+   "role": "host",
+   "summary": "A query chunk has type query and data holding string id, reply_subject and prompt.",
+   "capability": "needs-configuration",
+   "tests": [
+    "test/host:TestQuery_RoundTrip"
+   ],
+   "status": "covered"
+  },
+  {
+   "id": "SAP-7.1-02",
+   "section": "7.1",
+   "spec_line": 440,
+   "level": "SHOULD",
+   "role": "host",
+   "summary": "The query id is a UUID.",
+   "capability": "needs-configuration",
+   "tests": [
+    "test/host:TestQuery_RoundTrip"
+   ],
+   "status": "covered"
+  },
+  {
+   "id": "SAP-7.1-03",
+   "section": "7.1",
+   "spec_line": 441,
+   "level": "WIRE",
+   "role": "host",
+   "summary": "The query reply_subject is a fresh subject on which the host expects exactly one reply.",
+   "capability": "needs-configuration",
+   "tests": [
+    "test/host:TestQuery_RoundTrip"
+   ],
+   "status": "covered"
+  },
+  {
+   "id": "SAP-7.1-04",
+   "section": "7.1",
+   "spec_line": 443,
+   "level": "WIRE",
+   "role": "host",
+   "summary": "A query chunk may carry an attachments array of the same shape as in a request.",
+   "capability": "needs-configuration",
+   "tests": [
+    "test/host:TestQuery_RoundTrip"
+   ],
+   "status": "covered"
+  },
+  {
+   "id": "SAP-7.2-01",
+   "section": "7.2",
+   "spec_line": 447,
+   "level": "WIRE",
+   "role": "caller",
+   "summary": "The caller publishes exactly one message to the query reply_subject, as plain text or a JSON envelope.",
+   "capability": "needs-configuration",
+   "status": "covered",
+   "tests": [
+    "test/caller:TestQuery_ExactlyOnceReply"
+   ]
+  },
+  {
+   "id": "SAP-7.2-02",
+   "section": "7.2",
+   "spec_line": 447,
+   "level": "WIRE",
+   "role": "host",
+   "summary": "No acknowledgement of a query reply is defined.",
+   "capability": "not-applicable",
+   "tests": [],
+   "status": "not-applicable",
+   "not_applicable_reason": "Descriptive: the spec says no acknowledgement of a query reply is defined; it does not prohibit a host from sending anything, so there is nothing to check."
+  },
+  {
+   "id": "SAP-7.3-01",
+   "section": "7.3",
+   "spec_line": 456,
+   "level": "MAY",
+   "role": "host",
+   "summary": "When the caller does not answer in time, the host may end the stream with an error.",
+   "capability": "needs-configuration",
+   "tests": [
+    "test/host:TestQuery_Timeout"
+   ],
+   "status": "covered"
+  },
+  {
+   "id": "SAP-7.3-02",
+   "section": "7.3",
+   "spec_line": 456,
+   "level": "MAY",
+   "role": "host",
+   "summary": "When the caller does not answer in time, the host may continue with a default and give no signal.",
+   "capability": "needs-configuration",
+   "tests": [
+    "test/host:TestQuery_Timeout"
+   ],
+   "status": "covered"
+  },
+  {
+   "id": "SAP-7.3-03",
+   "section": "7.3",
+   "spec_line": 457,
+   "level": "MAY",
+   "role": "host",
+   "summary": "Several query chunks may be in flight in one stream.",
+   "capability": "needs-configuration",
+   "tests": [
+    "test/host:TestQuery_ConcurrentAsksHaveDistinctReplySubjects"
+   ],
+   "status": "covered"
+  },
+  {
+   "id": "SAP-7.3-04",
+   "section": "7.3",
+   "spec_line": 457,
+   "level": "MUST",
+   "role": "host",
+   "summary": "Each concurrent query uses a distinct reply_subject.",
+   "capability": "needs-configuration",
+   "tests": [
+    "test/host:TestQuery_ConcurrentAsksHaveDistinctReplySubjects"
+   ],
+   "status": "covered",
+   "fault_id": "F-HOST-7-3-04",
+   "mutation": "Reuse one reply subject for concurrent queries."
+  },
+  {
+   "id": "SAP-7.3-05",
+   "section": "7.3",
+   "spec_line": 458,
+   "level": "WIRE",
+   "role": "host",
+   "summary": "A query chunk does not end the stream; the terminator rules still apply.",
+   "capability": "needs-configuration",
+   "tests": [
+    "test/host:TestQuery_RoundTrip"
+   ],
+   "status": "covered"
+  },
+  {
+   "id": "SAP-8-01",
+   "section": "8",
+   "spec_line": 464,
+   "level": "MUST",
+   "role": "host",
+   "summary": "The agent publishes a periodic heartbeat.",
+   "capability": "black-box",
+   "tests": [
+    "test/host:TestHeartbeat_PayloadAndCadence"
+   ],
+   "fault_id": "F-HOST-8-01",
+   "mutation": "Never publish a heartbeat.",
+   "status": "covered"
+  },
+  {
+   "id": "SAP-8-02",
+   "section": "8",
+   "spec_line": 464,
+   "level": "WIRE",
+   "role": "host",
+   "summary": "Heartbeats are fire-and-forget pub/sub with no reply.",
+   "capability": "black-box",
+   "tests": [
+    "test/host:TestHeartbeat_PayloadAndCadence"
+   ],
+   "status": "covered"
+  },
+  {
+   "id": "SAP-8.1-01",
+   "section": "8.1",
+   "spec_line": 469,
+   "level": "WIRE",
+   "role": "host",
+   "summary": "Heartbeats are published on agents.hb.{agent}.{owner}.{name}.",
+   "capability": "black-box",
+   "tests": [
+    "test/host:TestHeartbeat_PayloadAndCadence"
+   ],
+   "status": "covered"
+  },
+  {
+   "id": "SAP-8.1-02",
+   "section": "8.1",
+   "spec_line": 474,
+   "level": "WIRE",
+   "role": "host",
+   "summary": "Each instance publishes its own heartbeats, and callers tell instances apart by the instance_id payload field.",
+   "capability": "black-box",
+   "tests": [
+    "test/host:TestHeartbeat_PayloadAndCadence"
+   ],
+   "status": "covered"
+  },
+  {
+   "id": "SAP-8.2-01",
+   "section": "8.2",
+   "spec_line": 478,
+   "level": "WIRE",
+   "role": "host",
+   "summary": "Each instance chooses its interval, configurable at construction; the recommended default is 30 seconds.",
+   "capability": "black-box",
+   "tests": [
+    "test/host:TestHeartbeat_PayloadAndCadence"
+   ],
+   "status": "covered"
+  },
+  {
+   "id": "SAP-8.2-02",
+   "section": "8.2",
+   "spec_line": 478,
+   "level": "SHOULD NOT",
+   "role": "host",
+   "summary": "An interval below 1 second is not used on shared infrastructure.",
+   "capability": "sdk-internal",
+   "tests": [
+    "test/host:TestNew_SubSecondHeartbeatNeedsOptIn"
+   ],
+   "status": "covered"
+  },
+  {
+   "id": "SAP-8.2-03",
+   "section": "8.2",
+   "spec_line": 480,
+   "level": "WIRE",
+   "role": "host",
+   "summary": "The interval is carried in the interval_s payload field, and heartbeats arrive at that cadence.",
+   "capability": "black-box",
+   "tests": [
+    "test/host:TestHeartbeat_PayloadAndCadence"
+   ],
+   "status": "covered"
+  },
+  {
+   "id": "SAP-8.2-04",
+   "section": "8.2",
+   "spec_line": 480,
+   "level": "WIRE",
+   "role": "caller",
+   "summary": "The recommended offline threshold is 3 times interval_s since the last heartbeat, per instance_id.",
+   "capability": "sdk-internal",
+   "status": "covered",
+   "tests": [
+    "caller:TestTracker_OfflineThreshold"
+   ]
+  },
+  {
+   "id": "SAP-8.2-05",
+   "section": "8.2",
+   "spec_line": 482,
+   "level": "SHOULD",
+   "role": "host",
+   "summary": "Heartbeats begin only after service registration is complete.",
+   "capability": "black-box",
+   "tests": [
+    "test/host:TestHeartbeat_AfterRegistration"
+   ],
+   "status": "covered"
+  },
+  {
+   "id": "SAP-8.3-01",
+   "section": "8.3",
+   "spec_line": 506,
+   "level": "WIRE",
+   "role": "host",
+   "summary": "The heartbeat agent field equals metadata.agent.",
+   "capability": "black-box",
+   "tests": [
+    "test/host:TestHeartbeat_PayloadAndCadence"
+   ],
+   "status": "covered"
+  },
+  {
+   "id": "SAP-8.3-02",
+   "section": "8.3",
+   "spec_line": 507,
+   "level": "WIRE",
+   "role": "host",
+   "summary": "The heartbeat owner field equals metadata.owner.",
+   "capability": "black-box",
+   "tests": [
+    "test/host:TestHeartbeat_PayloadAndCadence"
+   ],
+   "status": "covered"
+  },
+  {
+   "id": "SAP-8.3-03",
+   "section": "8.3",
+   "spec_line": 508,
+   "level": "WIRE",
+   "role": "host",
+   "summary": "The heartbeat session field is present if and only if metadata.session is set.",
+   "capability": "needs-configuration",
+   "tests": [
+    "test/host:TestHeartbeat_Fields"
+   ],
+   "status": "covered"
+  },
+  {
+   "id": "SAP-8.3-04",
+   "section": "8.3",
+   "spec_line": 509,
+   "level": "WIRE",
+   "role": "host",
+   "summary": "The heartbeat instance_id equals the service id.",
+   "capability": "black-box",
+   "tests": [
+    "test/host:TestHeartbeat_Fields"
+   ],
+   "status": "covered"
+  },
+  {
+   "id": "SAP-8.3-05",
+   "section": "8.3",
+   "spec_line": 510,
+   "level": "WIRE",
+   "role": "host",
+   "summary": "The heartbeat ts is a UTC ISO 8601 timestamp of publication.",
+   "capability": "black-box",
+   "tests": [
+    "test/host:TestHeartbeat_Fields"
+   ],
+   "status": "covered"
+  },
+  {
+   "id": "SAP-8.3-06",
+   "section": "8.3",
+   "spec_line": 511,
+   "level": "WIRE",
+   "role": "host",
+   "summary": "The heartbeat interval_s is a number greater than zero.",
+   "capability": "black-box",
+   "tests": [
+    "test/host:TestHeartbeat_Fields"
+   ],
+   "status": "covered"
+  },
+  {
+   "id": "SAP-8.3-07",
+   "section": "8.3",
+   "spec_line": 512,
+   "level": "WIRE",
+   "role": "host",
+   "summary": "The optional heartbeat protocol_version matches metadata.protocol_version.",
+   "capability": "black-box",
+   "tests": [
+    "test/host:TestHeartbeat_Fields"
+   ],
+   "status": "covered"
+  },
+  {
+   "id": "SAP-8.3-08",
+   "section": "8.3",
+   "spec_line": 513,
+   "level": "SHOULD",
+   "role": "host",
+   "summary": "An agent that declares heartbeat endpoints declares prompt, with its subject and metadata copied verbatim from registration.",
+   "capability": "black-box",
+   "tests": [
+    "test/host:TestHeartbeat_Fields"
+   ],
+   "status": "covered"
+  },
+  {
+   "id": "SAP-8.3-09",
+   "section": "8.3",
+   "spec_line": 515,
+   "level": "WIRE",
+   "role": "caller",
+   "summary": "The caller reads the instance name from the fifth token of the heartbeat subject.",
+   "capability": "sdk-internal",
+   "status": "covered",
+   "tests": [
+    "caller:TestTracker_PerInstanceAndNameFromSubject"
+   ]
+  },
+  {
+   "id": "SAP-8.3-10",
+   "section": "8.3",
+   "spec_line": 517,
+   "level": "SHOULD",
+   "role": "caller",
+   "summary": "When it has both, a caller about to prompt trusts the discovery record over what a heartbeat declares.",
+   "capability": "sdk-internal",
+   "status": "covered",
+   "tests": [
+    "test/caller:TestPrompt_RecordBeatsHeartbeat"
+   ]
+  },
+  {
+   "id": "SAP-8.3-11",
+   "section": "8.3",
+   "spec_line": 517,
+   "level": "WIRE",
+   "role": "caller",
+   "summary": "A receiver drops a malformed protocol_version or endpoints field but still accepts the rest of the heartbeat.",
+   "capability": "sdk-internal",
+   "status": "covered",
+   "tests": [
+    "caller:TestTracker_ToleratesUnknownAndMalformedOptionalFields"
+   ]
+  },
+  {
+   "id": "SAP-8.3-12",
+   "section": "8.3",
+   "spec_line": 519,
+   "level": "MUST",
+   "role": "caller",
+   "summary": "The caller tolerates unknown heartbeat fields.",
+   "capability": "sdk-internal",
+   "status": "covered",
+   "tests": [
+    "caller:TestTracker_ToleratesUnknownAndMalformedOptionalFields"
+   ],
+   "assertion_note": "tracker_test.go:TestTracker_ToleratesUnknownAndMalformedOptionalFields asserts a heartbeat with an unknown field is tracked and not dropped."
+  },
+  {
+   "id": "SAP-8.4-01",
+   "section": "8.4",
+   "spec_line": 523,
+   "level": "SHOULD",
+   "role": "caller",
+   "summary": "For point-in-time reachability, the caller uses the service ping instead of waiting for a heartbeat.",
+   "capability": "sdk-internal",
+   "status": "covered",
+   "tests": [
+    "test/caller:TestPing_ByInstanceAndAll"
+   ]
+  },
+  {
+   "id": "SAP-8.4-02",
+   "section": "8.4",
+   "spec_line": 523,
+   "level": "WIRE",
+   "role": "caller",
+   "summary": "The caller correlates ping responses with heartbeats by instance_id.",
+   "capability": "sdk-internal",
+   "status": "covered",
+   "tests": [
+    "test/caller:TestPing_ByInstanceAndAll"
+   ]
+  },
+  {
+   "id": "SAP-8.5-01",
+   "section": "8.5",
+   "spec_line": 533,
+   "level": "SHOULD",
+   "role": "caller",
+   "summary": "The caller subscribes to the heartbeat wildcard before sending its first $SRV.PING.agents.",
+   "capability": "black-box",
+   "status": "covered",
+   "tests": [
+    "test/caller:TestDiscover_StartsTrackerBeforeThePing"
+   ]
+  },
+  {
+   "id": "SAP-8.6-01",
+   "section": "8.6",
+   "spec_line": 537,
+   "level": "WIRE",
+   "role": "host",
+   "summary": "The host publishes no going-away signal at shutdown.",
+   "capability": "not-applicable",
+   "tests": [],
+   "status": "not-applicable",
+   "not_applicable_reason": "Descriptive: the spec says v0.3 defines no going-away signal and callers rely on the missed-beats threshold; it does not forbid a host from sending anything, so there is nothing to check."
+  },
+  {
+   "id": "SAP-8.7-01",
+   "section": "8.7",
+   "spec_line": 541,
+   "level": "MUST",
+   "role": "host",
+   "summary": "Every agent exposes a status endpoint.",
+   "capability": "black-box",
+   "tests": [
+    "test/host:TestStatus_AlwaysAnswerable"
+   ],
+   "status": "covered",
+   "fault_id": "F-HOST-8-7-01",
+   "mutation": "Skip registering the status endpoint."
+  },
+  {
+   "id": "SAP-8.7-02",
+   "section": "8.7",
+   "spec_line": 546,
+   "level": "WIRE",
+   "role": "host",
+   "summary": "The status endpoint's default subject is agents.status.{agent}.{owner}.{name}.",
+   "capability": "black-box",
+   "tests": [
+    "test/host:TestStatus_AlwaysAnswerable"
+   ],
+   "status": "covered"
+  },
+  {
+   "id": "SAP-8.7-03",
+   "section": "8.7",
+   "spec_line": 547,
+   "level": "WIRE",
+   "role": "host",
+   "summary": "The status endpoint is registered with the queue group agents.",
+   "capability": "black-box",
+   "tests": [
+    "test/host:TestStatus_AlwaysAnswerable"
+   ],
+   "status": "covered"
+  },
+  {
+   "id": "SAP-8.7-04",
+   "section": "8.7",
+   "spec_line": 548,
+   "level": "MUST",
+   "role": "host",
+   "summary": "The host ignores the body of a status request.",
+   "capability": "black-box",
+   "tests": [
+    "test/host:TestStatus_AlwaysAnswerable"
+   ],
+   "status": "covered",
+   "fault_id": "F-HOST-8-7-04",
+   "mutation": "Answer a status request with a non-empty body as an error."
+  },
+  {
+   "id": "SAP-8.7-05",
+   "section": "8.7",
+   "spec_line": 548,
+   "level": "MAY",
+   "role": "operator",
+   "summary": "A future revision may define a request schema for status.",
+   "capability": "not-applicable",
+   "not_applicable_reason": "Describes a possible future revision, not 0.3 behaviour.",
+   "tests": [],
+   "status": "not-applicable"
+  },
+  {
+   "id": "SAP-8.7-06",
+   "section": "8.7",
+   "spec_line": 549,
+   "level": "WIRE",
+   "role": "host",
+   "summary": "A status reply is a heartbeat-shaped JSON payload built fresh for each request.",
+   "capability": "black-box",
+   "tests": [
+    "test/host:TestStatus_AlwaysAnswerable"
+   ],
+   "status": "covered"
+  },
+  {
+   "id": "SAP-8.7-07",
+   "section": "8.7",
+   "spec_line": 551,
+   "level": "WIRE",
+   "role": "host",
+   "summary": "A status reply uses exactly the heartbeat schema.",
+   "capability": "black-box",
+   "tests": [
+    "test/host:TestStatus_AlwaysAnswerable"
+   ],
+   "status": "covered"
+  },
+  {
+   "id": "SAP-8.7-08",
+   "section": "8.7",
+   "spec_line": 551,
+   "level": "MAY",
+   "role": "caller",
+   "summary": "The caller may treat a status reply as a just-arrived heartbeat.",
+   "capability": "sdk-internal",
+   "status": "covered",
+   "tests": [
+    "test/caller:TestPing_ByInstanceAndAll",
+    "test/caller:TestStatus_DoesNotFeedASignedOnlyTracker"
+   ]
+  },
+  {
+   "id": "SAP-8.7-09",
+   "section": "8.7",
+   "spec_line": 556,
+   "level": "MAY",
+   "role": "operator",
+   "summary": "Future revisions may extend the status reply with richer state.",
+   "capability": "not-applicable",
+   "not_applicable_reason": "Describes a possible future revision, not 0.3 behaviour.",
+   "tests": [],
+   "status": "not-applicable"
+  },
+  {
+   "id": "SAP-8.7.1-01",
+   "section": "8.7.1",
+   "spec_line": 560,
+   "level": "SHOULD",
+   "role": "host",
+   "summary": "The status reply is built by the same builder as periodic heartbeats.",
+   "capability": "sdk-internal",
+   "tests": [
+    "test/host:TestStatus_AlwaysAnswerable"
+   ],
+   "status": "covered"
+  },
+  {
+   "id": "SAP-8.7.1-02",
+   "section": "8.7.1",
+   "spec_line": 561,
+   "level": "MAY",
+   "role": "host",
+   "summary": "A failure to respond to a status request may be swallowed.",
+   "capability": "not-applicable",
+   "tests": [],
+   "status": "not-applicable",
+   "not_applicable_reason": "A MAY that lets a host swallow a failed reply to a status request; the SDK ignores the error and either choice conforms, so there is nothing to assert."
+  },
+  {
+   "id": "SAP-8.7.1-03",
+   "section": "8.7.1",
+   "spec_line": 562,
+   "level": "MUST",
+   "role": "host",
+   "summary": "A failure building the status payload is returned as a 500 error response, not left to framework default handling.",
+   "capability": "sdk-internal",
+   "tests": [
+    "host:TestStatus_BuildFailureIs500"
+   ],
+   "status": "covered",
+   "fault_id": "F-HOST-8-7-1-03",
+   "mutation": "Leave a payload-build failure of the status endpoint to the framework instead of a 500 response."
+  },
+  {
+   "id": "SAP-9.1-01",
+   "section": "9.1",
+   "spec_line": 574,
+   "level": "WIRE",
+   "role": "host",
+   "summary": "An error response carries Nats-Service-Error-Code (numeric code as a string) and Nats-Service-Error (short description) headers.",
+   "capability": "black-box",
+   "tests": [
+    "test/host:TestHandlerError_Mapping",
+    "test/host:TestPrompt_MalformedIs400",
+    "test/host:TestStream_ErrorAfterChunks"
+   ],
+   "status": "covered"
+  },
+  {
+   "id": "SAP-9.1-02",
+   "section": "9.1",
+   "spec_line": 577,
+   "level": "MAY",
+   "role": "host",
+   "summary": "An error response body may be empty.",
+   "capability": "black-box",
+   "tests": [
+    "test/host:TestErrorBody"
+   ],
+   "status": "covered"
+  },
+  {
+   "id": "SAP-9.1-03",
+   "section": "9.1",
+   "spec_line": 577,
+   "level": "MAY",
+   "role": "host",
+   "summary": "An error response body may be a JSON object with richer context.",
+   "capability": "black-box",
+   "tests": [
+    "test/host:TestErrorBody"
+   ],
+   "status": "covered"
+  },
+  {
+   "id": "SAP-9.1-04",
+   "section": "9.1",
+   "spec_line": 589,
+   "level": "WIRE",
+   "role": "host",
+   "summary": "When the error body is JSON it carries a string error code field.",
+   "capability": "black-box",
+   "tests": [
+    "test/host:TestErrorBody"
+   ],
+   "status": "covered"
+  },
+  {
+   "id": "SAP-9.1-05",
+   "section": "9.1",
+   "spec_line": 590,
+   "level": "WIRE",
+   "role": "caller",
+   "summary": "When the error body has no message, the caller falls back to the Nats-Service-Error header.",
+   "capability": "sdk-internal",
+   "status": "covered",
+   "tests": [
+    "test/caller:TestStream_ErrorHeadersBeforeBody"
+   ]
+  },
+  {
+   "id": "SAP-9.1-06",
+   "section": "9.1",
+   "spec_line": 591,
+   "level": "MAY",
+   "role": "host",
+   "summary": "The error body may include additional fields.",
+   "capability": "black-box",
+   "tests": [
+    "test/host:TestErrorBody"
+   ],
+   "status": "covered"
+  },
+  {
+   "id": "SAP-9.1-07",
+   "section": "9.1",
+   "spec_line": 591,
+   "level": "MUST",
+   "role": "caller",
+   "summary": "The caller tolerates unknown fields in an error body.",
+   "capability": "sdk-internal",
+   "status": "covered",
+   "tests": [
+    "test/caller:TestStream_ErrorHeadersBeforeBody"
+   ],
+   "assertion_note": "stream_test.go:TestStream_ErrorHeadersBeforeBody asserts an error body with an unknown field is delivered as a ServiceError with the field kept in Extra."
+  },
+  {
+   "id": "SAP-9.1-08",
+   "section": "9.1",
+   "spec_line": 593,
+   "level": "MUST",
+   "role": "caller",
+   "summary": "When the error body is empty or not valid JSON, the caller uses the Nats-Service-Error header as the description.",
+   "capability": "sdk-internal",
+   "status": "covered",
+   "tests": [
+    "test/caller:TestStream_ErrorHeadersBeforeBody"
+   ],
+   "assertion_note": "stream_test.go:TestStream_ErrorHeadersBeforeBody asserts an empty body and a non-JSON body both yield the Nats-Service-Error header description as the message."
+  },
+  {
+   "id": "SAP-9.2-01",
+   "section": "9.2",
+   "spec_line": 599,
+   "level": "WIRE",
+   "role": "host",
+   "summary": "The host answers 400 for invalid base64 in an attachment.",
+   "capability": "black-box",
+   "tests": [
+    "test/host:TestPrompt_MalformedIs400"
+   ],
+   "status": "covered"
+  },
+  {
+   "id": "SAP-9.2-02",
+   "section": "9.2",
+   "spec_line": 599,
+   "level": "WIRE",
+   "role": "host",
+   "summary": "If a host reports an oversize request as an error, the code is 400; enforcing the limit server-side is optional (SAP-5.4-04).",
+   "capability": "needs-configuration",
+   "tests": [
+    "test/host:TestPrompt_OversizedPayload"
+   ],
+   "status": "covered"
+  },
+  {
+   "id": "SAP-9.2-03",
+   "section": "9.2",
+   "spec_line": 607,
+   "level": "MUST",
+   "role": "host",
+   "summary": "The host uses only the status codes of the taxonomy (400, 401, 403, 404, 409, 429, 500).",
+   "capability": "black-box",
+   "tests": [
+    "test/host:TestHandlerError_Mapping",
+    "test/host:TestReject_OnlyTaxonomyCodes"
+   ],
+   "status": "covered",
+   "fault_id": "F-HOST-9-2-03",
+   "mutation": "Send an error code outside the §9.2 table (for example 418)."
+  },
+  {
+   "id": "SAP-9.2-04",
+   "section": "9.2",
+   "spec_line": 607,
+   "level": "WIRE",
+   "role": "operator",
+   "summary": "Future revisions add new codes without reusing existing ones for new meanings.",
+   "capability": "not-applicable",
+   "not_applicable_reason": "A promise by the spec authors about future revisions.",
+   "tests": [],
+   "status": "not-applicable"
+  },
+  {
+   "id": "SAP-9.3-01",
+   "section": "9.3",
+   "spec_line": 611,
+   "level": "WIRE",
+   "role": "host",
+   "summary": "A mid-stream error is an error-headered message followed by the empty terminator, always two messages.",
+   "capability": "black-box",
+   "same_as": "SAP-6.5-04",
+   "tests": [],
+   "status": "covered"
+  },
+  {
+   "id": "SAP-9.3-02",
+   "section": "9.3",
+   "spec_line": 613,
+   "level": "MUST NOT",
+   "role": "host",
+   "summary": "The host publishes nothing further on the reply subject after the terminator.",
+   "capability": "black-box",
+   "same_as": "SAP-6.5-03",
+   "tests": [],
+   "status": "covered"
+  },
+  {
+   "id": "SAP-10.1-01",
+   "section": "10.1",
+   "spec_line": 625,
+   "level": "SHOULD",
+   "role": "operator",
+   "summary": "Deployments separate tenants and environments with NATS accounts and subject permissions.",
+   "capability": "not-applicable",
+   "not_applicable_reason": "Deployment practice outside the SDK.",
+   "tests": [],
+   "status": "not-applicable"
+  },
+  {
+   "id": "SAP-10.2-01",
+   "section": "10.2",
+   "spec_line": 633,
+   "level": "SHOULD",
+   "role": "both",
+   "summary": "Agents and callers support NATS CLI contexts for connection configuration.",
+   "capability": "sdk-internal",
+   "tests": [
+    "connect:TestReadContext_ConfigDirLookup",
+    "connect:TestLoadContext_Auth"
+   ],
+   "status": "covered"
+  },
+  {
+   "id": "SAP-11.1-01",
+   "section": "11.1",
+   "spec_line": 643,
+   "level": "MAY",
+   "role": "host",
+   "summary": "The protocol version string may carry patch or pre-release qualifiers.",
+   "capability": "black-box",
+   "tests": [
+    "TestVersion_ParseMajorMinorPrefix"
+   ],
+   "status": "covered"
+  },
+  {
+   "id": "SAP-11.1-02",
+   "section": "11.1",
+   "spec_line": 643,
+   "level": "MUST",
+   "role": "caller",
+   "summary": "The caller compares only the MAJOR.MINOR prefix of a protocol version.",
+   "capability": "sdk-internal",
+   "status": "covered",
+   "tests": [
+    "test/caller:TestPrompt_VersionPolicy"
+   ],
+   "assertion_note": "prompt_test.go:TestPrompt_VersionPolicy asserts a host reporting 0.3.7-rc1 is accepted against 0.3 and hosts reporting 0.4, 0.2 and 1.3 are refused, so only MAJOR.MINOR decides."
+  },
+  {
+   "id": "SAP-11.2-01",
+   "section": "11.2",
+   "spec_line": 648,
+   "level": "SHOULD",
+   "role": "caller",
+   "summary": "For the same MAJOR and a different MINOR, the caller treats the agent as compatible for its own MINOR feature set.",
+   "capability": "sdk-internal",
+   "status": "covered",
+   "tests": [
+    "test/caller:TestPrompt_VersionPolicy"
+   ]
+  },
+  {
+   "id": "SAP-11.2-02",
+   "section": "11.2",
+   "spec_line": 651,
+   "level": "MAY",
+   "role": "operator",
+   "summary": "MINOR bumps within 0.x may break compatibility.",
+   "capability": "not-applicable",
+   "not_applicable_reason": "Describes spec evolution policy, not SDK behaviour.",
+   "tests": [],
+   "status": "not-applicable"
+  },
+  {
+   "id": "SAP-11.2-03",
+   "section": "11.2",
+   "spec_line": 651,
+   "level": "SHOULD",
+   "role": "caller",
+   "summary": "Callers pin to an exact MAJOR.MINOR until 1.0.",
+   "capability": "sdk-internal",
+   "status": "covered",
+   "tests": [
+    "test/caller:TestPrompt_VersionPolicy"
+   ]
+  },
+  {
+   "id": "SAP-12-01",
+   "section": "12",
+   "spec_line": 694,
+   "level": "WIRE",
+   "role": "caller",
+   "summary": "The caller performs discovery only through $SRV.PING.agents and $SRV.INFO.agents[.{instance_id}].",
+   "capability": "black-box",
+   "status": "covered",
+   "tests": [
+    "test/caller:TestDiscover_ReadsRecordsAndKeepsUnknowns"
+   ]
+  },
+  {
+   "id": "SAP-12-02",
+   "section": "12",
+   "spec_line": 695,
+   "level": "WIRE",
+   "role": "caller",
+   "summary": "The caller reads each instance's protocol_version and applies the compatibility rules.",
+   "capability": "sdk-internal",
+   "status": "covered",
+   "tests": [
+    "test/caller:TestPrompt_VersionPolicy"
+   ]
+  },
+  {
+   "id": "SAP-12-03",
+   "section": "12",
+   "spec_line": 696,
+   "level": "WIRE",
+   "role": "caller",
+   "summary": "The caller locates the prompt endpoint by name in the discovery record.",
+   "capability": "sdk-internal",
+   "same_as": "SAP-4.3-01",
+   "tests": [],
+   "status": "covered"
+  },
+  {
+   "id": "SAP-12-04",
+   "section": "12",
+   "spec_line": 697,
+   "level": "MUST NOT",
+   "role": "caller",
+   "summary": "The caller does not construct the prompt subject from identity alone.",
+   "capability": "black-box",
+   "same_as": "SAP-2-13",
+   "tests": [],
+   "status": "covered"
+  },
+  {
+   "id": "SAP-12-05",
+   "section": "12",
+   "spec_line": 698,
+   "level": "WIRE",
+   "role": "caller",
+   "summary": "The caller subscribes to a heartbeat wildcard before the initial ping.",
+   "capability": "black-box",
+   "same_as": "SAP-8.5-01",
+   "tests": [],
+   "status": "covered"
+  },
+  {
+   "id": "SAP-12-06",
+   "section": "12",
+   "spec_line": 699,
+   "level": "WIRE",
+   "role": "caller",
+   "summary": "The caller applies a per-stream inactivity timeout.",
+   "capability": "sdk-internal",
+   "same_as": "SAP-6.6-03",
+   "tests": [],
+   "status": "covered"
+  },
+  {
+   "id": "SAP-12-07",
+   "section": "12",
+   "spec_line": 700,
+   "level": "WIRE",
+   "role": "caller",
+   "summary": "The caller inspects NATS headers on every received message, for the service error code, before interpreting the body.",
+   "capability": "sdk-internal",
+   "status": "covered",
+   "tests": [
+    "test/caller:TestStream_ErrorHeadersBeforeBody"
+   ]
+  },
+  {
+   "id": "SAP-12-08",
+   "section": "12",
+   "spec_line": 701,
+   "level": "WIRE",
+   "role": "caller",
+   "summary": "The caller treats a zero-byte message with no headers as stream termination.",
+   "capability": "sdk-internal",
+   "status": "covered",
+   "tests": [
+    "test/caller:TestStream_ChunksInOrder"
+   ]
+  },
+  {
+   "id": "SAP-12-09",
+   "section": "12",
+   "spec_line": 702,
+   "level": "WIRE",
+   "role": "caller",
+   "summary": "The caller silently ignores unknown chunk types.",
+   "capability": "sdk-internal",
+   "same_as": "SAP-6.2-03",
+   "tests": [],
+   "status": "covered"
+  },
+  {
+   "id": "SAP-12-10",
+   "section": "12",
+   "spec_line": 702,
+   "level": "WIRE",
+   "role": "caller",
+   "summary": "The caller silently ignores unknown endpoint names in a discovery record.",
+   "capability": "sdk-internal",
+   "status": "covered",
+   "tests": [
+    "test/caller:TestDiscover_ReadsRecordsAndKeepsUnknowns"
+   ]
+  },
+  {
+   "id": "SAP-12-11",
+   "section": "12",
+   "spec_line": 702,
+   "level": "WIRE",
+   "role": "caller",
+   "summary": "The caller silently ignores unknown metadata keys.",
+   "capability": "sdk-internal",
+   "status": "covered",
+   "tests": [
+    "test/caller:TestDiscover_ReadsRecordsAndKeepsUnknowns"
+   ]
+  },
+  {
+   "id": "SAP-12-12",
+   "section": "12",
+   "spec_line": 703,
+   "level": "WIRE",
+   "role": "caller",
+   "summary": "The caller preserves unknown metadata fields when relaying.",
+   "capability": "sdk-internal",
+   "tests": [
+    "test/caller:TestDiscover_ReadsRecordsAndKeepsUnknowns"
+   ],
+   "status": "covered"
+  },
+  {
+   "id": "SAP-12-13",
+   "section": "12",
+   "spec_line": 704,
+   "level": "WIRE",
+   "role": "caller",
+   "summary": "The caller tracks liveness per instance_id.",
+   "capability": "sdk-internal",
+   "status": "covered",
+   "tests": [
+    "caller:TestTracker_PerInstanceAndNameFromSubject"
+   ]
+  },
+  {
+   "id": "SAP-13.1-01",
+   "section": "13.1",
+   "spec_line": 733,
+   "level": "MUST NOT",
+   "role": "host",
+   "summary": "A receiver grants nothing on a claimed identity.",
+   "capability": "needs-configuration",
+   "tests": [
+    "test/host:TestGate_Dispatch"
+   ],
+   "fault_id": "F-HOST-13-1-01",
+   "mutation": "Serve a claimed sender at an endpoint that requires a signature.",
+   "status": "covered"
+  },
+  {
+   "id": "SAP-13.1-02",
+   "section": "13.1",
+   "spec_line": 735,
+   "level": "WIRE",
+   "role": "host",
+   "summary": "Nats-Request-Info is always treated as a claim, never as proof.",
+   "capability": "needs-configuration",
+   "tests": [
+    "identity:TestVerifyRequestInfo_IsOnlyAClaim",
+    "identity:TestVerifyLive_OperatorAttested"
+   ],
+   "status": "covered"
+  },
+  {
+   "id": "SAP-13.2-01",
+   "section": "13.2",
+   "spec_line": 746,
+   "level": "SHOULD",
+   "role": "operator",
+   "summary": "Each agent connects as its own NATS user.",
+   "capability": "not-applicable",
+   "not_applicable_reason": "Deployment topology; an SDK can neither observe nor enforce it.",
+   "tests": [],
+   "status": "not-applicable"
+  },
+  {
+   "id": "SAP-13.3-01",
+   "section": "13.3",
+   "spec_line": 763,
+   "level": "MUST",
+   "role": "both",
+   "summary": "Wherever an agent ID is carried as text it uses the canonical form account.user and no other.",
+   "capability": "sdk-internal",
+   "tests": [
+    "identity:TestAgentIDForm_BuildsAccountDotUser"
+   ],
+   "fault_id": "F-ID-13-3-01",
+   "mutation": "NewAgentID joins account and user with something other than a single dot, or alters either half.",
+   "status": "covered"
+  },
+  {
+   "id": "SAP-13.3-02",
+   "section": "13.3",
+   "spec_line": 775,
+   "level": "MUST NOT",
+   "role": "both",
+   "summary": "An implementation does not change the case of an agent ID.",
+   "capability": "sdk-internal",
+   "tests": [
+    "identity:TestAgentIDForm_NeverChangesCase"
+   ],
+   "fault_id": "F-ID-13-3-02",
+   "mutation": "NewAgentID or ParseAgentID folds the case of an account name or a user key.",
+   "status": "covered"
+  },
+  {
+   "id": "SAP-13.3-03",
+   "section": "13.3",
+   "spec_line": 776,
+   "level": "WIRE",
+   "role": "both",
+   "summary": "The canonical form has no whitespace, no quotes and no other separator.",
+   "capability": "sdk-internal",
+   "tests": [
+    "identity:TestAgentIDForm_RefusesWhitespaceQuotesAndOtherSeparators"
+   ],
+   "status": "covered"
+  },
+  {
+   "id": "SAP-13.3-04",
+   "section": "13.3",
+   "spec_line": 777,
+   "level": "WIRE",
+   "role": "both",
+   "summary": "Agent ID equality is byte equality of the canonical text, nothing looser.",
+   "capability": "sdk-internal",
+   "tests": [
+    "identity:TestAgentIDForm_EqualityIsByteEquality"
+   ],
+   "status": "covered"
+  },
+  {
+   "id": "SAP-13.3-05",
+   "section": "13.3",
+   "spec_line": 780,
+   "level": "MUST",
+   "role": "both",
+   "summary": "A parser accepts exactly the strings that match the agent ID shape regular expression.",
+   "capability": "sdk-internal",
+   "tests": [
+    "identity:TestAgentIDShape_AcceptsExactlyTheRegex"
+   ],
+   "fault_id": "F-ID-13-3-05",
+   "mutation": "ParseAgentID accepts a string the shape expression refuses (a lower-case ID, a swapped pair, three tokens, a user alone) or refuses one it matches.",
+   "status": "covered"
+  },
+  {
+   "id": "SAP-13.3-06",
+   "section": "13.3",
+   "spec_line": 780,
+   "level": "MUST",
+   "role": "both",
+   "summary": "A parser also requires the NKEY check to pass.",
+   "capability": "sdk-internal",
+   "tests": [
+    "identity:TestAgentIDNKEY_UserAlwaysChecked"
+   ],
+   "fault_id": "F-ID-13-3-06",
+   "mutation": "Skip the NKEY check on the user half, so a shape-valid user with a bad CRC is accepted.",
+   "status": "covered"
+  },
+  {
+   "id": "SAP-13.3-07",
+   "section": "13.3",
+   "spec_line": 786,
+   "level": "MUST",
+   "role": "both",
+   "summary": "The NKEY check always applies to the user, and to the account only when that is an A-prefixed 56-character string.",
+   "capability": "sdk-internal",
+   "tests": [
+    "identity:TestAgentIDNKEY_AccountCheckedOnlyWhenAccountKeyShaped"
+   ],
+   "fault_id": "F-ID-13-3-07",
+   "mutation": "Skip the NKEY check on an A-prefixed 56-character account, or apply it to account names of any other shape.",
+   "status": "covered"
+  },
+  {
+   "id": "SAP-13.3-08",
+   "section": "13.3",
+   "spec_line": 788,
+   "level": "WIRE",
+   "role": "both",
+   "summary": "Neither agent ID token may be empty and there is no zero agent ID.",
+   "capability": "sdk-internal",
+   "tests": [
+    "identity:TestAgentIDForm_NoEmptyTokenAndNoZeroID"
+   ],
+   "status": "covered"
+  },
+  {
+   "id": "SAP-13.3.1-01",
+   "section": "13.3.1",
+   "spec_line": 794,
+   "level": "MUST",
+   "role": "both",
+   "summary": "A non-NKEY account is a single token of letters, digits, underscore or hyphen, or the global account $G.",
+   "capability": "sdk-internal",
+   "tests": [
+    "identity:TestAgentIDAccount_NameForm"
+   ],
+   "fault_id": "F-ID-13-3-1-01",
+   "mutation": "The account-name grammar admits a dot, wildcard, whitespace or another character outside [A-Za-z0-9_-], or refuses $G.",
+   "status": "covered"
+  },
+  {
+   "id": "SAP-13.3.1-02",
+   "section": "13.3.1",
+   "spec_line": 794,
+   "level": "WIRE",
+   "role": "both",
+   "summary": "Any other reported account name leaves the connection with no representable identity.",
+   "capability": "sdk-internal",
+   "tests": [
+    "identity:TestAgentIDAccount_UnrepresentableNameGivesNoIdentity",
+    "identity:TestIdentityFromUserInfoReply"
+   ],
+   "status": "covered"
+  },
+  {
+   "id": "SAP-13.3.3-01",
+   "section": "13.3.3",
+   "spec_line": 816,
+   "level": "WIRE",
+   "role": "both",
+   "summary": "A conforming parser gives the published fixture results for every parse fixture.",
+   "capability": "sdk-internal",
+   "tests": [
+    "identity:TestVectors_AgentIDFixtures"
+   ],
+   "status": "covered"
+  },
+  {
+   "id": "SAP-13.4-01",
+   "section": "13.4",
+   "spec_line": 836,
+   "level": "WIRE",
+   "role": "both",
+   "summary": "With a credentials file, identity comes from the user JWT: sub is the user, iss or nats.issuer_account is the account.",
+   "capability": "sdk-internal",
+   "tests": [
+    "identity:TestIdentityFromJWT"
+   ],
+   "status": "covered"
+  },
+  {
+   "id": "SAP-13.4-02",
+   "section": "13.4",
+   "spec_line": 837,
+   "level": "WIRE",
+   "role": "both",
+   "summary": "Without a credentials file, identity comes from $SYS.REQ.USER.INFO.",
+   "capability": "sdk-internal",
+   "tests": [
+    "identity:TestSelfID_UnknownIsRetriedAndRecovers"
+   ],
+   "status": "covered"
+  },
+  {
+   "id": "SAP-13.4-03",
+   "section": "13.4",
+   "spec_line": 839,
+   "level": "SHOULD NOT",
+   "role": "both",
+   "summary": "With a JWT in hand, the implementation does not ask the server for its identity.",
+   "capability": "sdk-internal",
+   "tests": [
+    "identity:TestSelfID_JWTSourceDoesNotAskTheServer"
+   ],
+   "status": "covered"
+  },
+  {
+   "id": "SAP-13.4-04",
+   "section": "13.4",
+   "spec_line": 839,
+   "level": "MUST",
+   "role": "both",
+   "summary": "An implementation that consults both sources requires the same pair, otherwise it treats the identity as unknown.",
+   "capability": "sdk-internal",
+   "tests": [
+    "identity:TestSelfID_JWTSourceDoesNotAskTheServer"
+   ],
+   "fault_id": "F-ID-13-4-04",
+   "mutation": "With both sources consulted, accept the server's pair when it differs from the JWT's instead of treating the identity as unknown.",
+   "status": "covered"
+  },
+  {
+   "id": "SAP-13.4-05",
+   "section": "13.4",
+   "spec_line": 841,
+   "level": "WIRE",
+   "role": "both",
+   "summary": "The server reply maps to an identity or none exactly as the connection table says.",
+   "capability": "sdk-internal",
+   "tests": [
+    "identity:TestIdentityFromUserInfoReply"
+   ],
+   "status": "covered"
+  },
+  {
+   "id": "SAP-13.4-06",
+   "section": "13.4",
+   "spec_line": 849,
+   "level": "WIRE",
+   "role": "both",
+   "summary": "When the server does not answer in time (default 2 seconds), the identity is unknown.",
+   "capability": "sdk-internal",
+   "tests": [
+    "identity:TestSelfID_UnknownIsRetriedAndRecovers",
+    "identity:TestSelfID_FailureKinds"
+   ],
+   "status": "covered"
+  },
+  {
+   "id": "SAP-13.4-07",
+   "section": "13.4",
+   "spec_line": 851,
+   "level": "MUST NOT",
+   "role": "both",
+   "summary": "An implementation with unknown identity does not guess one.",
+   "capability": "sdk-internal",
+   "tests": [
+    "identity:TestSelfID_UnknownIsRetriedAndRecovers"
+   ],
+   "fault_id": "F-ID-13-4-07",
+   "mutation": "After a failed lookup, return a guessed or last-known identity instead of an unknown-identity error.",
+   "status": "covered"
+  },
+  {
+   "id": "SAP-13.4-08",
+   "section": "13.4",
+   "spec_line": 851,
+   "level": "MUST NOT",
+   "role": "both",
+   "summary": "An unknown identity is not cached for the connection's lifetime; the lookup is retried after a short interval.",
+   "capability": "sdk-internal",
+   "tests": [
+    "identity:TestSelfID_UnknownIsRetriedAndRecovers"
+   ],
+   "fault_id": "F-ID-13-4-08",
+   "mutation": "Remember the unknown outcome for the connection's lifetime, so the lookup is never retried after the interval.",
+   "status": "covered"
+  },
+  {
+   "id": "SAP-13.4-09",
+   "section": "13.4",
+   "spec_line": 851,
+   "level": "SHOULD",
+   "role": "both",
+   "summary": "An implementation that observes a permissions violation for the identity request treats the identity as unknown at once.",
+   "capability": "sdk-internal",
+   "tests": [
+    "identity:TestSelfID_PermissionViolationFailsFast"
+   ],
+   "status": "covered"
+  },
+  {
+   "id": "SAP-13.4-10",
+   "section": "13.4",
+   "spec_line": 855,
+   "level": "WIRE",
+   "role": "caller",
+   "summary": "With identity none or unknown a caller omits Agent-Sender entirely, rather than sending blank or made-up fields.",
+   "capability": "needs-configuration",
+   "status": "covered",
+   "tests": [
+    "test/caller:TestSigned_EndpointRequirement"
+   ]
+  },
+  {
+   "id": "SAP-13.4-11",
+   "section": "13.4",
+   "spec_line": 856,
+   "level": "WIRE",
+   "role": "caller",
+   "summary": "A caller with no identity fails locally, before publishing, when the target declares min_sender_trust signed.",
+   "capability": "sdk-internal",
+   "status": "covered",
+   "tests": [
+    "test/caller:TestSigned_EndpointRequirement"
+   ]
+  },
+  {
+   "id": "SAP-13.5-01",
+   "section": "13.5",
+   "spec_line": 862,
+   "level": "MUST",
+   "role": "caller",
+   "summary": "A caller that implements the extension and has an identity sets exactly one Agent-Sender header on every prompt request.",
+   "capability": "needs-configuration",
+   "status": "covered",
+   "tests": [
+    "test/caller:TestSigned_PromptCarriesAgentSender"
+   ],
+   "assertion_note": "signed_test.go:TestSigned_PromptCarriesAgentSender asserts the prompt the host received carries exactly one Agent-Sender header."
+  },
+  {
+   "id": "SAP-13.5-02",
+   "section": "13.5",
+   "spec_line": 862,
+   "level": "MUST",
+   "role": "caller",
+   "summary": "The same caller sets exactly one Agent-Sender header on every status request.",
+   "capability": "needs-configuration",
+   "status": "covered",
+   "tests": [
+    "test/caller:TestSigned_StatusRequestCarriesAgentSender"
+   ],
+   "assertion_note": "signed_test.go:TestSigned_StatusRequestCarriesAgentSender asserts the status request the host received carries exactly one Agent-Sender header."
+  },
+  {
+   "id": "SAP-13.5-03",
+   "section": "13.5",
+   "spec_line": 870,
+   "level": "WIRE",
+   "role": "caller",
+   "summary": "The header field v is the JSON number 1.",
+   "capability": "needs-configuration",
+   "status": "covered",
+   "tests": [
+    "test/caller:TestSigned_PromptCarriesAgentSender"
+   ]
+  },
+  {
+   "id": "SAP-13.5-04",
+   "section": "13.5",
+   "spec_line": 871,
+   "level": "WIRE",
+   "role": "caller",
+   "summary": "The header carries account and user, which together are the agent ID.",
+   "capability": "needs-configuration",
+   "status": "covered",
+   "tests": [
+    "test/caller:TestSigned_PromptCarriesAgentSender"
+   ]
+  },
+  {
+   "id": "SAP-13.5-05",
+   "section": "13.5",
+   "spec_line": 873,
+   "level": "WIRE",
+   "role": "caller",
+   "summary": "The optional name field is display only, outside the signature, and nothing depends on it.",
+   "capability": "needs-configuration",
+   "status": "covered",
+   "tests": [
+    "test/caller:TestSigned_HeaderWireForm"
+   ]
+  },
+  {
+   "id": "SAP-13.5-06",
+   "section": "13.5",
+   "spec_line": 874,
+   "level": "WIRE",
+   "role": "caller",
+   "summary": "When signed, the header carries sub, the subject published to byte for byte, apart from the one rename exception.",
+   "capability": "needs-configuration",
+   "status": "covered",
+   "tests": [
+    "test/caller:TestSigned_PromptCarriesAgentSender"
+   ]
+  },
+  {
+   "id": "SAP-13.5-07",
+   "section": "13.5",
+   "spec_line": 875,
+   "level": "SHOULD",
+   "role": "caller",
+   "summary": "Signers emit ts at second precision with the Z suffix.",
+   "capability": "needs-configuration",
+   "status": "covered",
+   "tests": [
+    "test/caller:TestSigned_HeaderWireForm"
+   ]
+  },
+  {
+   "id": "SAP-13.5-08",
+   "section": "13.5",
+   "spec_line": 875,
+   "level": "MUST",
+   "role": "host",
+   "summary": "Verifiers accept fractional seconds in ts.",
+   "capability": "needs-configuration",
+   "tests": [
+    "test/host:TestGate_VerificationChecks"
+   ],
+   "status": "covered",
+   "fault_id": "F-HOST-13-5-08",
+   "mutation": "Reject a header ts with fractional seconds."
+  },
+  {
+   "id": "SAP-13.5-09",
+   "section": "13.5",
+   "spec_line": 875,
+   "level": "WIRE",
+   "role": "caller",
+   "summary": "When signed, the header carries ts as an RFC 3339 UTC time.",
+   "capability": "needs-configuration",
+   "status": "covered",
+   "tests": [
+    "test/caller:TestSigned_PromptCarriesAgentSender"
+   ]
+  },
+  {
+   "id": "SAP-13.5-10",
+   "section": "13.5",
+   "spec_line": 876,
+   "level": "WIRE",
+   "role": "caller",
+   "summary": "When signed, the header carries a nonce of 1 to 64 characters from [A-Za-z0-9_-], unique per request from the user.",
+   "capability": "needs-configuration",
+   "status": "covered",
+   "tests": [
+    "test/caller:TestSigned_PromptCarriesAgentSender"
+   ]
+  },
+  {
+   "id": "SAP-13.5-11",
+   "section": "13.5",
+   "spec_line": 876,
+   "level": "RECOMMENDED",
+   "role": "caller",
+   "summary": "The nonce is a NUID.",
+   "capability": "needs-configuration",
+   "status": "covered",
+   "tests": [
+    "test/caller:TestSigned_HeaderWireForm"
+   ]
+  },
+  {
+   "id": "SAP-13.5-12",
+   "section": "13.5",
+   "spec_line": 877,
+   "level": "WIRE",
+   "role": "caller",
+   "summary": "When signed, the header carries sig as base64url without padding.",
+   "capability": "needs-configuration",
+   "status": "covered",
+   "tests": [
+    "test/caller:TestSigned_PromptCarriesAgentSender"
+   ]
+  },
+  {
+   "id": "SAP-13.5-13",
+   "section": "13.5",
+   "spec_line": 879,
+   "level": "MAY",
+   "role": "caller",
+   "summary": "A caller that holds no seed may send a header without sig, which is a claim.",
+   "capability": "needs-configuration",
+   "status": "covered",
+   "tests": [
+    "test/caller:TestSigned_ClaimWithoutSeed"
+   ]
+  },
+  {
+   "id": "SAP-13.5.1-01",
+   "section": "13.5.1",
+   "spec_line": 883,
+   "level": "WIRE",
+   "role": "both",
+   "summary": "The header name is Agent-Sender, matched case-sensitively.",
+   "capability": "sdk-internal",
+   "status": "covered",
+   "tests": [
+    "test/caller:TestSigned_HeaderWireForm"
+   ]
+  },
+  {
+   "id": "SAP-13.5.1-02",
+   "section": "13.5.1",
+   "spec_line": 884,
+   "level": "WIRE",
+   "role": "caller",
+   "summary": "The header value is compact one-line JSON with no whitespace between tokens.",
+   "capability": "needs-configuration",
+   "status": "covered",
+   "tests": [
+    "test/caller:TestSigned_HeaderWireForm"
+   ]
+  },
+  {
+   "id": "SAP-13.5.1-03",
+   "section": "13.5.1",
+   "spec_line": 885,
+   "level": "WIRE",
+   "role": "host",
+   "summary": "A receiver ignores unknown header fields and treats an unknown v as absent.",
+   "capability": "needs-configuration",
+   "tests": [
+    "test/host:TestInterop_PeerWithoutIdentity"
+   ],
+   "status": "covered"
+  },
+  {
+   "id": "SAP-13.5.1-04",
+   "section": "13.5.1",
+   "spec_line": 886,
+   "level": "WIRE",
+   "role": "host",
+   "summary": "A header counts as malformed if it is invalid JSON, lacks a required field, has a mistyped field, or carries sig without its companions.",
+   "capability": "needs-configuration",
+   "tests": [
+    "test/host:TestGate_VerificationChecks"
+   ],
+   "status": "covered"
+  },
+  {
+   "id": "SAP-13.5.1-05",
+   "section": "13.5.1",
+   "spec_line": 886,
+   "level": "WIRE",
+   "role": "host",
+   "summary": "A version sent as the string \"1\" is malformed; only the JSON number 1 passes.",
+   "capability": "needs-configuration",
+   "tests": [
+    "test/host:TestGate_VerificationChecks"
+   ],
+   "status": "covered"
+  },
+  {
+   "id": "SAP-13.5.1-06",
+   "section": "13.5.1",
+   "spec_line": 886,
+   "level": "WIRE",
+   "role": "host",
+   "summary": "A receiver rejects a malformed header with 400.",
+   "capability": "needs-configuration",
+   "tests": [
+    "test/host:TestGate_Dispatch",
+    "test/host:TestGate_VerificationChecks"
+   ],
+   "status": "covered"
+  },
+  {
+   "id": "SAP-13.5.1-07",
+   "section": "13.5.1",
+   "spec_line": 887,
+   "level": "MUST",
+   "role": "caller",
+   "summary": "The caller includes the Agent-Sender header bytes in its local max_payload check.",
+   "capability": "sdk-internal",
+   "status": "covered",
+   "tests": [
+    "test/caller:TestSigned_HeaderBytesCountAgainstMaxPayload"
+   ],
+   "assertion_note": "signed_test.go:TestSigned_HeaderBytesCountAgainstMaxPayload asserts a 900-byte prompt is refused locally against max_payload 1KB once the header bytes are counted, and sent when no header is added."
+  },
+  {
+   "id": "SAP-13.6.1-01",
+   "section": "13.6.1",
+   "spec_line": 893,
+   "level": "WIRE",
+   "role": "caller",
+   "summary": "The caller signs with its user seed.",
+   "capability": "needs-configuration",
+   "status": "covered",
+   "tests": [
+    "test/caller:TestSigned_PromptCarriesAgentSender"
+   ]
+  },
+  {
+   "id": "SAP-13.6.1-02",
+   "section": "13.6.1",
+   "spec_line": 896,
+   "level": "WIRE",
+   "role": "both",
+   "summary": "The signed input is the seven-line byte string with the AGENT-SENDER-V1 tag, in the specified order, each line ending in one LF.",
+   "capability": "sdk-internal",
+   "tests": [
+    "identity:TestSignedInput_SevenLinesInOrder",
+    "identity:TestVectors_SenderVectors"
+   ],
+   "status": "covered"
+  },
+  {
+   "id": "SAP-13.6.1-03",
+   "section": "13.6.1",
+   "spec_line": 900,
+   "level": "WIRE",
+   "role": "both",
+   "summary": "account, user, ts and nonce in the signed input are the header values byte for byte, and subject is the header's sub.",
+   "capability": "sdk-internal",
+   "tests": [
+    "identity:TestSignedInput_FieldsAreTheHeaderValues",
+    "identity:TestVectors_SenderVectors"
+   ],
+   "status": "covered"
+  },
+  {
+   "id": "SAP-13.6.1-04",
+   "section": "13.6.1",
+   "spec_line": 901,
+   "level": "WIRE",
+   "role": "both",
+   "summary": "The signed input hashes the raw payload, so an empty payload hashes to the SHA-256 of zero bytes.",
+   "capability": "sdk-internal",
+   "tests": [
+    "identity:TestSignedInput_EmptyPayloadHashesZeroBytes",
+    "identity:TestVectors_SenderVectors"
+   ],
+   "status": "covered"
+  },
+  {
+   "id": "SAP-13.6.1-05",
+   "section": "13.6.1",
+   "spec_line": 903,
+   "level": "WIRE",
+   "role": "both",
+   "summary": "The signature is ed25519 over the signed input, encoded base64url without padding, and the input itself is never sent.",
+   "capability": "sdk-internal",
+   "tests": [
+    "identity:TestSignedInput_SignatureForm",
+    "identity:TestVectors_SenderVectors"
+   ],
+   "status": "covered"
+  },
+  {
+   "id": "SAP-13.6.1-06",
+   "section": "13.6.1",
+   "spec_line": 905,
+   "level": "WIRE",
+   "role": "both",
+   "summary": "The fixed first-line tag keeps a sender signature and an id_sig from being interchangeable.",
+   "capability": "sdk-internal",
+   "tests": [
+    "identity:TestSignedInput_TagSeparatesSenderAndIDSignatures",
+    "identity:TestVerifyLive_Reject401"
+   ],
+   "status": "covered"
+  },
+  {
+   "id": "SAP-13.6.2-01",
+   "section": "13.6.2",
+   "spec_line": 918,
+   "level": "WIRE",
+   "role": "caller",
+   "summary": "By default the caller signs the very subject it publishes to.",
+   "capability": "needs-configuration",
+   "status": "covered",
+   "tests": [
+    "test/caller:TestSigned_HelpersSignTheSubject"
+   ]
+  },
+  {
+   "id": "SAP-13.6.2-02",
+   "section": "13.6.2",
+   "spec_line": 920,
+   "level": "WIRE",
+   "role": "caller",
+   "summary": "When the caller's own account renamed an import, the caller signs the exporter's subject, not its local name.",
+   "capability": "needs-configuration",
+   "status": "covered",
+   "tests": [
+    "test/caller:TestSigned_HelpersSignTheSubject",
+    "test/caller:TestSigned_RenamedImportSignsTheExportersSubject"
+   ]
+  },
+  {
+   "id": "SAP-13.6.2-03",
+   "section": "13.6.2",
+   "spec_line": 924,
+   "level": "WIRE",
+   "role": "caller",
+   "summary": "Where an export inserts the caller's account, the caller signs its published subject unadjusted.",
+   "capability": "needs-configuration",
+   "tests": [
+    "test/caller:TestSigned_HelpersSignTheSubject",
+    "test/identity:TestAccountToken_InsertedByTheExport"
+   ],
+   "status": "covered"
+  },
+  {
+   "id": "SAP-13.6.2-04",
+   "section": "13.6.2",
+   "spec_line": 925,
+   "level": "WIRE",
+   "role": "host",
+   "summary": "A signer that also publishes a subject for its own account signs what it publishes, which takes precedence over the renamed-import rule.",
+   "capability": "needs-configuration",
+   "tests": [
+    "test/host:TestIdentity_SignedHeartbeats"
+   ],
+   "status": "covered"
+  },
+  {
+   "id": "SAP-13.7-01",
+   "section": "13.7",
+   "spec_line": 931,
+   "level": "WIRE",
+   "role": "host",
+   "summary": "No header, or an unknown v, makes the sender absent: the application sees absence, not an empty ID, and does no lookup.",
+   "capability": "needs-configuration",
+   "tests": [
+    "test/host:TestGate_Dispatch"
+   ],
+   "status": "covered"
+  },
+  {
+   "id": "SAP-13.7-02",
+   "section": "13.7",
+   "spec_line": 932,
+   "level": "WIRE",
+   "role": "host",
+   "summary": "A malformed Agent-Sender header is rejected with 400.",
+   "capability": "needs-configuration",
+   "same_as": "SAP-13.5.1-06",
+   "tests": [],
+   "status": "covered"
+  },
+  {
+   "id": "SAP-13.7-03",
+   "section": "13.7",
+   "spec_line": 933,
+   "level": "WIRE",
+   "role": "host",
+   "summary": "For a header with sig, the receiver rebuilds the signed input from the header and the received payload hash and verifies sig against user.",
+   "capability": "needs-configuration",
+   "tests": [
+    "test/host:TestGate_VerificationChecks"
+   ],
+   "status": "covered"
+  },
+  {
+   "id": "SAP-13.7-04",
+   "section": "13.7",
+   "spec_line": 933,
+   "level": "WIRE",
+   "role": "host",
+   "summary": "The receiver also checks that sub is acceptable for the arrival subject.",
+   "capability": "needs-configuration",
+   "tests": [
+    "test/host:TestGate_VerificationChecks"
+   ],
+   "status": "covered"
+  },
+  {
+   "id": "SAP-13.7-05",
+   "section": "13.7",
+   "spec_line": 933,
+   "level": "WIRE",
+   "role": "host",
+   "summary": "The receiver also checks that ts lies within the replay window (default 30 seconds of skew).",
+   "capability": "needs-configuration",
+   "tests": [
+    "test/host:TestGate_VerificationChecks"
+   ],
+   "status": "covered"
+  },
+  {
+   "id": "SAP-13.7-06",
+   "section": "13.7",
+   "spec_line": 933,
+   "level": "WIRE",
+   "role": "host",
+   "summary": "The receiver also checks that the nonce has not been seen for this user within the window, keyed by user and nonce.",
+   "capability": "needs-configuration",
+   "tests": [
+    "test/host:TestGate_VerificationChecks"
+   ],
+   "status": "covered"
+  },
+  {
+   "id": "SAP-13.7-07",
+   "section": "13.7",
+   "spec_line": 938,
+   "level": "WIRE",
+   "role": "host",
+   "summary": "A request failing the signature, sub, ts or nonce check is answered 401.",
+   "capability": "needs-configuration",
+   "tests": [
+    "test/host:TestGate_Dispatch"
+   ],
+   "status": "covered"
+  },
+  {
+   "id": "SAP-13.7-08",
+   "section": "13.7",
+   "spec_line": 938,
+   "level": "WIRE",
+   "role": "host",
+   "summary": "A failing signature is refused under every min_sender_trust setting.",
+   "capability": "needs-configuration",
+   "tests": [
+    "test/host:TestGate_Dispatch"
+   ],
+   "status": "covered"
+  },
+  {
+   "id": "SAP-13.7-09",
+   "section": "13.7",
+   "spec_line": 938,
+   "level": "MAY",
+   "role": "host",
+   "summary": "An implementation may order the inexpensive checks ahead of signature verification.",
+   "capability": "not-applicable",
+   "tests": [],
+   "status": "not-applicable",
+   "not_applicable_reason": "A MAY about running the inexpensive checks before signature verification; the spec says the outcome is the same either order, so no behaviour is observable."
+  },
+  {
+   "id": "SAP-13.7-10",
+   "section": "13.7",
+   "spec_line": 939,
+   "level": "WIRE",
+   "role": "host",
+   "summary": "A well-formed header without sig is classified claimed.",
+   "capability": "needs-configuration",
+   "tests": [
+    "test/host:TestGate_Dispatch"
+   ],
+   "status": "covered"
+  },
+  {
+   "id": "SAP-13.7-11",
+   "section": "13.7",
+   "spec_line": 941,
+   "level": "WIRE",
+   "role": "host",
+   "summary": "A rejection is an error-headered message followed by the terminator.",
+   "capability": "needs-configuration",
+   "tests": [
+    "test/host:TestGate_Dispatch"
+   ],
+   "status": "covered"
+  },
+  {
+   "id": "SAP-13.7-12",
+   "section": "13.7",
+   "spec_line": 946,
+   "level": "WIRE",
+   "role": "host",
+   "summary": "The 401 code is used for a missing required signature, a failing signature, and a refused claimed or absent sender.",
+   "capability": "needs-configuration",
+   "tests": [
+    "test/host:TestGate_AdmissionHook"
+   ],
+   "status": "covered"
+  },
+  {
+   "id": "SAP-13.7-13",
+   "section": "13.7",
+   "spec_line": 947,
+   "level": "WIRE",
+   "role": "host",
+   "summary": "The 403 code is used when a sender is verified but not accepted.",
+   "capability": "needs-configuration",
+   "tests": [
+    "test/host:TestGate_AdmissionHook"
+   ],
+   "status": "covered"
+  },
+  {
+   "id": "SAP-13.7-14",
+   "section": "13.7",
+   "spec_line": 949,
+   "level": "WIRE",
+   "role": "host",
+   "summary": "The nonce set lives in the receiving instance and is not shared between instances.",
+   "capability": "not-applicable",
+   "not_applicable_reason": "Describes a documented limitation; a shared store is a deployment option, not a requirement.",
+   "tests": [],
+   "status": "not-applicable"
+  },
+  {
+   "id": "SAP-13.7.1-01",
+   "section": "13.7.1",
+   "spec_line": 953,
+   "level": "WIRE",
+   "role": "host",
+   "summary": "sub is compared with the arrival subject, never matched as a pattern.",
+   "capability": "needs-configuration",
+   "tests": [
+    "identity:TestVerifySub_IsComparedNeverMatchedAsAPattern",
+    "identity:TestVerifyLive_Reject401"
+   ],
+   "status": "covered"
+  },
+  {
+   "id": "SAP-13.7.1-02",
+   "section": "13.7.1",
+   "spec_line": 955,
+   "level": "WIRE",
+   "role": "host",
+   "summary": "Form (a): sub equals the arrival subject.",
+   "capability": "needs-configuration",
+   "tests": [
+    "identity:TestVerifyLive_Verified"
+   ],
+   "status": "covered"
+  },
+  {
+   "id": "SAP-13.7.1-03",
+   "section": "13.7.1",
+   "spec_line": 956,
+   "level": "WIRE",
+   "role": "host",
+   "summary": "Form (b): with an account_token_position configured, sub equals the arrival subject with that token removed.",
+   "capability": "needs-configuration",
+   "tests": [
+    "identity:TestVerify_AccountTokenPosition",
+    "test/identity:TestAccountToken_InsertedByTheExport"
+   ],
+   "status": "covered"
+  },
+  {
+   "id": "SAP-13.7.1-04",
+   "section": "13.7.1",
+   "spec_line": 957,
+   "level": "MUST",
+   "role": "host",
+   "summary": "Form (c): for a renamed import, sub equals the subject the receiver rebuilds from the arrival subject and its known mapping.",
+   "capability": "sdk-internal",
+   "tests": [
+    "identity:TestVerify_RenamedSubject"
+   ],
+   "fault_id": "F-ID-13-7-1-04",
+   "mutation": "Form (c) accepts any sub, or any sub whose trailing tokens match, instead of requiring equality with the subject the receiver rebuilds from the arrival subject.",
+   "status": "covered"
+  },
+  {
+   "id": "SAP-13.7.1-05",
+   "section": "13.7.1",
+   "spec_line": 957,
+   "level": "WIRE",
+   "role": "host",
+   "summary": "Only the three forms are acceptable; a rule on trailing tokens alone is not.",
+   "capability": "needs-configuration",
+   "tests": [
+    "identity:TestVerify_RenamedSubject",
+    "identity:TestVerify_AccountTokenPosition"
+   ],
+   "status": "covered"
+  },
+  {
+   "id": "SAP-13.7.1-06",
+   "section": "13.7.1",
+   "spec_line": 959,
+   "level": "MUST",
+   "role": "host",
+   "summary": "With an account_token_position configured, the arrival subject's token there must equal the header account, for all three forms.",
+   "capability": "sdk-internal",
+   "tests": [
+    "identity:TestVerifySub_AccountTokenMustEqualAccountInEveryForm",
+    "identity:TestVerify_AccountTokenPosition",
+    "test/identity:TestAccountToken_InsertedByTheExport"
+   ],
+   "fault_id": "F-ID-13-7-1-06",
+   "mutation": "Skip the comparison of the arrival subject's token at the configured position with the header account for one of the three forms, such as a sub that equals the arrival subject or a renamed import.",
+   "status": "covered"
+  },
+  {
+   "id": "SAP-13.7.1-07",
+   "section": "13.7.1",
+   "spec_line": 959,
+   "level": "WIRE",
+   "role": "host",
+   "summary": "A configured position past the last token of the arrival subject makes the check fail.",
+   "capability": "needs-configuration",
+   "tests": [
+    "identity:TestVerify_AccountTokenPosition"
+   ],
+   "status": "covered"
+  },
+  {
+   "id": "SAP-13.7.2-01",
+   "section": "13.7.2",
+   "spec_line": 965,
+   "level": "WIRE",
+   "role": "host",
+   "summary": "The verified identity is user; nothing is granted on account alone.",
+   "capability": "sdk-internal",
+   "tests": [
+    "identity:TestNonceSet_QuotaIsKeyedOnUserNotAccount"
+   ],
+   "status": "covered"
+  },
+  {
+   "id": "SAP-13.7.3-01",
+   "section": "13.7.3",
+   "spec_line": 971,
+   "level": "WIRE",
+   "role": "host",
+   "summary": "Refusing a verified sender is answered 403.",
+   "capability": "needs-configuration",
+   "tests": [
+    "test/host:TestGate_AdmissionHook"
+   ],
+   "status": "covered"
+  },
+  {
+   "id": "SAP-13.7.3-02",
+   "section": "13.7.3",
+   "spec_line": 971,
+   "level": "WIRE",
+   "role": "host",
+   "summary": "Refusing a claimed or absent sender is answered 401.",
+   "capability": "needs-configuration",
+   "tests": [
+    "test/host:TestGate_AdmissionHook"
+   ],
+   "status": "covered"
+  },
+  {
+   "id": "SAP-13.8-01",
+   "section": "13.8",
+   "spec_line": 979,
+   "level": "WIRE",
+   "role": "host",
+   "summary": "For stored messages a consumer checks signature and sub only, not the ts window or the nonce set.",
+   "capability": "not-applicable",
+   "not_applicable_reason": "Stored-message verification is JetStream-side; the core wire protocol has no such path.",
+   "tests": [],
+   "status": "not-applicable"
+  },
+  {
+   "id": "SAP-13.8-02",
+   "section": "13.8",
+   "spec_line": 979,
+   "level": "WIRE",
+   "role": "host",
+   "summary": "Stored-message consumers drop duplicates keyed on user plus nonce.",
+   "capability": "not-applicable",
+   "not_applicable_reason": "Stored-message handling is JetStream-side.",
+   "tests": [],
+   "status": "not-applicable"
+  },
+  {
+   "id": "SAP-13.8-03",
+   "section": "13.8",
+   "spec_line": 979,
+   "level": "SHOULD",
+   "role": "caller",
+   "summary": "Publishers into a stream use the nonce as the Nats-Msg-Id.",
+   "capability": "not-applicable",
+   "not_applicable_reason": "Stored-message publishing is JetStream-side.",
+   "tests": [],
+   "status": "not-applicable"
+  },
+  {
+   "id": "SAP-13.8-04",
+   "section": "13.8",
+   "spec_line": 980,
+   "level": "MUST NOT",
+   "role": "operator",
+   "summary": "A stream whose records carry Agent-Sender does not transform subjects on the way in.",
+   "capability": "not-applicable",
+   "not_applicable_reason": "Stream configuration, outside the SDK.",
+   "tests": [],
+   "status": "not-applicable"
+  },
+  {
+   "id": "SAP-13.9-01",
+   "section": "13.9",
+   "spec_line": 984,
+   "level": "MUST",
+   "role": "host",
+   "summary": "An agent that implements the extension declares min_sender_trust in its prompt endpoint metadata.",
+   "capability": "needs-configuration",
+   "tests": [
+    "test/host:TestRegistration_PromptMetadata"
+   ],
+   "status": "covered",
+   "fault_id": "F-HOST-13-9-01",
+   "mutation": "Omit min_sender_trust from the prompt endpoint metadata."
+  },
+  {
+   "id": "SAP-13.9-02",
+   "section": "13.9",
+   "spec_line": 994,
+   "level": "WIRE",
+   "role": "host",
+   "summary": "min_sender_trust is any or signed, and a missing field implies any.",
+   "capability": "needs-configuration",
+   "tests": [
+    "test/host:TestRegistration_PromptMetadata"
+   ],
+   "status": "covered"
+  },
+  {
+   "id": "SAP-13.9-03",
+   "section": "13.9",
+   "spec_line": 999,
+   "level": "WIRE",
+   "role": "host",
+   "summary": "A signed endpoint answers 401 to any request that was not verified.",
+   "capability": "needs-configuration",
+   "tests": [
+    "test/host:TestGate_Dispatch"
+   ],
+   "status": "covered"
+  },
+  {
+   "id": "SAP-13.9-04",
+   "section": "13.9",
+   "spec_line": 1001,
+   "level": "MUST",
+   "role": "caller",
+   "summary": "A caller that reads an unknown min_sender_trust value treats it as signed.",
+   "capability": "sdk-internal",
+   "fault_id": "F-UNKTRUST-ANY",
+   "mutation": "treat an unknown min_sender_trust as any",
+   "status": "covered",
+   "tests": [
+    "test/caller:TestSigned_EndpointRequirement"
+   ]
+  },
+  {
+   "id": "SAP-13.9-05",
+   "section": "13.9",
+   "spec_line": 1003,
+   "level": "WIRE",
+   "role": "host",
+   "summary": "The status endpoint's metadata carries no min_sender_trust.",
+   "capability": "needs-configuration",
+   "tests": [
+    "test/host:TestRegistration_PromptMetadata",
+    "test/host:TestStatus_NeverRefusedOnIdentityGrounds"
+   ],
+   "status": "covered"
+  },
+  {
+   "id": "SAP-13.9-06",
+   "section": "13.9",
+   "spec_line": 1003,
+   "level": "MUST NOT",
+   "role": "host",
+   "summary": "Answering a liveness probe never hinges on who the prober is.",
+   "capability": "needs-configuration",
+   "tests": [
+    "test/host:TestStatus_NeverRefusedOnIdentityGrounds"
+   ],
+   "status": "covered",
+   "fault_id": "F-HOST-13-9-06",
+   "mutation": "Refuse a status request whose sender is unsigned."
+  },
+  {
+   "id": "SAP-13.9-07",
+   "section": "13.9",
+   "spec_line": 1003,
+   "level": "MUST NOT",
+   "role": "host",
+   "summary": "A status request is never refused for identity reasons; if classification fails it is logged and the reply still goes out.",
+   "capability": "needs-configuration",
+   "tests": [
+    "test/host:TestStatus_NeverRefusedOnIdentityGrounds"
+   ],
+   "fault_id": "F-HOST-13-9-07",
+   "mutation": "Refuse a status request on a failed sender classification.",
+   "status": "covered"
+  },
+  {
+   "id": "SAP-13.10-01",
+   "section": "13.10",
+   "spec_line": 1007,
+   "level": "WIRE",
+   "role": "host",
+   "summary": "An implementing agent adds user_nkey, account and id_sig to the service metadata.",
+   "capability": "needs-configuration",
+   "tests": [
+    "test/host:TestIdentity_Registration"
+   ],
+   "status": "covered"
+  },
+  {
+   "id": "SAP-13.10-02",
+   "section": "13.10",
+   "spec_line": 1025,
+   "level": "WIRE",
+   "role": "host",
+   "summary": "id_sig is an ed25519 signature by the user seed over the AGENT-ID-V1 input, base64url without padding.",
+   "capability": "needs-configuration",
+   "tests": [
+    "test/host:TestIdentity_Registration"
+   ],
+   "status": "covered"
+  },
+  {
+   "id": "SAP-13.10-03",
+   "section": "13.10",
+   "spec_line": 1031,
+   "level": "WIRE",
+   "role": "host",
+   "summary": "The id_sig input uses the advertised prompt subject, not one derived from the instance name.",
+   "capability": "needs-configuration",
+   "tests": [
+    "test/host:TestIdentity_Registration"
+   ],
+   "status": "covered"
+  },
+  {
+   "id": "SAP-13.10-04",
+   "section": "13.10",
+   "spec_line": 1033,
+   "level": "WIRE",
+   "role": "caller",
+   "summary": "Identity metadata lacking a valid id_sig is only a claim.",
+   "capability": "sdk-internal",
+   "status": "covered",
+   "tests": [
+    "test/caller:TestSigned_ResolveSender",
+    "test/caller:TestDiscover_RequireVerifiedIdentity"
+   ]
+  },
+  {
+   "id": "SAP-13.10-05",
+   "section": "13.10",
+   "spec_line": 1035,
+   "level": "WIRE",
+   "role": "caller",
+   "summary": "A reverse lookup indexes records by account and user_nkey and keeps only instances whose id_sig verifies.",
+   "capability": "sdk-internal",
+   "status": "covered",
+   "tests": [
+    "test/caller:TestSigned_ResolveSender"
+   ]
+  },
+  {
+   "id": "SAP-13.10-06",
+   "section": "13.10",
+   "spec_line": 1035,
+   "level": "SHOULD",
+   "role": "both",
+   "summary": "Implementations cache the reverse-lookup index briefly rather than enumerate per message.",
+   "capability": "sdk-internal",
+   "status": "covered",
+   "tests": [
+    "test/caller:TestSigned_ResolveSender"
+   ]
+  },
+  {
+   "id": "SAP-13.11-01",
+   "section": "13.11",
+   "spec_line": 1041,
+   "level": "MUST",
+   "role": "host",
+   "summary": "An agent that holds its seed attaches Agent-Sender to every heartbeat.",
+   "capability": "needs-configuration",
+   "tests": [
+    "test/host:TestIdentity_SignedHeartbeats"
+   ],
+   "fault_id": "F-HOST-13-11-01",
+   "mutation": "Publish an unsigned heartbeat on a host that holds a seed.",
+   "status": "covered"
+  },
+  {
+   "id": "SAP-13.11-02",
+   "section": "13.11",
+   "spec_line": 1043,
+   "level": "WIRE",
+   "role": "host",
+   "summary": "A signed heartbeat's sub is the heartbeat subject as published.",
+   "capability": "needs-configuration",
+   "tests": [
+    "test/host:TestIdentity_SignedHeartbeats"
+   ],
+   "status": "covered"
+  },
+  {
+   "id": "SAP-13.11-03",
+   "section": "13.11",
+   "spec_line": 1044,
+   "level": "WIRE",
+   "role": "host",
+   "summary": "A signed heartbeat's ts is the heartbeat payload's own ts field.",
+   "capability": "needs-configuration",
+   "tests": [
+    "test/host:TestIdentity_SignedHeartbeats"
+   ],
+   "status": "covered"
+  },
+  {
+   "id": "SAP-13.11-04",
+   "section": "13.11",
+   "spec_line": 1045,
+   "level": "WIRE",
+   "role": "host",
+   "summary": "A signed heartbeat's nonce is fresh for every heartbeat.",
+   "capability": "needs-configuration",
+   "tests": [
+    "test/host:TestIdentity_SignedHeartbeats"
+   ],
+   "status": "covered"
+  },
+  {
+   "id": "SAP-13.11-05",
+   "section": "13.11",
+   "spec_line": 1046,
+   "level": "WIRE",
+   "role": "host",
+   "summary": "A signed heartbeat's sig covers the payload bytes as published, signed by the seed that signs id_sig.",
+   "capability": "needs-configuration",
+   "tests": [
+    "test/host:TestIdentity_SignedHeartbeats"
+   ],
+   "status": "covered"
+  },
+  {
+   "id": "SAP-13.11-06",
+   "section": "13.11",
+   "spec_line": 1048,
+   "level": "WIRE",
+   "role": "host",
+   "summary": "Without a seed, the agent publishes heartbeats without the header, with the payload unchanged.",
+   "capability": "needs-configuration",
+   "tests": [
+    "test/host:TestIdentity_SignedHeartbeats"
+   ],
+   "status": "covered"
+  },
+  {
+   "id": "SAP-13.11-07",
+   "section": "13.11",
+   "spec_line": 1050,
+   "level": "WIRE",
+   "role": "caller",
+   "summary": "A subscriber discards a heartbeat that fails verification and never downgrades it to a claim.",
+   "capability": "sdk-internal",
+   "status": "covered",
+   "tests": [
+    "test/caller:TestTracker_VerifiesSignedHeartbeats"
+   ]
+  },
+  {
+   "id": "SAP-13.11-08",
+   "section": "13.11",
+   "spec_line": 1052,
+   "level": "MUST NOT",
+   "role": "host",
+   "summary": "The agent does not sign a reply, including a status reply.",
+   "capability": "needs-configuration",
+   "tests": [
+    "test/host:TestIdentity_StatusReplyNeverSigned"
+   ],
+   "fault_id": "F-HOST-13-11-08",
+   "mutation": "Sign a status reply.",
+   "status": "covered"
+  },
+  {
+   "id": "SAP-13.12-01",
+   "section": "13.12",
+   "spec_line": 1059,
+   "level": "WIRE",
+   "role": "both",
+   "summary": "A UI showing an identity also shows its trust class.",
+   "capability": "not-applicable",
+   "not_applicable_reason": "Informative display guidance in a security-considerations section.",
+   "tests": [],
+   "status": "not-applicable"
+  },
+  {
+   "id": "SAP-13.13-01",
+   "section": "13.13",
+   "spec_line": 1065,
+   "level": "WIRE",
+   "role": "host",
+   "summary": "An agent without identity support ignores an unknown Agent-Sender header and serves the request.",
+   "capability": "black-box",
+   "tests": [
+    "test/host:TestInterop_PeerWithoutIdentity"
+   ],
+   "status": "covered"
+  },
+  {
+   "id": "SAP-13.13-02",
+   "section": "13.13",
+   "spec_line": 1066,
+   "level": "WIRE",
+   "role": "host",
+   "summary": "An agent with identity support serves a request without identity as an absent sender when the endpoint declares any.",
+   "capability": "needs-configuration",
+   "tests": [
+    "test/host:TestInterop_PeerWithoutIdentity"
+   ],
+   "status": "covered"
+  },
+  {
+   "id": "SAP-13.13-03",
+   "section": "13.13",
+   "spec_line": 1070,
+   "level": "WIRE",
+   "role": "host",
+   "summary": "An agent implements the extension if and only if its prompt metadata carries min_sender_trust.",
+   "capability": "needs-configuration",
+   "tests": [
+    "test/host:TestRegistration_PromptMetadata"
+   ],
+   "status": "covered"
+  },
+  {
+   "id": "SAP-B.13-01",
+   "section": "B.13",
+   "spec_line": 1291,
+   "level": "WIRE",
+   "role": "both",
+   "summary": "The published known-answer sender signature vector reproduces byte for byte.",
+   "capability": "sdk-internal",
+   "tests": [
+    "identity:TestSignedInput_KnownAnswerOperatorAccount",
+    "identity:TestVectors_SenderVectors"
+   ],
+   "status": "covered"
+  },
+  {
+   "id": "SAP-C-01",
+   "section": "C",
+   "spec_line": 1315,
+   "level": "SHOULD",
+   "role": "host",
+   "summary": "For session-aware harnesses each session is its own registration.",
+   "capability": "not-applicable",
+   "not_applicable_reason": "Informative appendix, explicitly non-normative.",
+   "tests": [],
+   "status": "not-applicable"
+  },
+  {
+   "id": "SAP-C-02",
+   "section": "C",
+   "spec_line": 1316,
+   "level": "MAY",
+   "role": "host",
+   "summary": "A session-less harness may omit metadata.session or set it to default.",
+   "capability": "not-applicable",
+   "not_applicable_reason": "Informative appendix, explicitly non-normative.",
+   "tests": [],
+   "status": "not-applicable"
+  },
+  {
+   "id": "SAP-C-03",
+   "section": "C",
+   "spec_line": 1321,
+   "level": "SHOULD",
+   "role": "operator",
+   "summary": "Deployers coordinate before claiming a new agent identifier.",
+   "capability": "not-applicable",
+   "not_applicable_reason": "Informative appendix and deployment practice.",
+   "tests": [],
+   "status": "not-applicable"
+  }
+ ]
+}

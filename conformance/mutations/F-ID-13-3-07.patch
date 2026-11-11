@@ -1,0 +1,11 @@
+--- a/identity/agentid.go
++++ b/identity/agentid.go
+@@ -86,7 +86,7 @@
+ func (id AgentID) String() string { return string(id) }
+ 
+ func isAccountKeyShaped(account string) bool {
+-	return len(account) == nkeyPublicLen && strings.HasPrefix(account, "A")
++	return false
+ }
+ 
+ func validateUser(user string) error {

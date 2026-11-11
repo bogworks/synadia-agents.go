@@ -1,0 +1,11 @@
+--- a/host/host.go
++++ b/host/host.go
+@@ -362,7 +362,7 @@
+ 		desc = h.subject.Agent() + " agent " + h.subject.Name()
+ 	}
+ 	svc, err := micro.AddService(h.nc, micro.Config{
+-		Name:         agents.ServiceName,
++		Name:         "agent",
+ 		Version:      h.cfg.version,
+ 		Description:  desc,
+ 		Metadata:     meta,
