@@ -64,7 +64,7 @@ func TestAttachment_EncodeIsStrictBase64(t *testing.T) {
 	for n := 0; n < 64; n++ {
 		data := make([]byte, n)
 		for i := range data {
-			data[i] = byte(i*37 + 250)
+			data[i] = byte((i*37 + 250) % 256)
 		}
 		a := NewAttachment("f", data)
 		if strings.ContainsAny(a.Content, "-_ \r\n") {

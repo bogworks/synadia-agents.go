@@ -34,6 +34,7 @@ func signedFixture(t *testing.T, mods []func(*host), opts ...caller.Option) *fix
 }
 
 func withSigner(t *testing.T, name string) caller.Option {
+	t.Helper()
 	return caller.WithIdentity(caller.IdentityOptions{Signer: aliceSigner(t), Name: name})
 }
 
@@ -401,7 +402,7 @@ func TestSigned_HelpersSignTheSubject(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer responder.Unsubscribe()
+	defer func() { _ = responder.Unsubscribe() }()
 	_ = f.h.nc.Flush()
 	reply, err := f.c.RequestSigned(ctx, "rpc.echo", []byte("hi"), 2*time.Second, caller.WithHeaders(nats.Header{"X-App": {"1"}}))
 	if err != nil || string(reply.Data) != "verified" {
@@ -432,15 +433,15 @@ func TestSigned_ResolveSender(t *testing.T) {
 	signer := aliceSigner(t)
 	id := aliceID(t)
 
-	real := newHost(t, hnc, func(h *host) {
+	liveHost := newHost(t, hnc, func(h *host) {
 		h.agent, h.owner, h.name = "real", "tester", "one"
 	})
-	reg, err := identity.RegistrationMetadata(signer, id, real.agent, real.owner, "agents.prompt.real.tester.one")
+	reg, err := identity.RegistrationMetadata(signer, id, liveHost.agent, liveHost.owner, "agents.prompt.real.tester.one")
 	if err != nil {
 		t.Fatal(err)
 	}
-	real.extraMeta = reg
-	real.start()
+	liveHost.extraMeta = reg
+	liveHost.start()
 
 	// A second instance publishes the same user_nkey and account but a bad
 	// id_sig: only a claim.
@@ -455,8 +456,8 @@ func TestSigned_ResolveSender(t *testing.T) {
 	if err != nil || !ok {
 		t.Fatalf("%v %v", ok, err)
 	}
-	if got.ID != real.id || got.PromptSubject != real.promptSubject {
-		t.Fatalf("resolved %+v, want the instance with the verifying id_sig (%s), not %s", got, real.id, liar.id)
+	if got.ID != liveHost.id || got.PromptSubject != liveHost.promptSubject {
+		t.Fatalf("resolved %+v, want the instance with the verifying id_sig (%s), not %s", got, liveHost.id, liar.id)
 	}
 	other, err := identity.NewAgentID("$G", "UDLPRVYPNSPIPYH4RVGKEHP2AAG4J2CN4GQ3IBTKC6ZDV6SR7ONG27D4")
 	if err != nil {
@@ -465,14 +466,14 @@ func TestSigned_ResolveSender(t *testing.T) {
 	if _, ok, err := c.ResolveSender(ctx, other); err != nil || ok {
 		t.Fatalf("an unregistered sender resolved: %v %v", ok, err)
 	}
-	if n := real.infoReqs.Load(); n != 1 {
+	if n := liveHost.infoReqs.Load(); n != 1 {
 		t.Fatalf("%d enumerations for two lookups, want 1 (cached)", n)
 	}
 	c.InvalidateSenders()
 	if _, ok, err := c.ResolveSender(ctx, id); err != nil || !ok {
 		t.Fatal(ok, err)
 	}
-	if n := real.infoReqs.Load(); n != 2 {
+	if n := liveHost.infoReqs.Load(); n != 2 {
 		t.Fatalf("%d enumerations after Invalidate, want 2", n)
 	}
 }

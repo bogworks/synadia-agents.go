@@ -10,6 +10,7 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -592,7 +593,7 @@ func TestTools_ServedPromptScope(t *testing.T) {
 
 	type outcome struct{ note, open string }
 	got := make(chan outcome, 1)
-	e.agent("boss", func(ctx context.Context, req *host.Request, out *host.Responder) error {
+	e.agent("boss", func(ctx context.Context, _ *host.Request, out *host.Responder) error {
 		// The model's turn: start a call, let it reach its question, then answer
 		// the caller without collecting it.
 		r := e.run(ctx, bossTools, tools.ToolPromptAgent, obj{"address": addr("worker"), "prompt": "ask", "wait": false})
@@ -691,7 +692,7 @@ func TestTools_CloseStopsEverything(t *testing.T) {
 	if got := w.answer(t); got != tools.QuestionRefusal {
 		t.Errorf("the host got %q", got)
 	}
-	if _, err := tl.Execute(context.Background(), tools.ToolListAgentCalls, nil); err != tools.ErrClosed {
+	if _, err := tl.Execute(context.Background(), tools.ToolListAgentCalls, nil); !errors.Is(err, tools.ErrClosed) {
 		t.Errorf("%v", err)
 	}
 	w.stop()

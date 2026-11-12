@@ -179,14 +179,14 @@ func TestSignerFromContext_RefusesIdentityDifferentFromConnection(t *testing.T) 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			e.context("c", tc.fields)
-			s, err := connect.SignerFromContext("c")
+			s, err := connect.SignerFromContext(t.Context(), "c")
 			if tc.wantOK {
 				if err != nil || s.PublicKey() != u.pub {
 					t.Fatalf("err = %v", err)
 				}
 				return
 			}
-			wantContextErr(t, err)
+			_ = wantContextErr(t, err)
 			if !errors.Is(err, identity.ErrIdentityMismatch) {
 				t.Errorf("err = %v, want ErrIdentityMismatch", err)
 			}
@@ -248,14 +248,14 @@ func TestKeyFilePermissions(t *testing.T) {
 			t.Run(fmt.Sprintf("%s %04o", k.name, m.mode), func(t *testing.T) {
 				p := writeMode(t, filepath.Join(e.home, "keys", k.name+fmt.Sprintf("%04o", m.mode)), k.body, m.mode)
 				e.context("c", k.fields(p))
-				_, err := connect.LoadContext("c")
+				_, err := connect.LoadContext(t.Context(), "c")
 				if !m.reject {
 					if err != nil {
 						t.Fatalf("mode %04o refused: %v", m.mode, err)
 					}
 					return
 				}
-				wantContextErr(t, err)
+				_ = wantContextErr(t, err)
 				if !strings.Contains(err.Error(), "0600") || !strings.Contains(err.Error(), p) {
 					t.Errorf("error does not name the file and 0600: %v", err)
 				}
@@ -263,7 +263,7 @@ func TestKeyFilePermissions(t *testing.T) {
 					t.Errorf("error leaks the seed: %v", err)
 				}
 				// The relax option accepts the file.
-				if _, err := connect.LoadContext("c", connect.WithInsecureKeyFilePermissions()); err != nil {
+				if _, err := connect.LoadContext(t.Context(), "c", connect.WithInsecureKeyFilePermissions()); err != nil {
 					t.Errorf("relaxed load failed: %v", err)
 				}
 				// So does a bundle through its context options.
@@ -274,7 +274,7 @@ func TestKeyFilePermissions(t *testing.T) {
 					connect.WithBundleContextOptions(connect.WithInsecureKeyFilePermissions())); err != nil {
 					t.Errorf("relaxed bundle failed: %v", err)
 				}
-				if _, err := connect.SignerFromContext("c"); err == nil {
+				if _, err := connect.SignerFromContext(t.Context(), "c"); err == nil {
 					t.Error("SignerFromContext accepted an insecure key file")
 				}
 			})
@@ -300,21 +300,21 @@ func TestKeyFilePermissions(t *testing.T) {
 		cert := writeMode(t, filepath.Join(e.home, "tls", "c.crt"), certPEM, 0o644) // public: any mode
 		key := writeMode(t, filepath.Join(e.home, "tls", "c.key"), keyPEM, 0o644)
 		e.context("t", map[string]any{"url": serverURL, "cert": cert, "key": key})
-		_, err := connect.LoadContext("t")
-		wantContextErr(t, err)
+		_, err := connect.LoadContext(t.Context(), "t")
+		_ = wantContextErr(t, err)
 		if !strings.Contains(err.Error(), "0600") || !strings.Contains(err.Error(), key) {
 			t.Errorf("err = %v", err)
 		}
 		if strings.Contains(err.Error(), "PRIVATE KEY") {
 			t.Errorf("error quotes key material: %v", err)
 		}
-		if _, err := connect.LoadContext("t", connect.WithInsecureKeyFilePermissions()); err != nil {
+		if _, err := connect.LoadContext(t.Context(), "t", connect.WithInsecureKeyFilePermissions()); err != nil {
 			t.Errorf("relaxed: %v", err)
 		}
 		if err := os.Chmod(key, 0o600); err != nil {
 			t.Fatal(err)
 		}
-		if _, err := connect.LoadContext("t"); err != nil {
+		if _, err := connect.LoadContext(t.Context(), "t"); err != nil {
 			t.Errorf("0600 key refused: %v", err)
 		}
 	})
@@ -322,7 +322,7 @@ func TestKeyFilePermissions(t *testing.T) {
 	t.Run("CA file may be public", func(t *testing.T) {
 		ca := writeMode(t, filepath.Join(e.home, "tls", "ca.pem"), certPEM, 0o644)
 		e.context("ca", map[string]any{"url": serverURL, "ca": ca})
-		if _, err := connect.LoadContext("ca"); err != nil {
+		if _, err := connect.LoadContext(t.Context(), "ca"); err != nil {
 			t.Errorf("public CA refused: %v", err)
 		}
 	})
@@ -339,13 +339,13 @@ func TestReadContext_FileChecks(t *testing.T) {
 			t.Fatal(err)
 		}
 		_, err := connect.ReadContext("dir")
-		wantContextErr(t, err)
+		_ = wantContextErr(t, err)
 	})
 	t.Run("over the size cap", func(t *testing.T) {
 		big := `{"url": "nats://x:1", "pad": "` + strings.Repeat("a", 1<<20) + `"}`
 		e.write(ctxPath("big"), big)
 		_, err := connect.ReadContext("big")
-		wantContextErr(t, err)
+		_ = wantContextErr(t, err)
 		if !strings.Contains(err.Error(), "too large") {
 			t.Errorf("error does not say why: %v", err)
 		}
@@ -357,14 +357,14 @@ func TestReadContext_FileChecks(t *testing.T) {
 		}
 		t.Setenv("NATS_CONTEXT", "")
 		_, err := connect.ReadContext("current")
-		wantContextErr(t, err)
+		_ = wantContextErr(t, err)
 	})
 	t.Run("current selection over the size cap", func(t *testing.T) {
 		e2 := newEnv(t)
 		e2.write(filepath.Join(e2.dir, "context.txt"), strings.Repeat("a", 1<<20+1))
 		t.Setenv("NATS_CONTEXT", "")
 		_, err := connect.ReadContext("current")
-		wantContextErr(t, err)
+		_ = wantContextErr(t, err)
 	})
 
 	if runtime.GOOS == "windows" {
@@ -376,7 +376,7 @@ func TestReadContext_FileChecks(t *testing.T) {
 		t.Run("group-readable context with inline "+field, func(t *testing.T) {
 			p := writeMode(t, ctxPath("shared-"+field), body, 0o644)
 			_, err := connect.ReadContext("shared-" + field)
-			wantContextErr(t, err)
+			_ = wantContextErr(t, err)
 			if !strings.Contains(err.Error(), "0600") || strings.Contains(err.Error(), v) {
 				t.Errorf("error %v", err)
 			}
@@ -405,7 +405,7 @@ func TestReadContext_FileChecks(t *testing.T) {
 			body := fmt.Sprintf(`{"url": %q}`, tc.url)
 			p := writeMode(t, ctxPath(name), body, 0o644)
 			_, err := connect.ReadContext(name)
-			wantContextErr(t, err)
+			_ = wantContextErr(t, err)
 			if !strings.Contains(err.Error(), "0600") || strings.Contains(err.Error(), tc.secret) {
 				t.Errorf("error %v", err)
 			}

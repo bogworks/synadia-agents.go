@@ -7,47 +7,43 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
-	"sync"
 	"testing"
 
 	"github.com/bogworks/synadia-agents.go/conformance"
 	"github.com/bogworks/synadia-agents.go/conformance/runner"
 )
 
-var (
-	buildOnce sync.Once
-	binPath   string
-	buildErr  error
-)
+// binPath is the sapconform command, built once by TestMain for every test in
+// the package.
+var binPath string
 
-// sapconformBinary builds the command once.
-func sapconformBinary(t *testing.T) string {
-	t.Helper()
-	buildOnce.Do(func() {
-		dir, err := os.MkdirTemp("", "sapconform-bin")
-		if err != nil {
-			buildErr = err
-			return
-		}
-		binPath = filepath.Join(dir, "sapconform")
-		out, err := exec.Command("go", "build", "-o", binPath, "github.com/bogworks/synadia-agents.go/cmd/sapconform").CombinedOutput()
-		if err != nil {
-			buildErr = errors.New(string(out))
-		}
-	})
-	if buildErr != nil {
-		t.Fatalf("build sapconform: %v", buildErr)
+func TestMain(m *testing.M) {
+	os.Exit(run(m))
+}
+
+func run(m *testing.M) int {
+	dir, err := os.MkdirTemp("", "sapconform-bin")
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "sapconform test setup:", err)
+		return 1
 	}
-	return binPath
+	defer func() { _ = os.RemoveAll(dir) }()
+	binPath = filepath.Join(dir, "sapconform")
+	if out, err := exec.Command("go", "build", "-o", binPath, "github.com/bogworks/synadia-agents.go/cmd/sapconform").CombinedOutput(); err != nil {
+		fmt.Fprintf(os.Stderr, "build sapconform: %v\n%s", err, out)
+		return 1
+	}
+	return m.Run()
 }
 
 func runBinary(t *testing.T, args ...string) (stdout string, exit int) {
 	t.Helper()
-	cmd := exec.Command(sapconformBinary(t), args...)
+	cmd := exec.Command(binPath, args...)
 	var out, errb bytes.Buffer
 	cmd.Stdout, cmd.Stderr = &out, &errb
 	err := cmd.Run()

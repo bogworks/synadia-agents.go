@@ -121,7 +121,7 @@ func chkEndpointNames(_ context.Context, t *T) Outcome {
 	return verdict(problems, fmt.Sprintf("%d endpoint name(s) equal their verb token", checked))
 }
 
-func subjectForm(t *T, ep *Endpoint, verb string) Outcome {
+func subjectForm(_ *T, ep *Endpoint, verb string) Outcome {
 	if ep == nil {
 		return fail("no %s endpoint is registered", verb)
 	}

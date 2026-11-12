@@ -51,21 +51,21 @@ func TestAttachments_LinkSwappedAfterTheCheckIsRefused(t *testing.T) {
 
 	cases := map[string]struct {
 		path string
-		swap func(real string) error
+		swap func(path string) error
 	}{
 		"the file becomes a link": {
 			path: filepath.Join(allowed, "in.txt"),
-			swap: func(real string) error {
-				if err := os.Remove(real); err != nil {
+			swap: func(path string) error {
+				if err := os.Remove(path); err != nil {
 					return err
 				}
-				return os.Symlink(filepath.Join(outside, "secret.txt"), real)
+				return os.Symlink(filepath.Join(outside, "secret.txt"), path)
 			},
 		},
 		"a directory on the way becomes a link": {
 			path: filepath.Join(allowed, "sub", "f.txt"),
-			swap: func(real string) error {
-				dir := filepath.Dir(real)
+			swap: func(path string) error {
+				dir := filepath.Dir(path)
 				if err := os.Rename(dir, dir+".bak"); err != nil {
 					return err
 				}
@@ -86,8 +86,8 @@ func TestAttachments_LinkSwappedAfterTheCheckIsRefused(t *testing.T) {
 				_ = os.WriteFile(filepath.Join(allowed, "in.txt"), []byte("fine"), 0o600)
 			})
 			swapped := false
-			h.tl.afterAttachmentCheck = func(real string) {
-				if err := tc.swap(real); err != nil {
+			h.tl.afterAttachmentCheck = func(path string) {
+				if err := tc.swap(path); err != nil {
 					t.Errorf("swap: %v", err)
 				}
 				swapped = true
@@ -653,7 +653,7 @@ func TestClose_RefusalsGoOutConcurrently(t *testing.T) {
 	for j := 0; j < n; j++ {
 		s.ch <- fakeItem{ev: streamEvent{query: &question{
 			prompt: fmt.Sprint(j), replySubject: "_INBOX.a.b",
-			reply: func(ctx context.Context, _ string) error {
+			reply: func(_ context.Context, _ string) error {
 				cur := inflight.Add(1)
 				for {
 					p := peak.Load()

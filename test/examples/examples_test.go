@@ -65,10 +65,11 @@ func startHost(t *testing.T, bin string, args ...string) {
 	t.Cleanup(func() {
 		_ = cmd.Process.Signal(syscall.SIGINT)
 		select {
-		case <-done:
+		case err := <-done:
+			t.Logf("example exited: %v", err)
 		case <-time.After(10 * time.Second):
 			_ = cmd.Process.Kill()
-			<-done
+			t.Logf("example killed: %v", <-done)
 		}
 	})
 	ready := make(chan string, 1)

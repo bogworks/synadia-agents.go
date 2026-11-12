@@ -20,6 +20,7 @@ import (
 
 func TestGoHost_Discovery(t *testing.T) {
 	eachCaller(t, func(t *testing.T, e *interop.Env, impl interop.Impl) {
+		t.Helper()
 		srv := interop.StartServer(t, e)
 		g := startGoHost(t, srv.URL, "", false, hostMode{kind: "echo"})
 		res := e.RunCaller(t, impl, srv.URL, interop.Peer{Agent: "interop", Owner: "interop", Name: "main"})
@@ -56,6 +57,7 @@ func TestGoHost_Discovery(t *testing.T) {
 
 func TestGoHost_Echo(t *testing.T) {
 	eachCaller(t, func(t *testing.T, e *interop.Env, impl interop.Impl) {
+		t.Helper()
 		srv := interop.StartServer(t, e)
 		g := startGoHost(t, srv.URL, "", false, hostMode{kind: "echo", chunks: 3})
 		const prompt = "hello from the interop harness, with unicode: héllo ✓"
@@ -90,6 +92,7 @@ func TestGoHost_Error(t *testing.T) {
 	} {
 		t.Run(strconv.Itoa(c.code), func(t *testing.T) {
 			eachCaller(t, func(t *testing.T, e *interop.Env, impl interop.Impl) {
+				t.Helper()
 				srv := interop.StartServer(t, e)
 				startGoHost(t, srv.URL, "", false, hostMode{kind: "error", errCode: c.code, errDesc: c.desc})
 				res := e.RunCaller(t, impl, srv.URL, interop.Peer{Prompt: "anything"})
@@ -114,6 +117,7 @@ func TestGoHost_Error(t *testing.T) {
 func TestGoHost_HandlerErrorIs500(t *testing.T) {
 	// A handler that returns a plain error is a 500 "handler error", its text never reaching the caller.
 	eachCaller(t, func(t *testing.T, e *interop.Env, impl interop.Impl) {
+		t.Helper()
 		srv := interop.StartServer(t, e)
 		startGoHost(t, srv.URL, "", false, hostMode{kind: "plainerror"})
 		res := e.RunCaller(t, impl, srv.URL, interop.Peer{Prompt: "x"})
@@ -127,6 +131,7 @@ func TestGoHost_HandlerErrorIs500(t *testing.T) {
 
 func TestGoHost_Attachments(t *testing.T) {
 	eachCaller(t, func(t *testing.T, e *interop.Env, impl interop.Impl) {
+		t.Helper()
 		srv := interop.StartServer(t, e)
 		g := startGoHost(t, srv.URL, "", false, hostMode{kind: "attachments"})
 		atts := []interop.Attachment{{Filename: "a.txt", Data: []byte("alpha")}, {Filename: "b.bin", Data: []byte{0, 1, 2, 255}}}
@@ -155,6 +160,7 @@ func TestGoHost_Attachments(t *testing.T) {
 
 func TestGoHost_Query(t *testing.T) {
 	eachCaller(t, func(t *testing.T, e *interop.Env, impl interop.Impl) {
+		t.Helper()
 		srv := interop.StartServer(t, e)
 		g := startGoHost(t, srv.URL, "", false, hostMode{kind: "query"})
 		res := e.RunCaller(t, impl, srv.URL, interop.Peer{Prompt: "plan it", QueryAnswer: "go ahead"})
@@ -173,6 +179,7 @@ func TestGoHost_Query(t *testing.T) {
 
 func TestGoHost_SlowKeepAlive(t *testing.T) {
 	eachCaller(t, func(t *testing.T, e *interop.Env, impl interop.Impl) {
+		t.Helper()
 		srv := interop.StartServer(t, e)
 		startGoHost(t, srv.URL, "", false, hostMode{kind: "slow", slowDelay: 3 * time.Second}, host.WithKeepalive(200*time.Millisecond))
 		// The peers use one value for both the inactivity timeout and the overall ceiling, so the
@@ -194,6 +201,7 @@ func TestGoHost_SlowKeepAlive(t *testing.T) {
 
 func TestGoHost_Status_Heartbeat(t *testing.T) {
 	eachCaller(t, func(t *testing.T, e *interop.Env, impl interop.Impl) {
+		t.Helper()
 		srv := interop.StartServer(t, e)
 		startGoHost(t, srv.URL, "", false, hostMode{kind: "echo"}, host.WithHeartbeatInterval(time.Second))
 		res := e.RunCaller(t, impl, srv.URL, interop.Peer{Agent: "interop", Status: true, WatchHeartbeat: 2500 * time.Millisecond})
@@ -217,6 +225,7 @@ func TestGoHost_Status_Heartbeat(t *testing.T) {
 
 func TestGoHost_Signed(t *testing.T) {
 	eachCaller(t, func(t *testing.T, e *interop.Env, impl interop.Impl) {
+		t.Helper()
 		srv := interop.StartServer(t, e, interop.WithFixtureConfig("nkey-noaccounts.conf"))
 		seed := e.Seed(t, "alice")
 		g := startGoHost(t, srv.URL, seed, true, hostMode{kind: "echo"}, host.WithMinSenderTrust(identity.TrustSigned))
@@ -269,6 +278,7 @@ func TestGoHost_Signed(t *testing.T) {
 func TestGoHost_Signed_CrossAccount(t *testing.T) {
 	// The host is carol in ACME, the caller bob in APP, which imports the agents.> and $SRV.> exports.
 	eachCaller(t, func(t *testing.T, e *interop.Env, impl interop.Impl) {
+		t.Helper()
 		srv := interop.StartServer(t, e, interop.WithFixtureConfig("accounts.conf"))
 		carol, bob := e.Seed(t, "carol"), e.Seed(t, "bob")
 		g := startGoHost(t, srv.URL, carol, true, hostMode{kind: "echo"}, host.WithMinSenderTrust(identity.TrustSigned))

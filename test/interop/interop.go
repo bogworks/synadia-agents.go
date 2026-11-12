@@ -91,14 +91,14 @@ func Pin(key string) string {
 // Require returns the interop environment, or skips the test when setup.sh has
 // not been run (or fails it when SAP_INTEROP_REQUIRED=1). The cache is
 // $SAP_INTEROP_CACHE, else $HOME/.cache/synadia-agents-interop.
-func Require(t testing.TB) *Env {
-	t.Helper()
+func Require(tb testing.TB) *Env {
+	tb.Helper()
 	e, err := load()
 	if err != nil {
 		if os.Getenv("SAP_INTEROP_REQUIRED") == "1" {
-			t.Fatalf("interop environment missing (SAP_INTEROP_REQUIRED=1): %v", err)
+			tb.Fatalf("interop environment missing (SAP_INTEROP_REQUIRED=1): %v", err)
 		}
-		t.Skipf("interop skipped: %v (run test/interop/setup.sh, then export SAP_INTEROP_CACHE)", err)
+		tb.Skipf("interop skipped: %v (run test/interop/setup.sh, then export SAP_INTEROP_CACHE)", err)
 	}
 	return e
 }
@@ -166,8 +166,8 @@ func WithFixtureConfig(name string) ServerOption {
 
 // StartServer starts an embedded nats-server on a free loopback port and stops it
 // when the test ends. Without options it is a plain, unauthenticated server.
-func StartServer(t testing.TB, e *Env, opts ...ServerOption) *Server {
-	t.Helper()
+func StartServer(tb testing.TB, e *Env, opts ...ServerOption) *Server {
+	tb.Helper()
 	var cfg serverConfig
 	for _, o := range opts {
 		o(&cfg)
@@ -177,21 +177,21 @@ func StartServer(t testing.TB, e *Env, opts ...ServerOption) *Server {
 		var err error
 		so, err = server.ProcessConfigFile(filepath.Join(e.Src, "test-fixtures", "identity", cfg.conf))
 		if err != nil {
-			t.Fatalf("interop: fixture config %s: %v", cfg.conf, err)
+			tb.Fatalf("interop: fixture config %s: %v", cfg.conf, err)
 		}
 	}
 	so.Host, so.Port = "127.0.0.1", -1
 	so.NoLog, so.NoSigs = true, true
 	srv, err := server.NewServer(so)
 	if err != nil {
-		t.Fatalf("interop: nats-server: %v", err)
+		tb.Fatalf("interop: nats-server: %v", err)
 	}
 	go srv.Start()
 	if !srv.ReadyForConnections(10 * time.Second) {
 		srv.Shutdown()
-		t.Fatal("interop: nats-server did not become ready")
+		tb.Fatal("interop: nats-server did not become ready")
 	}
-	t.Cleanup(srv.Shutdown)
+	tb.Cleanup(srv.Shutdown)
 	return &Server{Server: srv, URL: srv.ClientURL()}
 }
 
@@ -199,38 +199,38 @@ func StartServer(t testing.TB, e *Env, opts ...ServerOption) *Server {
 // from the upstream keys.json) to a 0600 file in the test's temp directory and
 // returns its path, which is what Peer.Seed and the official SDKs take.
 // The users are test-only throwaways committed upstream on purpose.
-func (e *Env) Seed(t testing.TB, user string) string {
-	t.Helper()
-	seed, _ := e.keys(t, user)
-	path := filepath.Join(t.TempDir(), user+".nk")
+func (e *Env) Seed(tb testing.TB, user string) string {
+	tb.Helper()
+	seed, _ := e.keys(tb, user)
+	path := filepath.Join(tb.TempDir(), user+".nk")
 	if err := os.WriteFile(path, []byte(seed+"\n"), 0o600); err != nil {
-		t.Fatal(err)
+		tb.Fatal(err)
 	}
 	return path
 }
 
 // PublicKey returns the named test user's public nkey.
-func (e *Env) PublicKey(t testing.TB, user string) string {
-	t.Helper()
-	_, pub := e.keys(t, user)
+func (e *Env) PublicKey(tb testing.TB, user string) string {
+	tb.Helper()
+	_, pub := e.keys(tb, user)
 	return pub
 }
 
-func (e *Env) keys(t testing.TB, user string) (seed, pub string) {
-	t.Helper()
+func (e *Env) keys(tb testing.TB, user string) (seed, pub string) {
+	tb.Helper()
 	raw, err := os.ReadFile(filepath.Join(e.Src, "test-fixtures", "identity", "keys.json"))
 	if err != nil {
-		t.Fatal(err)
+		tb.Fatal(err)
 	}
 	var doc struct {
 		Users map[string]struct{ Public, Seed string }
 	}
 	if err := json.Unmarshal(raw, &doc); err != nil {
-		t.Fatal(err)
+		tb.Fatal(err)
 	}
 	u, ok := doc.Users[user]
 	if !ok {
-		t.Fatalf("interop: no test user %q in keys.json", user)
+		tb.Fatalf("interop: no test user %q in keys.json", user)
 	}
 	return u.Seed, u.Public
 }
@@ -399,8 +399,8 @@ type Process struct {
 	stderr bytes.Buffer
 }
 
-func (e *Env) spawn(t testing.TB, role string, impl Impl, p Peer, url string) *Process {
-	t.Helper()
+func (e *Env) spawn(tb testing.TB, role string, impl Impl, p Peer, url string) *Process {
+	tb.Helper()
 	var name string
 	var args []string
 	switch impl {
@@ -409,7 +409,7 @@ func (e *Env) spawn(t testing.TB, role string, impl Impl, p Peer, url string) *P
 	case Python:
 		name, args = e.python, []string{filepath.Join(e.peers, "py", role+".py")}
 	default:
-		t.Fatalf("interop: unknown implementation %q", impl)
+		tb.Fatalf("interop: unknown implementation %q", impl)
 	}
 	cmd := exec.Command(name, args...) //nolint:gosec // G204: the harness runs the host binary it was told to run
 	cmd.Env = append(p.env(e, url), "PYTHONDONTWRITEBYTECODE=1", "PYTHONUNBUFFERED=1")
@@ -418,10 +418,10 @@ func (e *Env) spawn(t testing.TB, role string, impl Impl, p Peer, url string) *P
 	cmd.Stderr = &lockedWriter{p: proc}
 	out, err := cmd.StdoutPipe()
 	if err != nil {
-		t.Fatal(err)
+		tb.Fatal(err)
 	}
 	if err := cmd.Start(); err != nil {
-		t.Fatalf("interop: start %s: %v", proc.name, err)
+		tb.Fatalf("interop: start %s: %v", proc.name, err)
 	}
 	go func() {
 		sc := bufio.NewScanner(out)
@@ -451,7 +451,7 @@ func (e *Env) spawn(t testing.TB, role string, impl Impl, p Peer, url string) *P
 		proc.notify = make(chan struct{})
 		proc.mu.Unlock()
 	}()
-	t.Cleanup(func() { proc.Stop(); proc.record(t) })
+	tb.Cleanup(func() { proc.Stop(); proc.record(tb) })
 	return proc
 }
 
@@ -480,8 +480,8 @@ func (p *Process) Stderr() string {
 // WaitFor returns the first line (from the start of the output) for which match
 // is true, waiting up to timeout; it fails the test on timeout or if the peer
 // exits first.
-func (p *Process) WaitFor(t testing.TB, timeout time.Duration, match func(Line) bool) Line {
-	t.Helper()
+func (p *Process) WaitFor(tb testing.TB, timeout time.Duration, match func(Line) bool) Line {
+	tb.Helper()
 	deadline := time.After(timeout)
 	for {
 		p.mu.Lock()
@@ -502,27 +502,27 @@ func (p *Process) WaitFor(t testing.TB, timeout time.Duration, match func(Line) 
 					return l
 				}
 			}
-			t.Fatalf("interop: %s exited before the awaited line; stderr:\n%s", p.name, p.Stderr())
+			tb.Fatalf("interop: %s exited before the awaited line; stderr:\n%s", p.name, p.Stderr())
 		case <-deadline:
-			t.Fatalf("interop: %s: no matching line within %s; got %d lines; stderr:\n%s", p.name, timeout, len(p.Lines()), p.Stderr())
+			tb.Fatalf("interop: %s: no matching line within %s; got %d lines; stderr:\n%s", p.name, timeout, len(p.Lines()), p.Stderr())
 		}
 	}
 }
 
 // WaitForType is WaitFor with a match on the line's type.
-func (p *Process) WaitForType(t testing.TB, timeout time.Duration, typ string) Line {
-	t.Helper()
-	return p.WaitFor(t, timeout, func(l Line) bool { return l.Type() == typ })
+func (p *Process) WaitForType(tb testing.TB, timeout time.Duration, typ string) Line {
+	tb.Helper()
+	return p.WaitFor(tb, timeout, func(l Line) bool { return l.Type() == typ })
 }
 
 // Wait waits for the peer to exit and returns its exit code; it fails the test
 // on timeout.
-func (p *Process) Wait(t testing.TB, timeout time.Duration) int {
-	t.Helper()
+func (p *Process) Wait(tb testing.TB, timeout time.Duration) int {
+	tb.Helper()
 	select {
 	case <-p.done:
 	case <-time.After(timeout):
-		t.Fatalf("interop: %s did not exit within %s; stderr:\n%s", p.name, timeout, p.Stderr())
+		tb.Fatalf("interop: %s did not exit within %s; stderr:\n%s", p.name, timeout, p.Stderr())
 	}
 	p.mu.Lock()
 	defer p.mu.Unlock()
@@ -548,40 +548,41 @@ func (p *Process) Stop() {
 
 // record writes the peer's lines to $SAP_INTEROP_EVIDENCE/<test>/<peer>.jsonl
 // when that variable names a directory (the transcript AT-003 asks a run to keep).
-func (p *Process) record(t testing.TB) {
+func (p *Process) record(tb testing.TB) {
+	tb.Helper()
 	dir := os.Getenv("SAP_INTEROP_EVIDENCE")
 	if dir == "" {
 		return
 	}
-	dir = filepath.Join(dir, strings.ReplaceAll(t.Name(), "/", "_"))
+	dir = filepath.Join(dir, strings.ReplaceAll(tb.Name(), "/", "_"))
 	if err := os.MkdirAll(dir, 0o755); err != nil { //nolint:gosec // G301: test fixture directory, not secret
-		t.Logf("interop: evidence: %v", err)
+		tb.Logf("interop: evidence: %v", err)
 		return
 	}
 	p.mu.Lock()
 	body := strings.Join(p.raw, "\n") + "\n"
 	p.mu.Unlock()
 	if err := os.WriteFile(filepath.Join(dir, p.name+".jsonl"), []byte(body), 0o644); err != nil { //nolint:gosec // G306: test fixture file, not secret
-		t.Logf("interop: evidence: %v", err)
+		tb.Logf("interop: evidence: %v", err)
 	}
 }
 
 // StartHost starts an official host (TypeScript AgentService or Python
 // AgentService) against url and waits (30s) for its ready line. The host serves
 // until the test ends or Stop is called. Process.Subject is its prompt subject.
-func (e *Env) StartHost(t testing.TB, impl Impl, url string, p Peer) *Process {
-	t.Helper()
-	proc := e.spawn(t, "host", impl, p, url)
-	ready := proc.WaitForType(t, 30*time.Second, "ready")
+func (e *Env) StartHost(tb testing.TB, impl Impl, url string, p Peer) *Process {
+	tb.Helper()
+	proc := e.spawn(tb, "host", impl, p, url)
+	ready := proc.WaitForType(tb, 30*time.Second, "ready")
 	proc.Subject = ready.Str("subject")
 	return proc
 }
 
 // StartCaller starts an official caller without waiting for it; use Wait and
 // WaitFor to follow it.
-func (e *Env) StartCaller(t testing.TB, impl Impl, url string, p Peer) *Process {
-	t.Helper()
-	return e.spawn(t, "caller", impl, p, url)
+func (e *Env) StartCaller(tb testing.TB, impl Impl, url string, p Peer) *Process {
+	tb.Helper()
+	return e.spawn(tb, "caller", impl, p, url)
 }
 
 // CallerResult is what a finished caller peer printed.
@@ -595,10 +596,10 @@ type CallerResult struct {
 
 // RunCaller runs an official caller to completion (it fails the test after 60s)
 // and returns its lines.
-func (e *Env) RunCaller(t testing.TB, impl Impl, url string, p Peer) *CallerResult {
-	t.Helper()
-	proc := e.StartCaller(t, impl, url, p)
-	exit := proc.Wait(t, 60*time.Second)
+func (e *Env) RunCaller(tb testing.TB, impl Impl, url string, p Peer) *CallerResult {
+	tb.Helper()
+	proc := e.StartCaller(tb, impl, url, p)
+	exit := proc.Wait(tb, 60*time.Second)
 	return &CallerResult{Process: proc, Exit: exit, Lines: proc.Lines()}
 }
 

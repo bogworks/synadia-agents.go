@@ -186,7 +186,7 @@ func New(nc *nats.Conn, subject agents.AgentSubject, handler PromptHandler, opts
 		stopRequested: make(chan struct{}),
 		lc:            make(chan struct{}, 1),
 	}
-	h.base, h.cancel = context.WithCancel(context.Background())
+	h.base, h.cancel = context.WithCancel(context.Background()) //nolint:forbidigo // New takes no context; Close cancels this one (standard rule 20)
 
 	// The payload limit advertised: the connection's own unless lowered.
 	mp := nc.MaxPayload()

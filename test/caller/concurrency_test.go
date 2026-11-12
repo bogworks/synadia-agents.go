@@ -28,7 +28,7 @@ func TestConcurrentPrompts_Isolation(t *testing.T) {
 			id := h.promptText(m)
 			h.ack(m)
 			for k := 0; k < chunks; k++ {
-				time.Sleep(time.Duration(rand.IntN(3)) * time.Millisecond)
+				time.Sleep(time.Duration(rand.IntN(3)) * time.Millisecond) //nolint:gosec // test jitter, not a security use of randomness
 				h.text(m, fmt.Sprintf("%s#%02d;", id, k))
 			}
 			h.end(m)
@@ -192,7 +192,8 @@ func TestClient_CloseDrainsAndLeaksNothing(t *testing.T) {
 	}
 	cancel()
 	br, _ := a.PromptText(ctx, "two")
-	for range br.Events() {
+	for _, err := range br.Events() {
+		_ = err
 		break
 	}
 	hang, err := a.PromptText(ctx, "hang")

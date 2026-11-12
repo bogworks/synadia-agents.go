@@ -16,12 +16,12 @@ import (
 // Audit finding 1: SaveAttachments creates files through one opened directory.
 func TestSaveAttachments_SymlinkedAncestor(t *testing.T) {
 	base := t.TempDir()
-	real := filepath.Join(base, "real")
-	if err := os.Mkdir(real, 0o700); err != nil {
+	realDir := filepath.Join(base, "real")
+	if err := os.Mkdir(realDir, 0o700); err != nil {
 		t.Fatal(err)
 	}
 	link := filepath.Join(base, "link")
-	if err := os.Symlink(real, link); err != nil {
+	if err := os.Symlink(realDir, link); err != nil {
 		t.Skip("symlinks unavailable:", err)
 	}
 	res, err := SaveAttachments([]Attachment{NewAttachment("a.txt", []byte("hi"))}, filepath.Join(link, "sub"), SaveOptions{})
@@ -29,7 +29,7 @@ func TestSaveAttachments_SymlinkedAncestor(t *testing.T) {
 		t.Fatal(res, err)
 	}
 	// dir is resolved once, at call time: the file is in the directory the path named.
-	if b, err := os.ReadFile(filepath.Join(real, "sub", "a.txt")); err != nil || string(b) != "hi" {
+	if b, err := os.ReadFile(filepath.Join(realDir, "sub", "a.txt")); err != nil || string(b) != "hi" {
 		t.Fatal(b, err)
 	}
 }

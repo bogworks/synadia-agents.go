@@ -171,12 +171,12 @@ func TestResolver_ReverseLookup(t *testing.T) {
 		t.Fatalf("calls = %d, the index must be cached", calls)
 	}
 	clock.Advance(2 * time.Minute)
-	r.Resolve(ctx, id)
+	_, _, _ = r.Resolve(ctx, id)
 	if calls != 2 {
 		t.Fatalf("calls = %d after the TTL", calls)
 	}
 	r.Invalidate()
-	r.Resolve(ctx, id)
+	_, _, _ = r.Resolve(ctx, id)
 	if calls != 3 {
 		t.Fatalf("calls = %d after Invalidate", calls)
 	}

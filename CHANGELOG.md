@@ -37,7 +37,8 @@ TypeScript and Python SDKs in `test/interop`.
     heartbeats, extra endpoints, a verified-sender admission hook, interceptors, bounded concurrency;
   - package `identity`: the section 13 sender identity (agent IDs, the `Agent-Sender` header, signing,
     live and stored verification, replay protection, `id_sig` registration, signed heartbeats);
-  - package `connect`: NATS CLI contexts, credential files and reconnect defaults (outside SAP);
+  - package `connect`: NATS CLI contexts, credential files and reconnect defaults (outside SAP); `LoadContext` and
+    `SignerFromContext` take a leading `ctx`, which a key-file read honors;
   - package `tools`: the agent tool layer of the official SDKs (outside SAP);
   - package `agentstest`: a reference agent for tests;
   - package `conformance` and the command `cmd/sapconform`: the conformance catalog and a host-side runner;

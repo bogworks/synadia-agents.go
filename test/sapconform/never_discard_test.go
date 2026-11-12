@@ -87,44 +87,53 @@ func TestNeverDiscardResponder(t *testing.T) {
 		detail string
 	}{
 		{"wrong service name", func(t *testing.T, s *server.Server) badResponder {
+			t.Helper()
 			o := other
 			o.ServiceName = "notagents"
 			return badResponder{id: newFake(t, connect(t, s), o).id}
 		}, idServiceName, "notagents"},
 		{"malformed INFO JSON", func(t *testing.T, s *server.Server) badResponder {
+			t.Helper()
 			rawResponder(t, connect(t, s), "$SRV.INFO.agents", []byte("<<not json>>"))
 			return badResponder{incomplete: "malformed"}
 		}, idInfoAll, "malformed"},
 		{"INFO record without an id", func(t *testing.T, s *server.Server) badResponder {
+			t.Helper()
 			rawResponder(t, connect(t, s), "$SRV.INFO.agents", []byte(`{"name":"agents"}`))
 			return badResponder{incomplete: "malformed"}
 		}, idInfoAll, "malformed"},
 		{"missing required metadata", func(t *testing.T, s *server.Server) badResponder {
+			t.Helper()
 			o := other
 			o.NoOwnerMeta = true
 			return badResponder{id: newFake(t, connect(t, s), o).id}
 		}, idMetaOwner, "owner"},
 		{"duplicate instance id in INFO", func(t *testing.T, s *server.Server) badResponder {
+			t.Helper()
 			o := other
 			o.DupInfo = true
 			return badResponder{id: newFake(t, connect(t, s), o).id}
 		}, idInfoAll, "2 times"},
 		{"duplicate direct INFO responder", func(t *testing.T, s *server.Server) badResponder {
+			t.Helper()
 			o := other
 			o.DupDirectInfo = true
 			return badResponder{id: newFake(t, connect(t, s), o).id}
 		}, idDirectInfo, "responders answered"},
 		{"unparseable PING reply", func(t *testing.T, s *server.Server) badResponder {
+			t.Helper()
 			rawResponder(t, connect(t, s), "$SRV.PING.agents", []byte("<<not json>>"))
 			return badResponder{incomplete: "$SRV.PING.agents"}
 		}, idPing, "unparseable"},
 		{"PING answer without INFO", func(t *testing.T, s *server.Server) badResponder {
+			t.Helper()
 			id := nuid.Next()
 			b, _ := json.Marshal(map[string]any{"type": "io.nats.micro.v1.ping_response", "name": "agents", "id": id, "version": "1.0.0"})
 			rawResponder(t, connect(t, s), "$SRV.PING.agents", b)
 			return badResponder{id: id}
 		}, idInfoAll, "absent"},
 		{"INFO endpoints entry not an object", func(t *testing.T, s *server.Server) badResponder {
+			t.Helper()
 			id := nuid.Next()
 			b, _ := json.Marshal(map[string]any{"type": "io.nats.micro.v1.info_response", "name": "agents", "id": id, "version": "1.0.0", "endpoints": []any{"prompt"}})
 			rawResponder(t, connect(t, s), "$SRV.INFO.agents", b)
@@ -132,11 +141,13 @@ func TestNeverDiscardResponder(t *testing.T) {
 			return badResponder{id: id}
 		}, idInfoAll, "not an object"},
 		{"second status responder", func(t *testing.T, s *server.Server) badResponder {
+			t.Helper()
 			o := other
 			o.DupStatus = true
 			return badResponder{id: newFake(t, connect(t, s), o).id}
 		}, idStatusSchema, "second responder"},
 		{"heartbeats from an unknown instance", func(t *testing.T, s *server.Server) badResponder {
+			t.Helper()
 			strangerBeats(t, connect(t, s), func() []byte {
 				b, _ := json.Marshal(map[string]any{"agent": "ghost", "owner": "nobody", "instance_id": "ghost-instance", "ts": time.Now().UTC().Format(time.RFC3339), "interval_s": 0.2})
 				return b
@@ -144,6 +155,7 @@ func TestNeverDiscardResponder(t *testing.T) {
 			return badResponder{incomplete: "ghost-instance"}
 		}, "", ""},
 		{"unparseable heartbeats", func(t *testing.T, s *server.Server) badResponder {
+			t.Helper()
 			strangerBeats(t, connect(t, s), func() []byte { return []byte("<<not json>>") })
 			return badResponder{incomplete: "no parseable instance_id"}
 		}, "", ""},

@@ -212,7 +212,7 @@ func (r *SelfIDResolver) ID(ctx context.Context) (AgentID, error) {
 			r.failed, r.failAt = err, r.now()
 			if r.opts.Logger != nil {
 				r.opts.Logger.Warn("own sender identity unavailable; no Agent-Sender header is sent until a retry succeeds",
-					slog.String("reason", err.Error()), slog.Duration("retry_after", r.opts.RetryInterval))
+					"reason", err.Error(), "retry_after", r.opts.RetryInterval)
 			}
 		}
 		close(ch)

@@ -7,7 +7,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"log/slog"
 )
 
 // PromptInfo is what an interceptor or the header hook sees of one prompt
@@ -158,7 +157,7 @@ func (c *Client) runBeforePublish(ctx context.Context, p *PromptInfo, col *colle
 			defer func() {
 				if r := recover(); r != nil {
 					c.log.Error("prompt interceptor BeforePublish panicked; publishing the prompt",
-						slog.Int("interceptor", i))
+						"interceptor", i)
 				}
 			}()
 			pi.BeforePublish(ctx, p, col.states[i])

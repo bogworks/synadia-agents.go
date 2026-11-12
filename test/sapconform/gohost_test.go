@@ -64,10 +64,10 @@ func goHostEvidence(t *testing.T, name string, rep *runner.Report, res results) 
 		t.Fatal(err)
 	}
 	if dir := os.Getenv("SAP_CONFORM_EVIDENCE"); dir != "" {
-		if err := os.MkdirAll(dir, 0o755); err != nil {
+		if err := os.MkdirAll(dir, 0o750); err != nil { //nolint:gosec // the path is the operator's evidence directory (SAP_CONFORM_EVIDENCE), set by whoever runs the test
 			t.Fatal(err)
 		}
-		if err := os.WriteFile(filepath.Join(dir, name+".json"), b, 0o644); err != nil {
+		if err := os.WriteFile(filepath.Join(dir, name+".json"), b, 0o600); err != nil { //nolint:gosec // the path is the operator's evidence directory (SAP_CONFORM_EVIDENCE), set by whoever runs the test
 			t.Fatal(err)
 		}
 	}

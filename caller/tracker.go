@@ -307,7 +307,7 @@ func (t *HeartbeatTracker) handle(m *nats.Msg) {
 
 func (t *HeartbeatTracker) drop(why string) {
 	t.dropped.Add(1)
-	t.log.Debug("dropped a heartbeat", slog.String("reason", why))
+	t.log.Debug("dropped a heartbeat", "reason", why)
 }
 
 // record stores the beat, evicting an offline instance when the table is full.

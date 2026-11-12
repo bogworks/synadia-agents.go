@@ -155,6 +155,7 @@ func gcSHA(b []byte) string { s := sha256.Sum256(b); return hex.EncodeToString(s
 
 func TestGoCaller_Discovery(t *testing.T) {
 	gcEach(t, func(t *testing.T, e *interop.Env, impl interop.Impl) {
+		t.Helper()
 		srv := interop.StartServer(t, e)
 		host := e.StartHost(t, impl, srv.URL, interop.Peer{Mode: "echo"})
 		c := gcClient(t, srv.URL, "", false)
@@ -212,6 +213,7 @@ func TestGoCaller_Discovery(t *testing.T) {
 
 func TestGoCaller_Echo(t *testing.T) {
 	gcEach(t, func(t *testing.T, e *interop.Env, impl interop.Impl) {
+		t.Helper()
 		srv := interop.StartServer(t, e)
 		host := e.StartHost(t, impl, srv.URL, interop.Peer{Mode: "echo", Chunks: 4})
 		c := gcClient(t, srv.URL, "", false)
@@ -296,6 +298,7 @@ func TestGoCaller_Error(t *testing.T) {
 
 func TestGoCaller_Attachments(t *testing.T) {
 	gcEach(t, func(t *testing.T, e *interop.Env, impl interop.Impl) {
+		t.Helper()
 		srv := interop.StartServer(t, e)
 		host := e.StartHost(t, impl, srv.URL, interop.Peer{Mode: "attachments"})
 		c := gcClient(t, srv.URL, "", false)
@@ -369,6 +372,7 @@ func TestGoCaller_Attachments(t *testing.T) {
 
 func TestGoCaller_Query(t *testing.T) {
 	gcEach(t, func(t *testing.T, e *interop.Env, impl interop.Impl) {
+		t.Helper()
 		srv := interop.StartServer(t, e)
 		host := e.StartHost(t, impl, srv.URL, interop.Peer{Mode: "query"})
 		c := gcClient(t, srv.URL, "", false)
@@ -410,6 +414,7 @@ func TestGoCaller_Query(t *testing.T) {
 
 func TestGoCaller_SlowKeepAlive(t *testing.T) {
 	gcEach(t, func(t *testing.T, e *interop.Env, impl interop.Impl) {
+		t.Helper()
 		srv := interop.StartServer(t, e)
 		e.StartHost(t, impl, srv.URL, interop.Peer{Mode: "slow", SlowDelay: 2 * time.Second, KeepAlive: 300 * time.Millisecond})
 		// Inactivity timeout shorter than the handler delay, longer than the keep-alive cadence.
@@ -433,6 +438,7 @@ func TestGoCaller_SlowKeepAlive(t *testing.T) {
 // "status handler error" and its heartbeats say 1), so a sub-second cadence is untestable there.
 func TestGoCaller_Status_Heartbeat(t *testing.T) {
 	gcEach(t, func(t *testing.T, e *interop.Env, impl interop.Impl) {
+		t.Helper()
 		srv := interop.StartServer(t, e)
 		host := e.StartHost(t, impl, srv.URL, interop.Peer{Mode: "echo", Heartbeat: time.Second})
 		c := gcClient(t, srv.URL, "", false)
@@ -488,16 +494,17 @@ func TestGoCaller_Status_Heartbeat(t *testing.T) {
 
 func TestGoCaller_MaxPayload(t *testing.T) {
 	gcEach(t, func(t *testing.T, e *interop.Env, impl interop.Impl) {
+		t.Helper()
 		srv := interop.StartServer(t, e)
 		host := e.StartHost(t, impl, srv.URL, interop.Peer{Mode: "echo"})
 		c := gcClient(t, srv.URL, "", false)
 		a := gcFind(t, c)
-		max, ok := a.Info().Prompt.MaxPayload()
-		if !ok || max <= 0 {
+		limit, ok := a.Info().Prompt.MaxPayload()
+		if !ok || limit <= 0 {
 			t.Fatalf("host declares no max_payload")
 		}
-		t.Logf("%s declares max_payload %d; connection max %d", impl, max, c.Connection().MaxPayload())
-		_, err := a.PromptText(gcCtx(t), strings.Repeat("x", int(max)+1))
+		t.Logf("%s declares max_payload %d; connection max %d", impl, limit, c.Connection().MaxPayload())
+		_, err := a.PromptText(gcCtx(t), strings.Repeat("x", int(limit)+1))
 		if err == nil {
 			t.Fatal("a prompt over max_payload was sent")
 		}
@@ -518,6 +525,7 @@ func TestGoCaller_MaxPayload(t *testing.T) {
 
 func TestGoCaller_Signed(t *testing.T) {
 	gcEach(t, func(t *testing.T, e *interop.Env, impl interop.Impl) {
+		t.Helper()
 		srv := interop.StartServer(t, e, interop.WithFixtureConfig("nkey-noaccounts.conf"))
 		seed := e.Seed(t, "alice")
 		host := e.StartHost(t, impl, srv.URL, interop.Peer{Mode: "signed", Seed: seed, Sign: true})
@@ -569,6 +577,7 @@ func TestGoCaller_Signed(t *testing.T) {
 
 func TestGoCaller_CrossAccount(t *testing.T) {
 	gcEach(t, func(t *testing.T, e *interop.Env, impl interop.Impl) {
+		t.Helper()
 		srv := interop.StartServer(t, e, interop.WithFixtureConfig("accounts.conf"))
 		// alice (ACME) hosts; bob (APP) imports the agents and $SRV exports with share: true.
 		host := e.StartHost(t, impl, srv.URL, interop.Peer{Mode: "signed", Seed: e.Seed(t, "alice"), Sign: true})
@@ -593,6 +602,7 @@ func TestGoCaller_CrossAccount(t *testing.T) {
 
 func TestGoCaller_Concurrent32(t *testing.T) {
 	gcEach(t, func(t *testing.T, e *interop.Env, impl interop.Impl) {
+		t.Helper()
 		srv := interop.StartServer(t, e)
 		e.StartHost(t, impl, srv.URL, interop.Peer{Mode: "echo", Chunks: 5})
 		c := gcClient(t, srv.URL, "", false)
