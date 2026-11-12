@@ -519,7 +519,8 @@ func TestErrorBody(t *testing.T) {
 }
 
 // TestKeepalive: while a handler works the host sends further acks at the
-// keep-alive cadence, and none after the terminator. They are SDK policy; with
+// keep-alive cadence (a late one may follow the data frame, before the
+// terminator), and none after the terminator. They are SDK policy; with
 // keep-alive off (WithoutKeepalive) the stream carries one ack.
 func TestKeepalive(t *testing.T) {
 	_, nc := setup(t)
@@ -535,13 +536,20 @@ func TestKeepalive(t *testing.T) {
 		t.Fatal(err)
 	}
 	s := collect(t, sub, 5*time.Second)
-	if s.acks() < 4 {
-		t.Errorf("only %d acks in 400ms at a 50ms keep-alive", s.acks())
+	// A tick can land between the data frame and the terminator, so an ack
+	// may legitimately follow the data; only the leading run is guaranteed.
+	if len(s.Frames) == 0 || !s.Frames[0].isAck() {
+		t.Fatalf("frame 0 is not an ack: %+v", s.Frames)
 	}
-	for i, f := range s.Frames[:s.acks()] {
-		if !f.isAck() {
-			t.Errorf("frame %d: acks do not come first", i)
-		}
+	lead := 0
+	for lead < len(s.Frames) && s.Frames[lead].isAck() {
+		lead++
+	}
+	if lead < 4 {
+		t.Errorf("only %d leading acks in 400ms at a 50ms keep-alive", lead)
+	}
+	if got := s.texts(t); len(got) != 1 || got[0] != "done" {
+		t.Errorf("response texts: %q, want [done]", got)
 	}
 	if m, err := sub.NextMsg(250 * time.Millisecond); err == nil {
 		t.Fatalf("keep-alive after the terminator: %q", m.Data)
