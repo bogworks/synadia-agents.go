@@ -31,7 +31,7 @@ func ExampleWithAdmission() {
 		// Unsigned and claimed senders are refused with 401.
 		host.WithMinSenderTrust(identity.TrustSigned),
 		// Verified senders not on the list are refused with 403.
-		host.WithAdmission(func(ctx context.Context, s *identity.Sender, _ *host.RequestInfo) (bool, error) {
+		host.WithAdmission(func(_ context.Context, s *identity.Sender, _ *host.RequestInfo) (bool, error) {
 			return s != nil && s.Trust == identity.TrustVerified && slices.Contains(allowed, s.ID), nil
 		}),
 	)

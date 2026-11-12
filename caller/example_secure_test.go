@@ -22,7 +22,7 @@ func ExampleWithTrustPolicy() {
 	c, err := caller.New(nc, caller.WithTrustPolicy(caller.TrustPolicy{
 		Agents: trusted,
 		// Accept runs as well, when set, and must not block.
-		Accept: func(id identity.AgentID, info agents.AgentInfo) bool {
+		Accept: func(_ identity.AgentID, info agents.AgentInfo) bool {
 			return info.Owner == "example"
 		},
 	}))
