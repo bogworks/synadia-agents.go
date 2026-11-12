@@ -36,3 +36,18 @@ func ExampleParseAgentID() {
 	// true $G <nil>
 	// true
 }
+
+func ExampleStance() {
+	// Strict turns the four checks on; each can still be overridden.
+	s := identity.Stance{
+		Profile:               identity.Strict,
+		HeartbeatVerification: identity.Off,
+	}
+	fmt.Println(s.Profile, s.Signing, s.HeartbeatVerification)
+
+	// The zero value chooses nothing, so the SDK default applies.
+	fmt.Println(identity.Stance{}.Profile, identity.DefaultProfile)
+	// Output:
+	// strict inherit off
+	// default relaxed
+}

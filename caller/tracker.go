@@ -14,6 +14,7 @@ import (
 
 	agents "github.com/bogworks/synadia-agents.go"
 	"github.com/bogworks/synadia-agents.go/identity"
+	"github.com/bogworks/synadia-agents.go/internal/stance"
 	"github.com/nats-io/nats.go"
 )
 
@@ -45,6 +46,7 @@ type trackerConfig struct {
 	maxInstances int
 	verify       *identity.LiveOptions
 	requireSign  bool
+	stance       identity.Stance
 }
 
 // TrackerOption configures a [HeartbeatTracker].
@@ -89,7 +91,8 @@ func WithTrackerMaxInstances(n int) TrackerOption {
 // fails; it never downgrades a failed heartbeat to a claim. With requireSigned
 // a heartbeat that is not verified (absent or claimed) is discarded too; without
 // it such a heartbeat is accepted, since SAP makes signing optional. opts must
-// carry a replay set (see [identity.LiveOptions]).
+// carry a replay set (see [identity.LiveOptions]). It wins over a stance set
+// with [WithTrackerStance].
 func WithHeartbeatVerification(opts identity.LiveOptions, requireSigned bool) TrackerOption {
 	return func(c *trackerConfig) error {
 		if opts.Nonces == nil {
@@ -98,6 +101,24 @@ func WithHeartbeatVerification(opts identity.LiveOptions, requireSigned bool) Tr
 		cp := opts
 		c.verify = &cp
 		c.requireSign = requireSigned
+		return nil
+	}
+}
+
+// WithTrackerStance sets the security stance of the tracker (see
+// [identity.Stance]). The tracker reads one check of it: HeartbeatVerification
+// makes it verify every heartbeat that carries an Agent-Sender header and
+// discard one that fails, with the default [identity.LiveOptions] and a replay
+// set the tracker owns. A heartbeat with no header is kept. An explicit
+// [WithHeartbeatVerification] wins over the stance. The default is
+// [identity.DefaultProfile]. [New] passes the client's stance to the tracker it
+// builds unless the tracker options set one. SDK policy.
+func WithTrackerStance(s identity.Stance) TrackerOption {
+	return func(c *trackerConfig) error {
+		if _, err := stance.Resolve(s); err != nil {
+			return fmt.Errorf("caller: %w", err)
+		}
+		c.stance = s
 		return nil
 	}
 }
@@ -195,9 +216,16 @@ func NewHeartbeatTracker(nc *nats.Conn, opts ...TrackerOption) (*HeartbeatTracke
 			return nil, err
 		}
 	}
+	eff, err := stance.Resolve(cfg.stance)
+	if err != nil {
+		return nil, fmt.Errorf("caller: %w", err)
+	}
 	lg := cfg.logger
 	if lg == nil {
 		lg = slog.New(slog.DiscardHandler)
+	}
+	if cfg.verify == nil && eff.HeartbeatVerification {
+		cfg.verify = &identity.LiveOptions{Nonces: identity.NewNonceSet(identity.NonceSetOptions{Logger: cfg.logger})}
 	}
 	return &HeartbeatTracker{nc: nc, cfg: cfg, log: lg, entries: map[string]*trackerEntry{}}, nil
 }
