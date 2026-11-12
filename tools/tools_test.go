@@ -197,7 +197,7 @@ func TestNew_RefusesNonsensicalToolSets(t *testing.T) {
 				if err != nil {
 					t.Fatal(err)
 				}
-				_ = tl.Close(context.Background())
+				_ = tl.Close()
 				return
 			}
 			if err == nil || !strings.Contains(err.Error(), tc.want) {
@@ -256,7 +256,7 @@ func mustNew(t *testing.T, fb *fakeBackend, opts ...Option) *Tools {
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(func() { _ = tl.Close(context.Background()) })
+	t.Cleanup(func() { _ = tl.Close() })
 	return tl
 }
 
@@ -1405,7 +1405,7 @@ func TestStaging_DefaultIsPrivateAndRemovedOnClose(t *testing.T) {
 	if fi, err := os.Stat(path); err != nil || fi.Mode().Perm()&0o077 != 0 {
 		t.Errorf("file: %v %v", fi, err)
 	}
-	if err := tl.Close(context.Background()); err != nil {
+	if err := tl.Close(); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := os.Stat(path); !os.IsNotExist(err) {
@@ -1427,7 +1427,7 @@ func TestStaging_GivenDirectoryIsKept(t *testing.T) {
 	if !strings.HasPrefix(path, dir+string(filepath.Separator)) {
 		t.Errorf("the file was saved at %q, not under the configured %q", path, dir)
 	}
-	if err := h.tl.Close(context.Background()); err != nil {
+	if err := h.tl.Close(); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := os.Stat(path); err != nil {
@@ -1446,7 +1446,7 @@ func TestClose_CancelsOpenCallsRefusesQuestionsAndEndsExecute(t *testing.T) {
 	eventually(t, "question taken in", func() bool {
 		return str(h.do(ToolListAgentCalls, nil)["calls"].([]any)[0].(obj), "state") == "input_required"
 	})
-	if err := h.tl.Close(context.Background()); err != nil {
+	if err := h.tl.Close(); err != nil {
 		t.Fatal(err)
 	}
 	if got := q.got(t); got != QuestionRefusal {
@@ -1458,7 +1458,7 @@ func TestClose_CancelsOpenCallsRefusesQuestionsAndEndsExecute(t *testing.T) {
 	if err := h.tl.RunInPromptScope(context.Background(), "", func(context.Context) error { return nil }); err != ErrClosed {
 		t.Errorf("RunInPromptScope after Close: %v", err)
 	}
-	if err := h.tl.Close(context.Background()); err != nil {
+	if err := h.tl.Close(); err != nil {
 		t.Errorf("Close is idempotent: %v", err)
 	}
 }
@@ -1469,7 +1469,7 @@ func TestClose_BlockedPromptReturnsCancelled(t *testing.T) {
 	res := make(chan obj, 1)
 	go func() { res <- h.do(ToolPromptAgent, obj{"address": tg.subject, "prompt": "x"}) }()
 	tg.stream(t, 0)
-	_ = h.tl.Close(context.Background())
+	_ = h.tl.Close()
 	select {
 	case r := <-res:
 		wantState(t, r, "cancelled") //nolint:misspell // the wire value of the state
@@ -1480,7 +1480,7 @@ func TestClose_BlockedPromptReturnsCancelled(t *testing.T) {
 
 func TestInterceptor_ClosedHelperDoesNotBlockServing(t *testing.T) {
 	h := newHarness(t, nil)
-	_ = h.tl.Close(context.Background())
+	_ = h.tl.Close()
 	called := false
 	err := h.tl.Interceptor().AroundRequest(context.Background(), nil, func(context.Context) error { called = true; return nil })
 	if err != nil || !called {

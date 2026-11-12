@@ -62,18 +62,19 @@
 //
 // # Stopping
 //
-// [Host.Start] and [Host.Stop] are serialized through registration: a Stop that
+// [Host.Start] and [Host.Shutdown] are serialized through registration: a Shutdown that
 // races a Start waits for it and then removes everything it registered.
 //
-// [Host.Stop] stops accepting prompts, waits for the handlers in flight and the
+// [Host.Shutdown] stops accepting prompts, waits for the handlers in flight and the
 // micro callbacks in progress until its context ends and then cancels the
 // handlers' contexts; a canceled handler's stream still gets an error frame and
 // the terminator. The host is complete when the heartbeat and prompt workers
-// have exited and those callbacks have finished. A Stop that returns the
-// context's error leaves the shutdown running, and a later Stop or [Host.Close]
+// have exited and those callbacks have finished. A Shutdown that returns the
+// context's error leaves the shutdown running, and a later Shutdown or [Host.Close]
 // waits for it. Nothing is answered once the host is complete: a request still
-// queued on a drained subscription is dropped. [Host.Close] cancels first.
-// Neither closes the connection, and the host publishes no going-away signal
+// queued on a drained subscription is dropped. [Host.Close] cancels first and
+// waits at most [DefaultCloseTimeout], as [net/http.Server.Close] does, so a
+// Host is an [io.Closer]. Neither closes the connection, and the host publishes no going-away signal
 // (SAP §8.6).
 //
 // # Acks and keep-alives

@@ -12,6 +12,7 @@ package hosttest
 import (
 	"context"
 	"errors"
+	"time"
 
 	"github.com/bogworks/synadia-agents.go/identity"
 	"github.com/nats-io/nats.go/micro"
@@ -32,6 +33,10 @@ type Hooks struct {
 	// terminator is applied, and the handler passed to host.New is not called
 	// and may be nil.
 	Raw RawHandler
+
+	// CloseTimeout replaces host.DefaultCloseTimeout for this host's Close,
+	// so a test can bound Close in milliseconds. Zero means the default.
+	CloseTimeout time.Duration
 }
 
 // Carrier is implemented by package host's unexported config.
@@ -47,6 +52,19 @@ func RawOption[O ~func(C) error, C Carrier](h RawHandler) O {
 			return errors.New("hosttest: nil raw prompt handler")
 		}
 		c.TestHooks().Raw = h
+		return nil
+	}
+}
+
+// CloseTimeoutOption builds a host option (O is host.Option) that sets the
+// bound Close applies when it is given no deadline of its own, in place of
+// host.DefaultCloseTimeout. A d that is not positive makes host.New fail.
+func CloseTimeoutOption[O ~func(C) error, C Carrier](d time.Duration) O {
+	return func(c C) error {
+		if d <= 0 {
+			return errors.New("hosttest: close timeout must be positive")
+		}
+		c.TestHooks().CloseTimeout = d
 		return nil
 	}
 }

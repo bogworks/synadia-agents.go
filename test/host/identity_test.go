@@ -169,7 +169,7 @@ func TestIdentity_SignerMustMatchConnection(t *testing.T) {
 	if err := h.Start(context.Background()); !errors.Is(err, host.ErrStarted) {
 		t.Errorf("second Start: %v", err)
 	}
-	if err := h.Stop(context.Background()); err != nil {
+	if err := h.Shutdown(context.Background()); err != nil {
 		t.Error(err)
 	}
 }

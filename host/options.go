@@ -54,6 +54,10 @@ const (
 	// has no deadline.
 	DefaultStartTimeout = 10 * time.Second
 
+	// DefaultCloseTimeout bounds how long [Host.Close] waits for the host to be
+	// complete. [Host.Shutdown] takes a context of the caller's own instead.
+	DefaultCloseTimeout = 10 * time.Second
+
 	// DefaultMaxPayload is advertised when the connection reports no limit.
 	DefaultMaxPayload int64 = 1 << 20
 )

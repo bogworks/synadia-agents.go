@@ -42,6 +42,8 @@ type Client struct {
 	closed    atomic.Bool
 	draining  atomic.Bool
 	wg        sync.WaitGroup
+	waitOnce  sync.Once     // starts the goroutine that closes waitDone
+	waitDone  chan struct{} // closed when wg is zero after Close
 
 	malformed atomic.Uint64
 	rejected  atomic.Uint64
@@ -167,16 +169,57 @@ func (c *Client) checkOpen() error {
 
 // Close ends every stream still running with [ErrClosed], stops the heartbeat
 // tracker, drains the reply subscription and waits for the SDK's goroutines to
-// exit. It does not close the connection. Close is idempotent.
+// exit, so a Client is an [io.Closer]. It waits until [DefaultCloseTimeout]
+// and returns the context error wrapped when that ends first. It does not
+// close the connection. Close is idempotent. For a deadline of your own, call
+// [Client.Shutdown].
 func (c *Client) Close() error {
+	ctx, cancel := context.WithTimeout(context.Background(), DefaultCloseTimeout) //nolint:forbidigo // io.Closer has no context; the wait is bounded by DefaultCloseTimeout (rule 20)
+	defer cancel()
+	return c.Shutdown(ctx)
+}
+
+// Shutdown is [Client.Close] with a deadline the caller controls, as
+// [net/http.Server.Shutdown] is to Close. It ends every stream still running
+// with [ErrClosed], stops the heartbeat tracker, drains the reply subscription
+// and waits for the SDK's goroutines to exit. It does not close the
+// connection.
+//
+// Shutdown waits until ctx is done. When ctx has no deadline the drain is
+// bounded by [DefaultCloseTimeout]; when it has one, the deadline alone bounds
+// it. If ctx ends first, Shutdown returns ctx.Err() wrapped (test it with
+// [errors.Is]); the client is closed and the subscriptions are unsubscribed all
+// the same, and a later Close or Shutdown waits again for the goroutines still
+// running. Shutdown is idempotent.
+func (c *Client) Shutdown(ctx context.Context) error {
 	c.closeOnce.Do(func() {
 		c.closed.Store(true)
 		close(c.done)
 		c.mux.closeAll()
-		c.wg.Wait()
-		_ = c.tracker.Stop(context.Background())
-		c.mux.shutdown()
 	})
+	var first error
+	note := func(err error) {
+		if err != nil && first == nil {
+			first = err
+		}
+	}
+	c.waitOnce.Do(func() {
+		c.waitDone = make(chan struct{})
+		go func() {
+			c.wg.Wait()
+			close(c.waitDone)
+		}()
+	})
+	select {
+	case <-c.waitDone:
+	case <-ctx.Done():
+		note(ctx.Err())
+	}
+	note(c.tracker.Stop(ctx))
+	note(c.mux.shutdown(ctx))
+	if first != nil {
+		return fmt.Errorf("caller: shutdown: %w", first)
+	}
 	return nil
 }
 
@@ -188,9 +231,9 @@ func (c *Client) Drain(ctx context.Context) error {
 	idle := c.mux.beginDrain()
 	select {
 	case <-idle:
-		return c.Close()
+		return c.Shutdown(ctx)
 	case <-ctx.Done():
-		_ = c.Close()
+		_ = c.Shutdown(ctx)
 		return ctx.Err()
 	case <-c.done:
 		return nil

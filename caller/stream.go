@@ -32,7 +32,7 @@ const errorGrace = 250 * time.Millisecond
 type Stream struct {
 	c       *Client
 	r       *route
-	ctx     context.Context
+	ctx     context.Context //nolint:containedctx // the context [Agent.Prompt] was given bounds the stream's reply wait beyond that call, and Close ends it (rule 20)
 	subject string
 
 	inactivity time.Duration

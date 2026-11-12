@@ -622,12 +622,12 @@ func TestClose_ManyPendingQuestionsHonourTheDeadline(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 300*time.Millisecond)
 	defer cancel()
 	start := time.Now()
-	err := h.tl.Close(ctx)
+	err := h.tl.Shutdown(ctx)
 	if took := time.Since(start); took > 2*time.Second {
-		t.Errorf("Close took %v against a 300ms deadline", took)
+		t.Errorf("Shutdown took %v against a 300ms deadline", took)
 	}
 	if !errors.Is(err, context.DeadlineExceeded) {
-		t.Errorf("Close returned %v, want the context's deadline error", err)
+		t.Errorf("Shutdown returned %v, want the context's deadline error", err)
 	}
 	if replies.Load() == 0 {
 		t.Error("no refusal was attempted")
@@ -673,7 +673,7 @@ func TestClose_RefusalsGoOutConcurrently(t *testing.T) {
 		return len(h.tl.root.order[0].questions) == n
 	})
 	start := time.Now()
-	if err := h.tl.Close(context.Background()); err != nil {
+	if err := h.tl.Close(); err != nil {
 		t.Fatal(err)
 	}
 	if took := time.Since(start); took > 600*time.Millisecond || peak.Load() < 2 {

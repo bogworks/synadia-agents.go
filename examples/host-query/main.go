@@ -80,5 +80,5 @@ func run(ctx context.Context, nc *nats.Conn, out io.Writer) error {
 	<-ctx.Done()
 	stopCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	return h.Stop(stopCtx)
+	return h.Shutdown(stopCtx)
 }

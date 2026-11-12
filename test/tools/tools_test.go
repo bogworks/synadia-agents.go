@@ -119,7 +119,7 @@ func (e *env) newTools(opts ...tools.Option) *tools.Tools {
 		e.t.Fatal(err)
 	}
 	// Closed before the client and the connection.
-	e.closers = append(e.closers, func() { _ = tl.Close(context.Background()) })
+	e.closers = append(e.closers, func() { _ = tl.Close() })
 	return tl
 }
 
@@ -387,7 +387,7 @@ func TestTools_DiscoverPromptWaitAnswerListCancel(t *testing.T) {
 	if _, has := e.do(tl, tools.ToolListAgentCalls, nil)["open_calls"]; has {
 		t.Error("no call is open now")
 	}
-	if err := tl.Close(context.Background()); err != nil {
+	if err := tl.Close(); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -588,7 +588,7 @@ func TestTools_ServedPromptScope(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	e.closers = append(e.closers, func() { _ = bossTools.Close(context.Background()) })
+	e.closers = append(e.closers, func() { _ = bossTools.Close() })
 
 	type outcome struct{ note, open string }
 	got := make(chan outcome, 1)
@@ -656,7 +656,7 @@ func TestTools_ToolCallIDReachesPromptInterceptors(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	e.closers = append(e.closers, func() { _ = tl.Close(context.Background()) })
+	e.closers = append(e.closers, func() { _ = tl.Close() })
 	state(t, e.do(tl, tools.ToolPromptAgent, obj{"address": addr("worker"), "prompt": "hi"}, tools.WithToolCallID("tc_77")), "completed")
 	if id := <-ids; id != "tc_77" {
 		t.Errorf("interceptor saw tool call id %q", id)
@@ -685,7 +685,7 @@ func TestTools_CloseStopsEverything(t *testing.T) {
 	// ... which the blocking prompt returns as it finishes waiting.
 	r := <-blocked
 	state(t, r, "input_required")
-	if err := tl.Close(context.Background()); err != nil {
+	if err := tl.Close(); err != nil {
 		t.Fatal(err)
 	}
 	if got := w.answer(t); got != tools.QuestionRefusal {
@@ -718,7 +718,7 @@ func TestTools_ThreeAgentCycleStopsAtTheMaxDepth(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		e.closers = append(e.closers, func() { _ = tl.Close(context.Background()) })
+		e.closers = append(e.closers, func() { _ = tl.Close() })
 		e.agent(name, func(ctx context.Context, _ *host.Request, out *host.Responder) error {
 			served.Add(1)
 			r := e.run(ctx, tl, tools.ToolPromptAgent, obj{"address": addr(next), "prompt": "hand it on"})

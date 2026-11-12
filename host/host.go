@@ -24,7 +24,7 @@ import (
 // and then the terminator: a [*RejectError] uses its code, an error wrapping
 // agents.ErrProtocol is 400, and any other error is 500 "handler error"; its
 // text never reaches the caller. ctx ends when the host stops. A handler that
-// ignores ctx can outlive [Host.Stop].
+// ignores ctx can outlive [Host.Shutdown].
 type PromptHandler func(ctx context.Context, req *Request, w *Responder) error
 
 const (
@@ -87,7 +87,7 @@ type Host struct {
 
 	promptMeta map[string]string
 
-	base   context.Context
+	base   context.Context //nolint:containedctx // constructor-owned context for the host's background work, canceled by Close and Shutdown (rule 20)
 	cancel context.CancelFunc
 
 	sem      chan struct{}
@@ -110,11 +110,19 @@ type Host struct {
 	lastErr string
 
 	// lc serializes Start and Stop through registration: whoever holds it
-	// owns the lifecycle transition. It is a channel so that Stop can give up
-	// when its context ends.
+	// owns the lifecycle transition. It is a channel so that Start can give up
+	// when its context ends; Stop never gives up.
 	lc       chan struct{}
 	stopOnce sync.Once
-	doneOnce sync.Once
+
+	// stopReq and stopRequested record a Shutdown or Close request at once,
+	// before the lifecycle lock is touched. A Start in progress checks them
+	// at its checkpoints and tears itself down; exactly one party performs
+	// the stop, decided by the state under mu.
+	stopReq       atomic.Bool
+	stopRequested chan struct{}
+	reqOnce       sync.Once
+	doneOnce      sync.Once
 
 	// cbs counts the micro callbacks in progress. closed, set under mu once
 	// the workers have exited, makes later callbacks do nothing; after cbs
@@ -174,7 +182,9 @@ func New(nc *nats.Conn, subject agents.AgentSubject, handler PromptHandler, opts
 		sem:    make(chan struct{}, cfg.maxConc),
 		stopCh: make(chan struct{}),
 		done:   make(chan struct{}),
-		lc:     make(chan struct{}, 1),
+
+		stopRequested: make(chan struct{}),
+		lc:            make(chan struct{}, 1),
 	}
 	h.base, h.cancel = context.WithCancel(context.Background())
 
@@ -267,6 +277,14 @@ func checkEndpoints(eps []Endpoint, subject agents.AgentSubject) error {
 // configured it first learns the connection's agent ID (SAP §13.4); with a
 // signer a failure is an error, without one the host starts without identity
 // metadata.
+//
+// A [Host.Shutdown] or [Host.Close] that is requested while Start is running
+// is honored at once: Start checks for it between its registration steps and
+// before it starts the heartbeat, tears down what it registered (service
+// unregistered, no heartbeat started, flushed) and returns [ErrStopped]; the
+// host is then stopped. Start also returns [ErrStopped] when the stop was
+// requested, by a Shutdown whose context ended first, before it took the
+// lifecycle lock.
 func (h *Host) Start(ctx context.Context) error {
 	// The lifecycle lock is held through registration, so a concurrent Stop
 	// waits for Start to finish and then removes what Start registered.
@@ -275,19 +293,105 @@ func (h *Host) Start(ctx context.Context) error {
 	case <-ctx.Done():
 		return ctx.Err()
 	}
-	defer func() { <-h.lc }()
+	err := h.startLocked(ctx)
+	<-h.lc
+	// A stop requested after the last checkpoint, or by a Shutdown whose
+	// context ended while it waited for the lock, is performed here: the
+	// request is never lost. If a Shutdown took the lock first, the state
+	// says it already stopped the host.
+	if h.stopReq.Load() {
+		h.stopRequestedTeardown(ctx)
+	}
+	return err
+}
+
+// startLocked runs with the lifecycle lock held.
+func (h *Host) startLocked(ctx context.Context) error {
 	h.mu.Lock()
 	if h.state != stateNew {
+		// Already started, or stopped by a Shutdown that ran before this call.
 		h.mu.Unlock()
 		return ErrStarted
+	}
+	if err := h.checkStop(); err != nil {
+		// A stop was requested but nobody has performed it yet.
+		h.mu.Unlock()
+		return err
 	}
 	h.state = stateRunning
 	h.mu.Unlock()
 	if err := h.start(ctx); err != nil {
+		if errors.Is(err, ErrStopped) {
+			// The stop is performed by stopRequestedTeardown, once the lock
+			// is released.
+			return err
+		}
 		h.abort()
 		return err
 	}
 	return nil
+}
+
+// checkStop reports ErrStopped when a stop was requested.
+func (h *Host) checkStop() error {
+	if h.stopReq.Load() {
+		return ErrStopped
+	}
+	return nil
+}
+
+// requestStop records the stop request: immediately, atomically and without
+// the lifecycle lock.
+func (h *Host) requestStop() {
+	h.stopReq.Store(true)
+	h.reqOnce.Do(func() { close(h.stopRequested) })
+}
+
+// stopRequestedTeardown takes the lifecycle lock and, if nobody has stopped
+// the host yet, stops it. Whoever finds the state new or running performs the
+// stop; the other finds it already under way and does nothing.
+func (h *Host) stopRequestedTeardown(ctx context.Context) {
+	h.lc <- struct{}{}
+	performed := h.stopLocked(ctx)
+	<-h.lc
+	if performed {
+		go h.complete()
+	}
+}
+
+// stopLocked stops the host with the lifecycle lock held: it moves the state
+// to stopping, stops the heartbeat and unregisters the service. It reports
+// whether it performed the stop; the caller releases the lock and then starts
+// complete.
+func (h *Host) stopLocked(ctx context.Context) bool {
+	h.mu.Lock()
+	if h.state != stateNew && h.state != stateRunning {
+		h.mu.Unlock()
+		return false
+	}
+	h.state = stateStopping
+	h.closeStop()
+	svc, hbStop := h.svc, h.hbStop
+	h.mu.Unlock()
+
+	if hbStop != nil {
+		hbStop()
+	}
+	if svc != nil {
+		if err := svc.Stop(); err != nil && !errors.Is(err, nats.ErrConnectionClosed) {
+			h.log.Warn("service stop failed", "error", err.Error())
+		}
+		// The unsubscribes are only buffered until flushed: without this, a
+		// request another connection sends right after Stop returns can still
+		// reach the dead subscription and go unanswered instead of failing at
+		// once with no responders.
+		fctx, fcancel := context.WithTimeout(context.WithoutCancel(ctx), 2*time.Second)
+		if err := h.nc.FlushWithContext(fctx); err != nil && !errors.Is(err, nats.ErrConnectionClosed) {
+			h.log.Debug("flush after service stop failed", "error", err.Error())
+		}
+		fcancel()
+	}
+	return true
 }
 
 // abort tears down a failed Start. It runs with the lifecycle lock held, so no
@@ -336,6 +440,9 @@ func (h *Host) start(ctx context.Context) error {
 		signer = o.Signer
 		r := identity.NewSelfIDResolver(h.nc, identity.SelfIDOptions{Signer: signer, Logger: h.log})
 		got, err := r.ID(ctx)
+		if serr := h.checkStop(); serr != nil {
+			return serr
+		}
 		switch {
 		case err == nil:
 			if signer != nil && got.User() != signer.PublicKey() {
@@ -384,6 +491,9 @@ func (h *Host) start(ctx context.Context) error {
 	h.id = svc.Info().ID
 	h.agentID, h.hasID, h.signer = id, hasID, signer
 	h.mu.Unlock()
+	if err := h.checkStop(); err != nil {
+		return err
+	}
 
 	if err := svc.AddEndpoint(agents.EndpointPrompt, micro.HandlerFunc(h.onPrompt),
 		micro.WithEndpointSubject(h.subject.Prompt()),
@@ -395,6 +505,9 @@ func (h *Host) start(ctx context.Context) error {
 		micro.WithEndpointSubject(h.subject.Status()),
 		micro.WithEndpointQueueGroup(agents.QueueGroup)); err != nil {
 		return fmt.Errorf("host: register status endpoint: %w", err)
+	}
+	if err := h.checkStop(); err != nil {
+		return err
 	}
 	for _, e := range h.cfg.endpoints {
 		eo := []micro.EndpointOpt{micro.WithEndpointSubject(e.Subject)}
@@ -408,6 +521,9 @@ func (h *Host) start(ctx context.Context) error {
 			return fmt.Errorf("host: register endpoint %q: %w", e.Name, err)
 		}
 	}
+	if err := h.checkStop(); err != nil {
+		return err
+	}
 	fctx := ctx
 	if _, ok := ctx.Deadline(); !ok {
 		var cancel context.CancelFunc
@@ -420,12 +536,19 @@ func (h *Host) start(ctx context.Context) error {
 
 	// First beat out before Start returns (SAP §8.2: after registration).
 	// A beat skipped for a signing failure is already counted and logged; the
-	// host still starts and beats again at the next tick.
+	// host still starts and beats again at the next tick. A stop requested
+	// while the beat was being signed stops the beat before it is published
+	// (publishHeartbeat checks) and the heartbeat loop is never started.
 	if err := h.publishHeartbeat(ctx); err != nil && !errors.Is(err, errHeartbeatSign) {
 		return err
 	}
 	hctx, hstop := context.WithCancel(h.base)
 	h.mu.Lock()
+	if h.stopReq.Load() {
+		h.mu.Unlock()
+		hstop()
+		return ErrStopped
+	}
 	h.hbStop = hstop
 	h.mu.Unlock()
 	h.hbWG.Add(1)
@@ -433,7 +556,7 @@ func (h *Host) start(ctx context.Context) error {
 	return nil
 }
 
-// Stop shuts the host down gracefully: it stops the heartbeat (a beat being
+// Shutdown shuts the host down gracefully, as [net/http.Server.Shutdown] does: it stops the heartbeat (a beat being
 // signed is abandoned), stops accepting prompts (a prompt that arrives
 // afterwards is answered 500 "service stopping" and the terminator, and a
 // status request is not answered), and waits until ctx is done for the handlers
@@ -441,51 +564,42 @@ func (h *Host) start(ctx context.Context) error {
 // cancels the handlers' contexts and returns ctx.Err(); a canceled handler's
 // stream still gets an error frame and the terminator.
 //
+// The stop is requested at once, before anything can block: Shutdown records
+// the request first, and ctx bounds only the waits (for a [Host.Start] in
+// progress to release the lifecycle lock, and for completion). If ctx ends
+// first the wrapped ctx error is returned and the stop still happens: a Start
+// in progress sees the request, unregisters what it registered, starts no
+// heartbeat and returns [ErrStopped]. Exactly one of Shutdown and Start
+// performs the stop. A later Shutdown or [Host.Close] waits for the real
+// completion.
+//
 // The host is complete when the heartbeat and prompt workers have exited and
-// the callbacks have finished; a Stop that returned ctx.Err() leaves that
-// shutdown running, and a later Stop or [Host.Close] waits for it. Once the host
+// the callbacks have finished; a Shutdown that returned ctx.Err() leaves that
+// shutdown running, and a later Shutdown or [Host.Close] waits for it. Once the host
 // is complete, a request that was still queued on a subscription is dropped
-// unanswered. Stop does not close the connection, publishes no going-away
-// signal (SAP §8.6) and is idempotent. A handler that ignores its context
-// delays completion, not the return of a Stop whose ctx has ended.
-func (h *Host) Stop(ctx context.Context) error {
-	// Wait for a Start in progress; it holds the lifecycle lock through
-	// registration, and Stop must see everything it registered.
+// unanswered. Shutdown does not close the connection, publishes no going-away
+// signal (SAP §8.6) and is idempotent. The shutdown starts whatever ctx is, even
+// when ctx is already done. A handler that ignores its context
+// delays completion, not the return of a Shutdown whose ctx has ended.
+func (h *Host) Shutdown(ctx context.Context) error {
+	h.requestStop()
+	// A free lock is taken even when ctx is done, so the stop is performed
+	// here whenever it can be; otherwise wait for Start, bounded by ctx.
 	select {
 	case h.lc <- struct{}{}:
-	case <-ctx.Done():
-		return ctx.Err()
-	}
-	h.mu.Lock()
-	if h.state != stateNew && h.state != stateRunning {
-		h.mu.Unlock()
-		<-h.lc
-		return h.waitDone(ctx)
-	}
-	h.state = stateStopping
-	h.closeStop()
-	svc, hbStop := h.svc, h.hbStop
-	h.mu.Unlock()
-
-	if hbStop != nil {
-		hbStop()
-	}
-	if svc != nil {
-		if err := svc.Stop(); err != nil && !errors.Is(err, nats.ErrConnectionClosed) {
-			h.log.Warn("service stop failed", "error", err.Error())
+	default:
+		select {
+		case h.lc <- struct{}{}:
+		case <-ctx.Done():
+			h.cancel()
+			return fmt.Errorf("host: shutdown: stop requested, Start still in progress: %w", ctx.Err())
 		}
-		// The unsubscribes are only buffered until flushed: without this, a
-		// request another connection sends right after Stop returns can still
-		// reach the dead subscription and go unanswered instead of failing at
-		// once with no responders.
-		fctx, fcancel := context.WithTimeout(ctx, 2*time.Second)
-		if err := h.nc.FlushWithContext(fctx); err != nil && !errors.Is(err, nats.ErrConnectionClosed) {
-			h.log.Debug("flush after service stop failed", "error", err.Error())
-		}
-		fcancel()
 	}
+	performed := h.stopLocked(ctx)
 	<-h.lc
-	go h.complete()
+	if performed {
+		go h.complete()
+	}
 	return h.waitDone(ctx)
 }
 
@@ -520,13 +634,34 @@ func (h *Host) complete() {
 	h.closeDone()
 }
 
-// Close cancels the handlers' contexts, stops the host and waits until it is
-// complete, so it blocks while a handler ignores its context. It is idempotent,
-// waits for a shutdown an earlier Stop left running, and does not close the
-// connection.
+// Close stops the host at once and waits for it to be complete, as
+// [net/http.Server.Close] does, so a Host is an [io.Closer]. It cancels the
+// handlers' contexts, stops the service and the heartbeat, and waits for the
+// heartbeat and prompt workers to exit and for the callbacks to finish, until
+// [DefaultCloseTimeout]. Where [Host.Shutdown] lets the handlers in flight
+// finish first, Close does not.
+//
+// When the timeout ends first, Close returns the context error wrapped (test it
+// with [errors.Is]); the workers have still been told to stop, and a later Close
+// or [Host.Shutdown] waits for the real completion. A handler that ignores its
+// context delays completion, not the return of Close. The stop is requested at
+// once, as [Host.Shutdown] does; the timeout bounds only the wait. If it ends
+// while a [Host.Start] is still in progress, Close returns the error and the
+// stop still happens when Start finishes. Close is idempotent and
+// does not close the connection. For a deadline of your own, cancel nothing and
+// call [Host.Shutdown].
 func (h *Host) Close() error {
 	h.cancel()
-	return h.Stop(context.Background())
+	timeout := DefaultCloseTimeout
+	if h.cfg.hooks.CloseTimeout > 0 {
+		timeout = h.cfg.hooks.CloseTimeout
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), timeout) //nolint:forbidigo // io.Closer has no context; the wait is bounded by DefaultCloseTimeout (rule 20)
+	defer cancel()
+	if err := h.Shutdown(ctx); err != nil {
+		return fmt.Errorf("host: close: %w", err)
+	}
+	return nil
 }
 
 // cbEnter registers a micro callback; it reports false, and the callback must
