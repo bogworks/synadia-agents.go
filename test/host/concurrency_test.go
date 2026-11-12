@@ -170,7 +170,9 @@ func TestConcurrency_Reject429Policy(t *testing.T) {
 	if got := collect(t, first.sub, 5*time.Second).texts(t); len(got) != 1 || got[0] != "first" {
 		t.Errorf("the first prompt: %v", got)
 	}
-	// The slot is free again.
+	// The slot is free again: the host replies before it releases the slot, so
+	// wait for that release rather than race it.
+	awaitIdle(t, h)
 	if got := prompt(t, nc, h, "third").texts(t); len(got) != 1 {
 		t.Errorf("after release: %v", got)
 	}
@@ -242,7 +244,7 @@ func TestConcurrency_ManyPromptsRace(t *testing.T) {
 		}()
 	}
 	wg.Wait()
-	if s := h.Stats(); s.Prompts != 40 || s.InFlight != 0 {
+	if s := awaitIdle(t, h); s.Prompts != 40 {
 		t.Errorf("stats %+v", s)
 	}
 }
