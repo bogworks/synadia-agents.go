@@ -57,6 +57,7 @@ type job struct {
 	Steps       []step `yaml:"steps"`
 	Uses        string `yaml:"uses"`
 	Permissions any    `yaml:"permissions"`
+	If          string `yaml:"if"`
 }
 
 type workflow struct {
@@ -344,4 +345,203 @@ func TestWorkflows_GuardSelfTest(t *testing.T) {
 			t.Fatal("workflow without pr-check accepted")
 		}
 	})
+}
+
+// adr-lint skips Mergify's merge-queue drafts, and only those: the job-level if needs the head ref prefix, the same-repo
+// head and the Mergify bot as author, all three. Any one alone would let a pull request opt out of the check.
+func TestADRLint_skipsOnlyMergifyQueueDrafts(t *testing.T) {
+	raw, err := os.ReadFile("../../.github/workflows/adr-lint.yml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var wf workflow
+	if err := yaml.Unmarshal(raw, &wf); err != nil {
+		t.Fatal(err)
+	}
+	cond := wf.Jobs["adr-lint"].If
+	if !strings.HasPrefix(cond, "${{ !(") || !strings.HasSuffix(cond, ") }}") {
+		t.Fatalf("the adr-lint if must be a negated group, got %q", cond)
+	}
+	for _, want := range []string{
+		"startsWith(github.event.pull_request.head.ref, 'mergify/merge-queue/')",
+		"github.event.pull_request.head.repo.full_name == github.repository",
+		"github.event.pull_request.user.login == 'mergify[bot]'",
+	} {
+		if !strings.Contains(cond, want) {
+			t.Errorf("the adr-lint if lacks %q: %s", want, cond)
+		}
+	}
+	if n := strings.Count(cond, "&&"); n != 2 || strings.Contains(cond, "||") {
+		t.Errorf("the three conditions must be joined by && only, got %q", cond)
+	}
+}
+
+// The ruleset requires "Mergify Merge Protections", so .mergify.yml must carry a merge_protections rule that holds a
+// merge outside the queue to the queue's review gates, scoped to main, with Mergify's own queue drafts exempt.
+func TestMergify_mergeProtectionsMirrorTheQueueGates(t *testing.T) {
+	raw, err := os.ReadFile("../../.mergify.yml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var cfg struct {
+		MergeProtections []struct {
+			Name              string `yaml:"name"`
+			If                []any  `yaml:"if"`
+			SuccessConditions []any  `yaml:"success_conditions"`
+		} `yaml:"merge_protections"`
+		Settings map[string]any `yaml:"merge_protections_settings"`
+	}
+	if err := yaml.Unmarshal(raw, &cfg); err != nil {
+		t.Fatal(err)
+	}
+	if cfg.Settings == nil {
+		t.Error("merge_protections_settings is gone")
+	}
+	if len(cfg.MergeProtections) != 1 {
+		t.Fatalf("want one merge_protections rule, got %d", len(cfg.MergeProtections))
+	}
+	r := cfg.MergeProtections[0]
+	succ := fmt.Sprint(r.SuccessConditions)
+	if !strings.Contains(fmt.Sprint(r.If), "base = main") {
+		t.Errorf("the rule's if lacks base = main: %v", r.If)
+	}
+	for _, want := range []string{"label != hold", "check-success = codex-review", "approved-reviews-by = randybias", "label = lead-approved"} {
+		if !strings.Contains(succ, want) {
+			t.Errorf("the rule's success_conditions lack %q: %s", want, succ)
+		}
+	}
+
+	// The queue-draft exemption needs both the head ref and Mergify's bot as author; either alone is attacker-chosen
+	// (the branch name) or absent, so only (queue head AND mergify[bot]) leaves the rule inactive.
+	for _, c := range []struct {
+		head, author string
+		applies      bool
+	}{
+		{"mergify/merge-queue/x", "mergify[bot]", false},
+		{"mergify/merge-queue/x", "someone", true},
+		{"feature/x", "mergify[bot]", true},
+		{"feature/x", "someone", true},
+	} {
+		attrs := map[string]string{"base": "main", "head": c.head, "author": c.author}
+		if got := evalMergify(t, r.If, attrs); got != c.applies {
+			t.Errorf("head %q author %q: rule applies = %v, want %v", c.head, c.author, got, c.applies)
+		}
+	}
+}
+
+// evalMergify evaluates a Mergify condition tree: a list is an AND, `and:`, `or:` and `not:` are maps, and a string is
+// `[-]attr (=|!=|~=) value` where a leading `-` negates it.
+func evalMergify(t *testing.T, c any, attrs map[string]string) bool {
+	t.Helper()
+	switch v := c.(type) {
+	case []any:
+		for _, x := range v {
+			if !evalMergify(t, x, attrs) {
+				return false
+			}
+		}
+		return true
+	case map[string]any:
+		if len(v) != 1 {
+			t.Fatalf("unsupported condition map %v", v)
+		}
+		for k, x := range v {
+			switch k {
+			case "not":
+				return !evalMergify(t, x, attrs)
+			case "and":
+				return evalMergify(t, x, attrs)
+			case "or":
+				list, ok := x.([]any)
+				if !ok {
+					t.Fatalf("or needs a list, got %v", x)
+				}
+				for _, y := range list {
+					if evalMergify(t, y, attrs) {
+						return true
+					}
+				}
+				return false
+			}
+			t.Fatalf("unsupported condition key %q", k)
+		}
+	case string:
+		m := regexp.MustCompile(`^(-?)([a-z-]+) (~=|!=|=) (.+)$`).FindStringSubmatch(v)
+		if m == nil {
+			t.Fatalf("unsupported condition %q", v)
+		}
+		var res bool
+		switch m[3] {
+		case "~=":
+			res = regexp.MustCompile(m[4]).MatchString(attrs[m[2]])
+		case "=":
+			res = attrs[m[2]] == m[4]
+		case "!=":
+			res = attrs[m[2]] != m[4]
+		}
+		return res != (m[1] == "-")
+	}
+	t.Fatalf("unsupported condition %v", c)
+	return false
+}
+
+// The merge_protections rule's success_conditions are the queue's review gates (codex-review, the approval group, the
+// hold label), so changing one without the other fails. Both are compared as parsed values, `-label = hold` and
+// `label != hold` being the same condition.
+func TestMergify_mergeProtectionsMatchQueueReviewGates(t *testing.T) {
+	raw, err := os.ReadFile("../../.mergify.yml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var cfg struct {
+		MergeProtections []struct {
+			SuccessConditions []any `yaml:"success_conditions"`
+		} `yaml:"merge_protections"`
+		QueueRules []struct {
+			Name            string `yaml:"name"`
+			QueueConditions []any  `yaml:"queue_conditions"`
+		} `yaml:"queue_rules"`
+	}
+	if err := yaml.Unmarshal(raw, &cfg); err != nil {
+		t.Fatal(err)
+	}
+	if len(cfg.MergeProtections) != 1 || len(cfg.QueueRules) == 0 || cfg.QueueRules[0].Name != "default" {
+		t.Fatal("want one merge_protections rule and the default queue rule first")
+	}
+	norm := func(c any) string {
+		if s, ok := c.(string); ok {
+			if s == "-label = hold" {
+				return "label != hold"
+			}
+			return s
+		}
+		m, ok := c.(map[string]any)
+		if !ok {
+			return fmt.Sprint(c)
+		}
+		list, _ := m["or"].([]any)
+		var parts []string
+		for _, x := range list {
+			parts = append(parts, fmt.Sprint(x))
+		}
+		sort.Strings(parts)
+		return "or(" + strings.Join(parts, ",") + ")"
+	}
+	gate := func(s string) bool {
+		return s == "label != hold" || s == "check-success = codex-review" || strings.HasPrefix(s, "or(")
+	}
+	var queue, rule []string
+	for _, c := range cfg.QueueRules[0].QueueConditions {
+		if n := norm(c); gate(n) {
+			queue = append(queue, n)
+		}
+	}
+	for _, c := range cfg.MergeProtections[0].SuccessConditions {
+		rule = append(rule, norm(c))
+	}
+	sort.Strings(queue)
+	sort.Strings(rule)
+	if len(rule) != 3 || strings.Join(queue, "\n") != strings.Join(rule, "\n") {
+		t.Errorf("merge_protections success_conditions %v differ from the queue's review gates %v", rule, queue)
+	}
 }
