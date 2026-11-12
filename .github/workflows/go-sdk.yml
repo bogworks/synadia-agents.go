@@ -229,13 +229,12 @@ jobs:
         run: |
           set -u
           fail=0
-          # docs/mash-mapping.md is the one exemption: it maps a downstream
-          # consumer's code onto this SDK, so it has to name that consumer. It is
-          # not part of the upstream landing. No other path is exempt.
+          # No tracked file outside .github/ is exempt: no document, source file or
+          # fixture may name a downstream consumer of this SDK.
           # Every tracked file is searched, not only *.go and *.md: grep -I skips
           # binary files, so any tracked text file (YAML, JSON, scripts, notices)
           # is covered. Names are NUL-separated so no path can split.
-          files() { git ls-files -z -- ':(exclude).github' ':(exclude)docs/mash-mapping.md'; }
+          files() { git ls-files -z -- ':(exclude).github'; }
 
           echo "Checking imports of github.com/bogworks/ outside this module"
           if git ls-files -- '*.go' ':(exclude).github' | xargs -r grep -nE '"github\.com/bogworks/' \
@@ -259,7 +258,7 @@ jobs:
           # "zone" stays on Go and Markdown sources: a data fixture may carry
           # the word legitimately (an NTFS stream name). Go's time.Time.Zone()
           # and "time zone" are not the protocol concept.
-          if git ls-files -z -- '*.go' '*.md' ':(exclude).github' ':(exclude)docs/mash-mapping.md' \
+          if git ls-files -z -- '*.go' '*.md' ':(exclude).github' \
               | xargs -0 -r grep -InwiE 'zone' | grep -viE '\.Zone\(|time ?zone|no zone'; then
             echo "error: 'zone' used as a protocol concept"
             fail=1

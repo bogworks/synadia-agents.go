@@ -11,6 +11,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strings"
 	"testing"
@@ -18,7 +19,7 @@ import (
 
 const root = "../.." // the root module
 
-// consumer is the name only docs/ may carry. It is spelled in two pieces so
+// consumer is the name no tracked document may carry. It is spelled in two pieces so
 // that this file does not itself trip the independence check of CI.
 const consumer = "ma" + "sh"
 
@@ -150,16 +151,40 @@ func TestProtocolMapping_Complete(t *testing.T) {
 	}
 }
 
-// TestProtocolMapping_NamesNoConsumer keeps the upstream documents free of any
-// one consumer's name. Only the consumer mapping document under docs/ may name it.
+// TestProtocolMapping_NamesNoConsumer keeps the repository free of any one
+// consumer's name. No document may name it: every Markdown and Go file is
+// searched, except .github/ and test/ci, which must name it to check for it.
 func TestProtocolMapping_NamesNoConsumer(t *testing.T) {
-	for _, f := range []string{"README.md", "docs/protocol-mapping.md", "CHANGELOG.md", "doc.go"} {
-		b, err := os.ReadFile(filepath.Join(root, f))
+	word := regexp.MustCompile(`(?i)\b` + consumer + `\b`)
+	n := 0
+	fsys := os.DirFS(root)
+	err := fs.WalkDir(fsys, ".", func(p string, d fs.DirEntry, err error) error {
 		if err != nil {
-			t.Fatal(err)
+			return err
 		}
-		if strings.Contains(strings.ToLower(string(b)), consumer) {
-			t.Errorf("%s names a consumer", f)
+		if d.IsDir() {
+			if p == ".git" || p == ".github" || p == "test/ci" || d.Name() == "node_modules" {
+				return fs.SkipDir
+			}
+			return nil
 		}
+		if !strings.HasSuffix(p, ".md") && !strings.HasSuffix(p, ".go") {
+			return nil
+		}
+		b, err := fs.ReadFile(fsys, p)
+		if err != nil {
+			return err
+		}
+		n++
+		if word.Match(b) {
+			t.Errorf("%s names a consumer", p)
+		}
+		return nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if n < 20 {
+		t.Fatalf("searched only %d files; the walk is broken", n)
 	}
 }
