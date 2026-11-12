@@ -18,7 +18,7 @@ This is an independent implementation. It is written to be offered upstream to S
 | | |
 |---|---|
 | SAP revision | 0.3, spec commit `c48cea5f07965cc8fd4054e120459f1833b3ed2b` (`c48cea5f`) |
-| Go | the two latest releases (CI runs 1.26.x and 1.27.x); the `go` directive is 1.26 |
+| Go | 1.26 or later (the `go` directive is 1.26); CI builds with 1.27.4 and also tests 1.26.x |
 | Runtime dependencies | `github.com/nats-io/nats.go` and `github.com/nats-io/nkeys` only |
 
 ## Install
