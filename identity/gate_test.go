@@ -7,6 +7,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"fmt"
 	"log/slog"
 	"strings"
 	"sync"
@@ -293,4 +294,15 @@ func (l *lockedBuffer) String() string {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	return l.b.String()
+}
+
+func TestToError(t *testing.T) {
+	want := newError(401, ErrAdmission, "unauthorized", "x")
+	if got := toError(fmt.Errorf("wrapped: %w", want)); got != want {
+		t.Fatalf("a wrapped *Error was not unwrapped: %v", got)
+	}
+	got := toError(errors.New("not an *Error"))
+	if got.Code != 500 || got.Detail != "not an *Error" {
+		t.Fatalf("fallback = %d %q, want a generic 500", got.Code, got.Detail)
+	}
 }

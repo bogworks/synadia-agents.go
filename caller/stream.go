@@ -142,7 +142,7 @@ func (s *Stream) expire(err error) {
 func (s *Stream) expiry() error {
 	s.tmu.Lock()
 	defer s.tmu.Unlock()
-	if s.expiredBy == errTimersStopped {
+	if errors.Is(s.expiredBy, errTimersStopped) {
 		return nil
 	}
 	return s.expiredBy

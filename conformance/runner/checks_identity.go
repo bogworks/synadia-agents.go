@@ -40,11 +40,11 @@ func (t *T) accountOf(ctx context.Context, s identity.Signer) (string, error) {
 	defer cancel()
 	m, err := t.nc.RequestWithContext(rctx, identity.UserInfoSubject, nil)
 	if err != nil {
-		return "", fmt.Errorf("could not learn the sender's account (%v); supply --sender-account", err)
+		return "", fmt.Errorf("could not learn the sender's account (%w); supply --sender-account", err)
 	}
 	id, err := identity.IdentityFromUserInfoReply(m.Data)
 	if err != nil {
-		return "", fmt.Errorf("the connection has no usable identity (%v); supply --sender-account", err)
+		return "", fmt.Errorf("the connection has no usable identity (%w); supply --sender-account", err)
 	}
 	if id.User() != s.PublicKey() {
 		return "", errors.New("the connection's user is not the sender's; supply --sender-account")

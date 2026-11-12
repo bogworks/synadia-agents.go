@@ -16,6 +16,7 @@ linters:
     - revive
     - gosec
     - misspell
+    - forbidigo
   settings:
     errcheck:
       check-type-assertions: true
@@ -39,6 +40,10 @@ linters:
         - name: context-keys-type
         - name: indent-error-flow
         - name: var-naming
+    forbidigo:
+      forbid:
+        - pattern: ^panic$
+          msg: return an error; a deliberate panic needs a nolint reason
     misspell:
       locale: US
   exclusions:
@@ -50,6 +55,9 @@ linters:
         linters:
           - gosec
           - errcheck
+      - path: _test\.go
+        linters:
+          - forbidigo
 
 formatters:
   enable:

@@ -105,7 +105,7 @@ var loadDefinitions = sync.OnceValues(func() (*loadedDefinitions, error) {
 func ToolDefinitions() []Definition {
 	l, err := loadDefinitions()
 	if err != nil {
-		panic(err) // the embedded files are checked by this package's tests
+		panic(err) //nolint:forbidigo // the embedded files are checked by this package's tests, so a failure is a build defect
 	}
 	out := make([]Definition, len(l.defs))
 	for i, d := range l.defs {

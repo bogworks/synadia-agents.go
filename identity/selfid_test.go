@@ -425,3 +425,11 @@ func TestSigner_FromSeedAndCreds(t *testing.T) {
 		}
 	})
 }
+
+func TestSelfID_RequestFailureKeepsItsCause(t *testing.T) {
+	r := NewSelfIDResolver(&fakeConn{reply: func(context.Context, int) (*nats.Msg, error) { return nil, nats.ErrConnectionClosed }}, SelfIDOptions{Timeout: 20 * time.Millisecond})
+	_, err := r.ID(context.Background())
+	if !errors.Is(err, ErrIdentityUnknown) || !errors.Is(err, nats.ErrConnectionClosed) {
+		t.Fatalf("got %v, want both ErrIdentityUnknown and the transport cause", err)
+	}
+}
