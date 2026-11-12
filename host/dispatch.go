@@ -126,7 +126,7 @@ func (h *Host) onPrompt(req micro.Request) {
 		defer h.leave()
 		defer func() { <-h.sem }()
 		defer h.notePrompt(start)
-		if h.cfg.raw != nil {
+		if h.cfg.hooks.Raw != nil {
 			h.serveRaw(req)
 			return
 		}
@@ -240,7 +240,7 @@ func (h *Host) serveRaw(req micro.Request) {
 				err = errors.New("raw handler panicked")
 			}
 		}()
-		return h.cfg.raw(ctx, req, adm.Sender)
+		return h.cfg.hooks.Raw(ctx, req, adm.Sender)
 	}()
 	if err != nil {
 		w := newResponder(h, req)
