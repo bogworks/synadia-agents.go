@@ -110,8 +110,8 @@ type Host struct {
 	lastErr string
 
 	// lc serializes Start and Stop through registration: whoever holds it
-	// owns the lifecycle transition. It is a channel so that Stop can give up
-	// when its context ends.
+	// owns the lifecycle transition. It is a channel so that Start can give up
+	// when its context ends; Stop never gives up.
 	lc       chan struct{}
 	stopOnce sync.Once
 	doneOnce sync.Once
@@ -446,16 +446,16 @@ func (h *Host) start(ctx context.Context) error {
 // shutdown running, and a later Shutdown or [Host.Close] waits for it. Once the host
 // is complete, a request that was still queued on a subscription is dropped
 // unanswered. Shutdown does not close the connection, publishes no going-away
-// signal (SAP §8.6) and is idempotent. A handler that ignores its context
+// signal (SAP §8.6) and is idempotent. The shutdown starts whatever ctx is, even
+// when ctx is already done; ctx bounds only the wait. A handler that ignores its context
 // delays completion, not the return of a Shutdown whose ctx has ended.
 func (h *Host) Shutdown(ctx context.Context) error {
 	// Wait for a Start in progress; it holds the lifecycle lock through
-	// registration, and Stop must see everything it registered.
-	select {
-	case h.lc <- struct{}{}:
-	case <-ctx.Done():
-		return ctx.Err()
-	}
+	// registration, and Stop must see everything it registered. The wait is
+	// not bounded by ctx: shutdown always starts, and ctx bounds only the wait
+	// for completion below. Start's registration is itself bounded by Start's
+	// context (and DefaultStartTimeout for the flush).
+	h.lc <- struct{}{}
 	h.mu.Lock()
 	if h.state != stateNew && h.state != stateRunning {
 		h.mu.Unlock()
@@ -478,7 +478,7 @@ func (h *Host) Shutdown(ctx context.Context) error {
 		// request another connection sends right after Stop returns can still
 		// reach the dead subscription and go unanswered instead of failing at
 		// once with no responders.
-		fctx, fcancel := context.WithTimeout(ctx, 2*time.Second)
+		fctx, fcancel := context.WithTimeout(context.WithoutCancel(ctx), 2*time.Second)
 		if err := h.nc.FlushWithContext(fctx); err != nil && !errors.Is(err, nats.ErrConnectionClosed) {
 			h.log.Debug("flush after service stop failed", "error", err.Error())
 		}
