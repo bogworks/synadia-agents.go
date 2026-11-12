@@ -13,6 +13,7 @@ import (
 
 	agents "github.com/bogworks/synadia-agents.go"
 	"github.com/bogworks/synadia-agents.go/identity"
+	"github.com/bogworks/synadia-agents.go/internal/stance"
 )
 
 // Defaults of the client. Each is SDK policy unless noted, and each can be
@@ -81,6 +82,7 @@ type config struct {
 	discoverLimit int
 	queryPolicy   func(string) error
 	trust         *TrustPolicy
+	stance        identity.Stance
 }
 
 func defaultConfig() config {
@@ -300,6 +302,26 @@ func WithQueryReplyPolicy(fn func(subject string) error) Option {
 	}
 }
 
+// WithStance sets the security stance (see [identity.Stance]). The client
+// reads two checks of it. VerifiedDiscovery makes discovery verified by
+// default, as a [WithTrustPolicy] that accepts any signer whose id_sig verifies
+// does, and it gates [Agent.Prompt] and [Agent.Status] the same way
+// ([ErrUntrustedAgent]); an explicit [WithTrustPolicy] wins over it. Signing
+// makes [New] fail unless [WithIdentity] gave a Signer. The stance also goes to
+// the heartbeat tracker the client builds, unless [WithTracker] sets one with
+// [WithTrackerStance]. The default is [identity.DefaultProfile]. When no stance
+// is chosen and no trust policy is set, a logger set with [WithLogger] gets one
+// warning per process that says so. SDK policy.
+func WithStance(s identity.Stance) Option {
+	return func(c *config) error {
+		if _, err := stance.Resolve(s); err != nil {
+			return fmt.Errorf("caller: %w", err)
+		}
+		c.stance = s
+		return nil
+	}
+}
+
 // WithTracker passes options to the heartbeat tracker the client owns.
 func WithTracker(opts ...TrackerOption) Option {
 	return func(c *config) error { c.trackerOpts = append(c.trackerOpts, opts...); return nil }
@@ -370,7 +392,8 @@ func (p *TrustPolicy) trusts(id identity.AgentID, info *agents.AgentInfo) bool {
 // no per-call opt-out. [Agent.Prompt] and [Agent.Status] refuse with
 // [ErrUntrustedAgent] an agent discovery did not admit.
 //
-// Without this option, verification stays opt-in per call. A valid id_sig
+// Without this option, verification stays opt-in per call, unless [WithStance]
+// turns verified discovery on; an explicit policy wins over the stance. A valid id_sig
 // identifies the registrant; it does not prove the discovery reply came from
 // them or that the signer deserves trust beyond the policy (see
 // [WithRequireVerifiedIdentity]). The policy is copied.
