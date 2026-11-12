@@ -22,6 +22,13 @@
 # depend on the runner: the trust logic above is the same wherever it runs. The body and the labels reach the tool
 # through env, never through the text of the shell script. A fork checkout may lack the base commit, so the base commit
 # is fetched into pr/ from the trusted/ checkout (a local fetch, no network or credentials) as origin/<base>.
+#
+# Mergify's merge-queue drafts are skipped (the job reports SKIPPED, which Mergify and the ruleset accept): they carry no
+# Decision line, and the pull request they batch was judged on its own head. The skip is a job-level if that needs ALL of:
+# the head ref starts with mergify/merge-queue/, the head is in this same repository, and the pull request's author is the
+# Mergify bot (mergify[bot]). A pull request author controls the branch name, so the prefix alone would let anyone who can
+# push a branch bypass the check; a fork pull request, or a human's pull request on such a branch name, is still judged.
+# The fields are base-repository-trusted event fields (this runs on pull_request_target).
 name: adr-lint
 
 on:
@@ -37,6 +44,7 @@ concurrency:
 
 jobs:
   adr-lint:
+    if: ${{ !(startsWith(github.event.pull_request.head.ref, 'mergify/merge-queue/') && github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.user.login == 'mergify[bot]') }}
     name: adr-lint
     runs-on: [self-hosted, rh-gate]
     timeout-minutes: 10
