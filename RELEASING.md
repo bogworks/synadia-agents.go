@@ -2,7 +2,8 @@
 
 Checklist for a release, in order. Do not tag until every box is ticked.
 
-- [ ] CI is green on the commit to release: lint, `go test -race ./...` in both
+- [ ] CI is green on the commit to release (a push to main always runs every job in full; only a
+      docs-only pull request skips the heavy ones): lint, `go test -race ./...` in both
       modules, the conformance catalog check, and the interoperability tests
       (the `interop` workflow, `interop-check` green, with
       `SAP_INTEROP_REQUIRED=1` so no scenario is skipped).
