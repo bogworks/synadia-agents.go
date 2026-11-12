@@ -32,3 +32,4 @@ before pushing.
 | ADR | Title | Status | Date |
 |---|---|---|---|
 | [0001](0001-record-architecture-decisions.md) | Record architecture decisions | accepted | 2026-11-11 |
+| [0002](0002-releases-ship-an-sbom-and-build-provenance-from-our-own-runners.md) | Releases ship an SBOM and build provenance from our own runners | accepted | 2026-11-12 |

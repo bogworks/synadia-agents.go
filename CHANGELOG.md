@@ -8,6 +8,13 @@ SAP revision it implements and its conformance catalog result.
 
 ## [Unreleased]
 
+## [0.1.0] - Unreleased
+
+The first release. SAP revision: 0.3 (spec commit `c48cea5f`). Conformance: every obligation in
+`conformance/catalog.json` is covered by a linked test, and the mutation run kills every fault in the catalog (the
+pre-release result is in [docs/releases/v0.1.0.md](docs/releases/v0.1.0.md)). The SDK is tested against the official
+TypeScript and Python SDKs in `test/interop`.
+
 ### Added
 
 - Go SDK for the Synadia Agents Protocol (SAP) 0.3, spec commit `c48cea5f`:
@@ -29,9 +36,13 @@ SAP revision it implements and its conformance catalog result.
     a test), `docs/parity.md` (every feature of the official TypeScript and Python SDKs and its Go
     counterpart) and `docs/api-plan.md` (the original plan);
   - tests, including interoperability with the official TypeScript and Python SDKs in `test/interop`.
-- CI on self-hosted runners: build, test, vet, lint, `govulncheck`, `go mod tidy`, an independence check and the
-  catalog check, gathered in one required `pr-check` job.
-  - the host sends a keep-alive ack every 30 s (`host.DefaultKeepalive`) by default, as the official hosts do,
-    because the official callers' default 60 s inactivity timeout otherwise stalls long-running prompts;
-    `host.WithKeepalive(0)` or `host.WithoutKeepalive` turns it off for strict SAP:L380 behaviour (a recorded
-    deviation, `docs/upstream-issues.md` issue 18).
+- CI on self-hosted runners: build, test, vet, lint, `govulncheck`, `go mod tidy`, an independence check, the
+  catalog check and the mutation run, gathered in one required `pr-check` job; a separate `interop` workflow runs
+  the official TypeScript and Python SDKs against this one.
+- A release workflow (`.github/workflows/release.yml`) that, on a `v*` tag, builds the `sapconform` binaries for
+  linux/amd64, linux/arm64 and darwin/arm64, a source archive, an SBOM and `SHA256SUMS`, attests build provenance
+  for each, and attaches them to a GitHub release (ADR 0002).
+- The host sends a keep-alive ack every 30 s (`host.DefaultKeepalive`) by default, as the official hosts do,
+  because the official callers' default 60 s inactivity timeout otherwise stalls long-running prompts;
+  `host.WithKeepalive(0)` or `host.WithoutKeepalive` turns it off for strict SAP:L380 behaviour (a recorded
+  deviation, `docs/upstream-issues.md` issue 18).
