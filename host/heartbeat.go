@@ -223,6 +223,9 @@ func (h *Host) publishHeartbeat(ctx context.Context) error {
 	if err := ctx.Err(); err != nil {
 		return err
 	}
+	if err := h.checkStop(); err != nil {
+		return err
+	}
 	return h.nc.PublishMsg(msg)
 }
 
@@ -254,7 +257,7 @@ func (h *Host) heartbeatLoop(ctx context.Context, wg *sync.WaitGroup) {
 		go func() {
 			defer wg.Done()
 			defer func() { mu.Lock(); beating = false; mu.Unlock() }()
-			if err := h.publishHeartbeat(ctx); err != nil && ctx.Err() == nil && !errors.Is(err, errHeartbeatSign) {
+			if err := h.publishHeartbeat(ctx); err != nil && ctx.Err() == nil && !errors.Is(err, errHeartbeatSign) && !errors.Is(err, ErrStopped) {
 				h.log.Error("heartbeat publish failed")
 			}
 		}()

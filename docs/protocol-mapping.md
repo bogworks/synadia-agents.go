@@ -470,6 +470,7 @@ Registration as a micro service, prompt and status endpoints, the reply stream, 
 | `host.ErrNextCalledTwice` | var | §5, §6 (extension point) | ErrNextCalledTwice is returned by the next function of an [Interceptor] called a second time. |
 | `host.ErrNextNotCalled` | var | §5, §6 (extension point) | ErrNextNotCalled is the failure recorded when an [Interceptor] returns nil without calling next; the reques... |
 | `host.ErrStarted` | var | §3 (SDK policy: lifecycle) | ErrStarted is returned by [Host.Start] on a host that already started, stopped or is stopping. |
+| `host.ErrStopped` | var | §3 (SDK policy: lifecycle) | ErrStopped is returned by [Host.Start] when [Host.Shutdown] or [Host.Close] was requested while Start was r... |
 | `host.ErrNotStarted` | var | §3 (SDK policy: lifecycle) | ErrNotStarted is returned when a call needs a started host. |
 | `host.ErrEndpointOverlap` | var | §13.7 | ErrEndpointOverlap is wrapped with [ErrConfig] by [New] when an extra endpoint's subject or pattern could m... |
 | `host.ErrConfig` | var | §3 (SDK policy: lifecycle) | ErrConfig matches the error [New] returns for an invalid configuration. |

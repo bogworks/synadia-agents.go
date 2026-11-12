@@ -15,6 +15,8 @@ SAP revision it implements and its conformance catalog result.
   controls; it returns the context error wrapped when the deadline ends first, and a later `Close` or `Shutdown`
   still waits for the real exit). `Host.Stop` is now `Host.Shutdown`; `Host.Close` stops at once, as
   `net/http.Server.Close` does. `host.DefaultCloseTimeout` and `tools.DefaultCloseTimeout` are new.
+  `Shutdown` and `Close` request the stop at once; the context bounds only the wait, so a slow `Host.Start` cannot defeat the
+  deadline. A `Start` that sees the request tears down and returns the new `host.ErrStopped`.
 
 ## [0.1.0] - Unreleased
 

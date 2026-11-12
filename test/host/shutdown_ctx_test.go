@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/bogworks/synadia-agents.go/host"
+	"github.com/bogworks/synadia-agents.go/internal/hosttest"
 	"github.com/nats-io/nats.go"
 )
 
@@ -56,53 +57,111 @@ func TestShutdown_CanceledContextStillStops(t *testing.T) {
 	}
 }
 
-// TestShutdown_CanceledContextDuringStartStillStops: a Shutdown with a
-// canceled context that arrives while Start is still registering waits for
-// Start's registration (bounded by Start's own context) and then stops what it
-// registered; it never returns with the host left registered.
-func TestShutdown_CanceledContextDuringStartStillStops(t *testing.T) {
+// startBlocked starts a host whose first beat's signature blocks, so Start
+// holds the lifecycle lock after it has registered. It returns the host, the
+// signer (close its release to unblock Start), Start's result channel and the
+// heartbeat subscription.
+func startBlocked(t *testing.T, interval time.Duration, extra ...host.Option) (*host.Host, *blockingSigner, chan error, *nats.Conn, *nats.Subscription) {
+	t.Helper()
 	env := startNkeyServer(t)
 	nc := env.conn(t, carol)
-	const interval = 25 * time.Millisecond
 	hb := subscribeHeartbeats(t, nc)
 	bs := newBlockingSigner(signerOf(t, carol), 1)
-	h, err := host.New(nc, subjectOf(t, testName), echo,
-		host.WithHeartbeatInterval(interval), host.WithSubSecondHeartbeats(),
-		host.WithIdentity(host.IdentityOptions{Signer: bs}))
+	opts := append([]host.Option{host.WithHeartbeatInterval(interval), host.WithSubSecondHeartbeats(),
+		host.WithIdentity(host.IdentityOptions{Signer: bs})}, extra...)
+	h, err := host.New(nc, subjectOf(t, testName), echo, opts...)
 	if err != nil {
 		t.Fatal(err)
 	}
-	sctx, scancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer scancel()
+	sctx, scancel := context.WithTimeout(context.Background(), 20*time.Second)
+	t.Cleanup(scancel)
 	startDone := make(chan error, 1)
 	go func() { startDone <- h.Start(sctx) }()
-	// The registration signature is free; the first beat's signature blocks,
-	// so Start holds the lifecycle lock after it has registered.
+	// The registration signature is free; the first beat's signature blocks.
 	settle(t, 5*time.Second, "Start reaches the first beat", func() bool { return bs.calls.Load() >= 2 })
+	return h, bs, startDone, nc, hb
+}
+
+// TestShutdown_CanceledContextDuringStartStillStops: a Shutdown with a
+// canceled context that arrives while Start is blocked returns at once with the
+// context error, and the stop still happens: Start sees the request, tears down
+// what it registered, starts no heartbeat and returns ErrStopped.
+func TestShutdown_CanceledContextDuringStartStillStops(t *testing.T) {
+	const interval = 25 * time.Millisecond
+	h, bs, startDone, nc, hb := startBlocked(t, interval)
+	released := false
+	defer func() {
+		if !released {
+			close(bs.release)
+		}
+	}()
 
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
-	shutDone := make(chan error, 1)
-	go func() { shutDone <- h.Shutdown(ctx) }()
+	begin := time.Now()
+	err := h.Shutdown(ctx)
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("Shutdown during a blocked Start: %v, want an error wrapping context.Canceled", err)
+	}
+	if d := time.Since(begin); d > 500*time.Millisecond {
+		t.Fatalf("Shutdown took %v while Start was blocked; the context must bound it", d)
+	}
 	select {
-	case err := <-shutDone:
-		t.Fatalf("Shutdown returned while Start was still registering: %v", err)
-	case <-time.After(150 * time.Millisecond):
+	case err := <-startDone:
+		t.Fatalf("Start returned while its signer was blocked: %v", err)
+	default:
 	}
 	close(bs.release)
-	if err := <-startDone; err != nil {
-		t.Fatalf("Start: %v", err)
-	}
+	released = true
 	select {
-	case err := <-shutDone:
-		if err != nil && !errors.Is(err, context.Canceled) {
-			t.Fatalf("Shutdown: %v", err)
+	case err := <-startDone:
+		if !errors.Is(err, host.ErrStopped) {
+			t.Fatalf("Start after a stop was requested: %v, want ErrStopped", err)
 		}
 	case <-time.After(5 * time.Second):
-		t.Fatal("Shutdown did not return after Start finished")
+		t.Fatal("Start did not return after its signer was released")
 	}
 	requireStoppedAfter(t, nc, hb, h, interval)
 	if err := h.Close(); err != nil {
 		t.Fatalf("Close: %v", err)
 	}
+	if err := h.Shutdown(context.Background()); err != nil {
+		t.Fatalf("second Shutdown: %v", err)
+	}
+}
+
+// TestClose_ReturnsWithinBoundDuringBlockedStart: Close, like Shutdown, is
+// bounded while Start is blocked (the close timeout is shortened through the
+// internal test hook); the stop still happens when Start finishes.
+func TestClose_ReturnsWithinBoundDuringBlockedStart(t *testing.T) {
+	const interval = 25 * time.Millisecond
+	h, bs, startDone, nc, hb := startBlockedWithCloseTimeout(t, interval, 200*time.Millisecond)
+	released := false
+	defer func() {
+		if !released {
+			close(bs.release)
+		}
+	}()
+	begin := time.Now()
+	err := h.Close()
+	if !errors.Is(err, context.DeadlineExceeded) {
+		t.Fatalf("Close during a blocked Start: %v, want an error wrapping context.DeadlineExceeded", err)
+	}
+	if d := time.Since(begin); d > 2*time.Second {
+		t.Fatalf("Close took %v with a 200ms bound", d)
+	}
+	close(bs.release)
+	released = true
+	if err := <-startDone; !errors.Is(err, host.ErrStopped) {
+		t.Fatalf("Start: %v, want ErrStopped", err)
+	}
+	requireStoppedAfter(t, nc, hb, h, interval)
+	if err := h.Close(); err != nil {
+		t.Fatalf("second Close: %v", err)
+	}
+}
+
+func startBlockedWithCloseTimeout(t *testing.T, interval, d time.Duration) (*host.Host, *blockingSigner, chan error, *nats.Conn, *nats.Subscription) {
+	t.Helper()
+	return startBlocked(t, interval, hosttest.CloseTimeoutOption[host.Option](d))
 }
