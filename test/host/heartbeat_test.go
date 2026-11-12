@@ -376,11 +376,7 @@ func TestStatus_StatsTick(t *testing.T) {
 	// goroutine leaves the in-flight set, so a caller that has just read the
 	// last reply can still see InFlight 1 (and PromptsCompleted lagging).
 	// Wait for the count to drain, then assert the exact settled counts.
-	var s host.Stats
-	settle(t, 5*time.Second, "in-flight prompts to drain", func() bool {
-		s = h.Stats()
-		return s.InFlight == 0
-	})
+	s := awaitIdle(t, h)
 	if s.Prompts != 2 || s.InFlight != 0 {
 		t.Errorf("stats %+v", s)
 	}

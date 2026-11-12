@@ -287,6 +287,22 @@ func settle(t *testing.T, within time.Duration, what string, cond func() bool) {
 	}
 }
 
+// awaitIdle waits until the host has released every prompt it served and
+// returns the settled stats. The host sends a prompt's last reply and its
+// terminator before the serving goroutine releases the concurrency slot and
+// leaves the in-flight set, so a caller that has just read the last reply can
+// still see the slot held and InFlight above zero. A test that acts on the
+// released slot, or asserts the settled counts, waits here first.
+func awaitIdle(t *testing.T, h *host.Host) host.Stats {
+	t.Helper()
+	var s host.Stats
+	settle(t, 5*time.Second, "in-flight prompts to drain", func() bool {
+		s = h.Stats()
+		return s.InFlight == 0
+	})
+	return s
+}
+
 // ownGoroutines returns the stacks of the goroutines that run code of package
 // host or of nats.go/micro. The embedded nats-server starts and ends goroutines
 // of its own, so a plain runtime.NumGoroutine comparison is not stable; the
