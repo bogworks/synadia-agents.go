@@ -98,11 +98,7 @@ func run(ctx context.Context, nc *nats.Conn, out io.Writer) error {
 		if err := h.Start(ctx); err != nil {
 			return err
 		}
-		defer func() {
-			stopCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Second)
-			defer cancel()
-			_ = h.Shutdown(stopCtx)
-		}()
+		defer func() { _ = h.Close() }()
 	}
 
 	// The outgoing-header hook adds the tenant header to every prompt. It may

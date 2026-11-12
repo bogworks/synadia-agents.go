@@ -39,22 +39,13 @@ The module path is provisional and changes if the SDK moves upstream.
 
 ## Quick start
 
-A caller discovers an agent, prompts it and reads the reply as it streams:
+The quick start is [`Example_quickStart`](https://pkg.go.dev/github.com/bogworks/synadia-agents.go/caller#example-package-quickStart)
+in package `caller`. It serves an echo agent, discovers it, prompts it and reads the reply as it streams. It needs a
+NATS server at `nats://127.0.0.1:4222`. A test in the `test/` module runs the same code against an embedded server, and
+checks that the code below is the Example verbatim:
 
 ```go
-package main
-
-import (
-	"context"
-	"fmt"
-	"log"
-	"time"
-
-	"github.com/bogworks/synadia-agents.go/caller"
-	"github.com/nats-io/nats.go"
-)
-
-func main() {
+func Example_quickStart() {
 	nc, err := nats.Connect(nats.DefaultURL)
 	if err != nil {
 		log.Fatal(err)
@@ -64,13 +55,31 @@ func main() {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
+	// Host: register an agent. The host sends the ack first and the
+	// terminator last.
+	subject, err := agents.NewAgentSubject("echo", "me", "default")
+	if err != nil {
+		log.Fatal(err)
+	}
+	h, err := host.New(nc, subject, func(ctx context.Context, req *host.Request, w *host.Responder) error {
+		return w.Send(ctx, "echo: "+req.Envelope.Prompt)
+	})
+	if err != nil {
+		log.Fatal(err)
+	}
+	if err := h.Start(ctx); err != nil {
+		log.Fatal(err)
+	}
+	defer h.Close()
+
+	// Caller: discover the agent (SAP section 4), prompt it, read the stream.
 	c, err := caller.New(nc)
 	if err != nil {
 		log.Fatal(err)
 	}
 	defer c.Close()
 
-	agent, err := c.Find(ctx, caller.Filter{Agent: "echo"}) // discovery, SAP section 4
+	agent, err := c.Find(ctx, caller.Filter{Agent: "echo"})
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -89,6 +98,11 @@ func main() {
 	}
 }
 ```
+
+More runnable examples are on pkg.go.dev, and run under `go test`:
+[`agents`](https://pkg.go.dev/github.com/bogworks/synadia-agents.go#pkg-examples) (subjects, envelopes, chunks, sizes, errors),
+[`identity`](https://pkg.go.dev/github.com/bogworks/synadia-agents.go/identity#pkg-examples) and
+[`connect`](https://pkg.go.dev/github.com/bogworks/synadia-agents.go/connect#pkg-examples).
 
 A host registers an agent and answers prompts. The host sends the ack first and the terminator last:
 
