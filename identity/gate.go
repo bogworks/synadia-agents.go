@@ -286,5 +286,5 @@ func (g *Gate) logWarn(event string, msg Message, code int, reason string) {
 	if g.log == nil {
 		return
 	}
-	g.log.Warn("gate refusal", slog.String("event", event), slog.String("subject", msg.Subject), slog.Int("code", code), slog.String("reason", reason))
+	g.log.Warn("gate refusal", "event", event, "subject", msg.Subject, "code", code, "reason", reason)
 }

@@ -146,7 +146,7 @@ func TestDiscover_RequireVerifiedIdentity(t *testing.T) {
 func TestLookupInstance_RequiresTheRequestedID(t *testing.T) {
 	srv := startServer(t)
 	hnc, cnc := connect(t, srv), connect(t, srv)
-	real := newHost(t, hnc, func(h *host) { h.agent, h.owner, h.name = "real", "tester", "real" })
+	liveHost := newHost(t, hnc, func(h *host) { h.agent, h.owner, h.name = "real", "tester", "real" })
 	decoy := newHost(t, hnc, func(h *host) { h.agent, h.owner, h.name = "decoy", "tester", "decoy" })
 	reply := func(m *nats.Msg, h *host) { b, _ := json.Marshal(h.info()); _ = m.Respond(b) }
 
@@ -154,11 +154,11 @@ func TestLookupInstance_RequiresTheRequestedID(t *testing.T) {
 	// the real record only after a delay.
 	var forged sync.WaitGroup
 	forged.Add(1)
-	sub, err := hnc.Subscribe("$SRV.INFO.agents."+real.id, func(m *nats.Msg) {
+	sub, err := hnc.Subscribe("$SRV.INFO.agents."+liveHost.id, func(m *nats.Msg) {
 		reply(m, decoy)
 		go func() {
 			time.Sleep(150 * time.Millisecond)
-			reply(m, real)
+			reply(m, liveHost)
 			forged.Done()
 		}()
 	})
@@ -169,8 +169,8 @@ func TestLookupInstance_RequiresTheRequestedID(t *testing.T) {
 		t.Fatal(err)
 	}
 	c := newClient(t, cnc)
-	a, err := c.LookupInstance(ctxT(t), real.id, 3*time.Second)
-	if err != nil || a.InstanceID() != real.id {
+	a, err := c.LookupInstance(ctxT(t), liveHost.id, 3*time.Second)
+	if err != nil || a.InstanceID() != liveHost.id {
 		t.Fatalf("lookup: %v %v", a, err)
 	}
 	forged.Wait()
@@ -184,7 +184,7 @@ func TestLookupInstance_RequiresTheRequestedID(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer sub2.Unsubscribe()
+	defer func() { _ = sub2.Unsubscribe() }()
 	_ = hnc.Flush()
 	start := time.Now()
 	if _, err := c.LookupInstance(ctxT(t), "GHOST", 300*time.Millisecond); !errors.Is(err, caller.ErrAgentNotFound) {
@@ -272,7 +272,7 @@ func TestQuery_ReplySubjectPolicy(t *testing.T) {
 		{"another agent's prompt", "agents.prompt.cc.alice.work", nil, true},
 		{"another agent's heartbeat", "agents.hb.cc.alice.work", nil, true},
 		{"client policy refuses an inbox", "_INBOX.agents.good.2", func() ([]caller.Option, []caller.PromptOption) {
-			return []caller.Option{caller.WithQueryReplyPolicy(func(s string) error { return errors.New("no") })}, nil
+			return []caller.Option{caller.WithQueryReplyPolicy(func(_ string) error { return errors.New("no") })}, nil
 		}, true},
 		{"client policy allows what the default refuses", "agents.prompt.cc.alice.work", func() ([]caller.Option, []caller.PromptOption) {
 			return []caller.Option{caller.WithQueryReplyPolicy(func(string) error { return nil })}, nil

@@ -8,7 +8,6 @@ import (
 	"errors"
 	"fmt"
 	"iter"
-	"log/slog"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -315,7 +314,7 @@ func (s *Stream) handle(m *nats.Msg) (ev Event, end bool, err error) {
 		// is dropped and the stream goes on (SAP §6.6 for unknown types; the
 		// official callers do the same here). It is counted and logged at debug.
 		s.c.malformed.Add(1)
-		s.c.log.Debug("dropped a malformed chunk", slog.String("subject", s.subject))
+		s.c.log.Debug("dropped a malformed chunk", "subject", s.subject)
 		return nil, false, nil
 	}
 	switch ch := chunk.(type) {
@@ -329,7 +328,7 @@ func (s *Stream) handle(m *nats.Msg) (ev Event, end bool, err error) {
 	case agents.QueryChunk:
 		if verr := agents.ValidatePublishSubject(ch.ReplySubject); verr != nil {
 			s.c.malformed.Add(1)
-			s.c.log.Debug("dropped a query with an unusable reply subject", slog.String("subject", s.subject))
+			s.c.log.Debug("dropped a query with an unusable reply subject", "subject", s.subject)
 			return nil, false, nil
 		}
 		return &Query{

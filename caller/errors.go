@@ -113,15 +113,15 @@ func (e *QueryAlreadyRepliedError) Is(target error) bool {
 	return target == ErrQueryAlreadyReplied || target == agents.ErrLocal
 }
 
-// localWrap marks err as a local refusal without changing its text or its own
+// localWrapError marks err as a local refusal without changing its text or its own
 // matches.
-type localWrap struct{ err error }
+type localWrapError struct{ err error }
 
-func (e *localWrap) Error() string        { return e.err.Error() }
-func (e *localWrap) Unwrap() error        { return e.err }
-func (e *localWrap) Is(target error) bool { return target == agents.ErrLocal }
+func (e *localWrapError) Error() string        { return e.err.Error() }
+func (e *localWrapError) Unwrap() error        { return e.err }
+func (e *localWrapError) Is(target error) bool { return target == agents.ErrLocal }
 
-func local(err error) error { return &localWrap{err} }
+func local(err error) error { return &localWrapError{err} }
 
 // QueryReplyRefusedError is returned by [Query.Reply] and [Query.ReplyEnvelope]
 // when the query reply policy refuses the agent-supplied reply subject. The

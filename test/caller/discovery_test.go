@@ -139,7 +139,7 @@ func TestDiscover_StartsTrackerBeforeThePing(t *testing.T) {
 	hnc, cnc := connect(t, srv), connect(t, srv)
 	h := newHost(t, hnc).start()
 	// On every discovery request the host heartbeats at once.
-	if _, err := hnc.Subscribe("$SRV.INFO.agents", func(m *nats.Msg) { h.publishHeartbeat(nil) }); err != nil {
+	if _, err := hnc.Subscribe("$SRV.INFO.agents", func(_ *nats.Msg) { h.publishHeartbeat(nil) }); err != nil {
 		t.Fatal(err)
 	}
 	_ = hnc.Flush()

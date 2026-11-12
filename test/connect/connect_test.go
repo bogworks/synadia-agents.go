@@ -81,7 +81,7 @@ func TestContext_TokenAuth(t *testing.T) {
 	writeContext(t, home, "none", map[string]any{"url": srv.ClientURL()})
 
 	for _, name := range []string{"good", "userinfo"} {
-		c, err := connect.LoadContext(name)
+		c, err := connect.LoadContext(t.Context(), name)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -90,7 +90,7 @@ func TestContext_TokenAuth(t *testing.T) {
 		}
 	}
 	for _, name := range []string{"bad", "none"} {
-		c, err := connect.LoadContext(name)
+		c, err := connect.LoadContext(t.Context(), name)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -104,7 +104,7 @@ func TestContext_UserPasswordAuth(t *testing.T) {
 	srv := start(t, func(o *server.Options) { o.Username, o.Password = "bob", "pw" })
 	home := configHome(t)
 	writeContext(t, home, "c", map[string]any{"url": srv.ClientURL(), "user": "bob", "password": "pw"})
-	c, err := connect.LoadContext("c")
+	c, err := connect.LoadContext(t.Context(), "c")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -137,7 +137,7 @@ func TestContext_NKeyAuthAndSignedBundle(t *testing.T) {
 	}
 
 	t.Run("LoadContext", func(t *testing.T) {
-		c, err := connect.LoadContext("nk")
+		c, err := connect.LoadContext(t.Context(), "nk")
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -146,7 +146,7 @@ func TestContext_NKeyAuthAndSignedBundle(t *testing.T) {
 		}
 	})
 	t.Run("current", func(t *testing.T) {
-		c, err := connect.LoadContext("current")
+		c, err := connect.LoadContext(t.Context(), "current")
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -184,11 +184,11 @@ func TestContext_NKeyAuthAndSignedBundle(t *testing.T) {
 		}
 	})
 	t.Run("inline seed: the server authenticates the signer's key", func(t *testing.T) {
-		sg, err := connect.SignerFromContext("inline")
+		sg, err := connect.SignerFromContext(t.Context(), "inline")
 		if err != nil {
 			t.Fatal(err)
 		}
-		c, err := connect.LoadContext("inline")
+		c, err := connect.LoadContext(t.Context(), "inline")
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -220,18 +220,18 @@ func TestContext_NKeyAuthAndSignedBundle(t *testing.T) {
 	})
 	t.Run("no seed: anonymous context yields no signer", func(t *testing.T) {
 		writeContext(t, home, "anon", map[string]any{"url": srv.ClientURL()})
-		if s, err := connect.SignerFromContext("anon"); err == nil || s != nil {
+		if s, err := connect.SignerFromContext(t.Context(), "anon"); err == nil || s != nil {
 			t.Fatalf("signer = %v, err = %v", s, err)
 		}
 	})
 	t.Run("SignerFromContext inline seed", func(t *testing.T) {
-		s, err := connect.SignerFromContext("inline")
+		s, err := connect.SignerFromContext(t.Context(), "inline")
 		if err != nil || s.PublicKey() != pub {
 			t.Fatalf("signer = %v, err = %v", s, err)
 		}
 	})
 	t.Run("SignerFromContext refuses a seed beside another credential", func(t *testing.T) {
-		if s, err := connect.SignerFromContext("inline-token"); err == nil || s != nil {
+		if s, err := connect.SignerFromContext(t.Context(), "inline-token"); err == nil || s != nil {
 			t.Fatalf("signer = %v, err = %v", s, err)
 		}
 	})
@@ -243,7 +243,7 @@ func TestContext_NKeyAuthAndSignedBundle(t *testing.T) {
 			t.Fatal(err)
 		}
 		writeContext(t, home, "other", map[string]any{"url": srv.ClientURL(), "nkey": path2})
-		c, err := connect.LoadContext("other")
+		c, err := connect.LoadContext(t.Context(), "other")
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -254,7 +254,7 @@ func TestContext_NKeyAuthAndSignedBundle(t *testing.T) {
 }
 
 func TestReconnectDefaults_ConnectsAndSurvivesRestart(t *testing.T) {
-	srv := start(t, func(o *server.Options) {})
+	srv := start(t, func(_ *server.Options) {})
 	addr := srv.Addr().(*net.TCPAddr)
 	reconnected := make(chan struct{}, 1)
 	opts := connect.WithAgentReconnectDefaults(

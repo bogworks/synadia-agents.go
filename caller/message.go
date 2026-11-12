@@ -133,8 +133,8 @@ func (q *Query) send(ctx context.Context, payload []byte) error {
 		q.c.log.Debug("refused a query reply subject")
 		return &QueryReplyRefusedError{Subject: q.ReplySubject, Err: perr}
 	}
-	if max := q.c.nc.MaxPayload(); max > 0 && int64(len(payload)) > max {
-		return &agents.PayloadTooLargeError{Limit: max, Actual: int64(len(payload)), Connection: true}
+	if limit := q.c.nc.MaxPayload(); limit > 0 && int64(len(payload)) > limit {
+		return &agents.PayloadTooLargeError{Limit: limit, Actual: int64(len(payload)), Connection: true}
 	}
 	q.mu.Lock()
 	defer q.mu.Unlock()

@@ -79,7 +79,7 @@ func TestReferenceAgent_EchoesThroughTheFullPipeline(t *testing.T) {
 func TestReferenceAgent_Options(t *testing.T) {
 	_, nc := setup(t)
 	ra := startRef(t, nc,
-		agentstest.WithHandler(func(ctx context.Context, _ *host.Request, w *host.Responder) error {
+		agentstest.WithHandler(func(_ context.Context, _ *host.Request, _ *host.Responder) error {
 			return host.Reject(409, "custom")
 		}),
 		agentstest.WithHost(host.WithMinSenderTrust(identity.TrustSigned), host.WithHeartbeatInterval(2*time.Second)))

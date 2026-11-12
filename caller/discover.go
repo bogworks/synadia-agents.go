@@ -6,7 +6,6 @@ package caller
 import (
 	"context"
 	"errors"
-	"log/slog"
 	"slices"
 	"time"
 
@@ -193,7 +192,7 @@ func (c *Client) StartTracking(ctx context.Context) error {
 	// are serialized, so either Close's Stop saw this subscription or the flag
 	// is visible here. In the second case nothing else will stop it.
 	if c.closed.Load() {
-		_ = c.tracker.Stop(context.Background())
+		_ = c.tracker.Stop(context.WithoutCancel(ctx))
 		return ErrClosed
 	}
 	return nil
@@ -250,7 +249,7 @@ func (c *Client) scatter(ctx context.Context, subject string, dc discoverConfig,
 		case <-deadline.C:
 			return nil
 		case <-r.over:
-			c.log.Warn("discovery buffer overflowed; returning what was gathered", slog.String("subject", subject))
+			c.log.Warn("discovery buffer overflowed; returning what was gathered", "subject", subject)
 			for {
 				select {
 				case m := <-r.ch:
@@ -317,7 +316,7 @@ func (c *Client) recordsFull(n int, dc discoverConfig, subject string) bool {
 		return false
 	}
 	c.log.Warn("discovery reached its record limit; returning what was gathered",
-		slog.String("subject", subject), slog.Int("limit", dc.maxRecords))
+		"subject", subject, "limit", dc.maxRecords)
 	return true
 }
 

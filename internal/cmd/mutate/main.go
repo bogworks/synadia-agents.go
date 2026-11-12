@@ -175,7 +175,7 @@ func checkPatches(root, only string) error {
 	if err != nil {
 		return err
 	}
-	defer os.RemoveAll(tmp)
+	defer func() { _ = os.RemoveAll(tmp) }()
 	if err := copyTree(root, tmp); err != nil {
 		return fmt.Errorf("copy: %w", err)
 	}
@@ -227,7 +227,7 @@ func baseline(root string, faults []fault, jobs int, timeout time.Duration) erro
 	if err != nil {
 		return err
 	}
-	defer os.RemoveAll(tmp)
+	defer func() { _ = os.RemoveAll(tmp) }() // best-effort cleanup of a scratch tree
 	if err := copyTree(root, tmp); err != nil {
 		return fmt.Errorf("copy: %w", err)
 	}
@@ -463,7 +463,7 @@ func mutate(root string, f fault, timeout time.Duration) (killed, hung []string,
 	if err != nil {
 		return nil, nil, err
 	}
-	defer os.RemoveAll(tmp)
+	defer func() { _ = os.RemoveAll(tmp) }() // best-effort cleanup of a scratch tree
 	if err := copyTree(root, tmp); err != nil {
 		return nil, nil, fmt.Errorf("copy: %w", err)
 	}

@@ -52,10 +52,10 @@ func TestHeaderSizes_CountJSONEscaping(t *testing.T) {
 					h.Sub, h.TS = subject, strings.Repeat("T", tsLength)
 					h.Nonce, h.Sig = strings.Repeat("N", nuidLength), strings.Repeat("S", sigBase64Length)
 				}
-				real := HeaderFramingBytes + len(h.Encode())
-				if got := ExpectedHeaderWireBytes(id, name, subject, signed); got != real {
+				encoded := HeaderFramingBytes + len(h.Encode())
+				if got := ExpectedHeaderWireBytes(id, name, subject, signed); got != encoded {
 					t.Errorf("name %q subject %q signed=%v: ExpectedHeaderWireBytes %d, encoded header %d",
-						name, subject, signed, got, real)
+						name, subject, signed, got, encoded)
 				}
 			}
 			// The widest header any signer sends: a 64-byte nonce and a name
@@ -63,9 +63,9 @@ func TestHeaderSizes_CountJSONEscaping(t *testing.T) {
 			h := SenderHeader{V: HeaderVersion, Account: strings.Repeat("a", MaxAccountLen), User: alicePub, Name: name,
 				Sub: subject, TS: strings.Repeat("T", tsLength), Nonce: strings.Repeat("n", MaxNonceLength),
 				Sig: strings.Repeat("S", sigBase64Length)}
-			real := HeaderFramingBytes + len(h.Encode())
-			if got := MaxHeaderWireBytes(subject, name); got < real {
-				t.Errorf("name %q subject %q: MaxHeaderWireBytes %d is below the encoded header %d", name, subject, got, real)
+			encoded := HeaderFramingBytes + len(h.Encode())
+			if got := MaxHeaderWireBytes(subject, name); got < encoded {
+				t.Errorf("name %q subject %q: MaxHeaderWireBytes %d is below the encoded header %d", name, subject, got, encoded)
 			}
 		}
 	}

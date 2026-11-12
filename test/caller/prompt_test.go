@@ -58,23 +58,23 @@ func refused(t *testing.T, f *fixture, env agents.Envelope, want error, opts ...
 func TestPrompt_LocalRefusalsPublishNothing(t *testing.T) {
 	t.Run("empty prompt", func(t *testing.T) {
 		f := setup(t, nil)
-		refused(t, f, agents.Envelope{}, agents.ErrPromptEmpty)
+		_ = refused(t, f, agents.Envelope{}, agents.ErrPromptEmpty)
 	})
 	t.Run("attachments the endpoint does not accept", func(t *testing.T) {
 		f := setup(t, mod(func(h *host) { h.attachmentsOK = false }))
-		refused(t, f, agents.Envelope{Prompt: "x", Attachments: []agents.Attachment{agents.NewAttachment("a", []byte("b"))}}, agents.ErrAttachmentsNotSupported)
+		_ = refused(t, f, agents.Envelope{Prompt: "x", Attachments: []agents.Attachment{agents.NewAttachment("a", []byte("b"))}}, agents.ErrAttachmentsNotSupported)
 	})
 	t.Run("url-safe base64", func(t *testing.T) {
 		f := setup(t, nil)
-		refused(t, f, agents.Envelope{Prompt: "x", Attachments: []agents.Attachment{{Filename: "a", Content: "-_-_"}}}, agents.ErrInvalidAttachment)
+		_ = refused(t, f, agents.Envelope{Prompt: "x", Attachments: []agents.Attachment{{Filename: "a", Content: "-_-_"}}}, agents.ErrInvalidAttachment)
 	})
 	t.Run("whitespace in base64", func(t *testing.T) {
 		f := setup(t, nil)
-		refused(t, f, agents.Envelope{Prompt: "x", Attachments: []agents.Attachment{{Filename: "a", Content: "aGk=\n"}}}, agents.ErrInvalidAttachment)
+		_ = refused(t, f, agents.Envelope{Prompt: "x", Attachments: []agents.Attachment{{Filename: "a", Content: "aGk=\n"}}}, agents.ErrInvalidAttachment)
 	})
 	t.Run("unpadded base64", func(t *testing.T) {
 		f := setup(t, nil)
-		refused(t, f, agents.Envelope{Prompt: "x", Attachments: []agents.Attachment{{Filename: "a", Content: "aGk"}}}, agents.ErrInvalidAttachment)
+		_ = refused(t, f, agents.Envelope{Prompt: "x", Attachments: []agents.Attachment{{Filename: "a", Content: "aGk"}}}, agents.ErrInvalidAttachment)
 	})
 	t.Run("over max_payload", func(t *testing.T) {
 		f := setup(t, mod(func(h *host) { h.maxPayload = "2KB" }))
@@ -84,11 +84,11 @@ func TestPrompt_LocalRefusalsPublishNothing(t *testing.T) {
 			t.Fatalf("%+v", pl)
 		}
 		// The limit is on the final encoded size, attachments included.
-		refused(t, f, agents.Envelope{Prompt: "x", Attachments: []agents.Attachment{agents.NewAttachment("a", make([]byte, 2000))}}, agents.ErrPayloadTooLarge)
+		_ = refused(t, f, agents.Envelope{Prompt: "x", Attachments: []agents.Attachment{agents.NewAttachment("a", make([]byte, 2000))}}, agents.ErrPayloadTooLarge)
 	})
 	t.Run("capability metadata missing or malformed", func(t *testing.T) {
 		f := setup(t, mod(func(h *host) { h.maxPayload = "lots" }))
-		refused(t, f, agents.Envelope{Prompt: "x"}, agents.ErrInvalidCapability)
+		_ = refused(t, f, agents.Envelope{Prompt: "x"}, agents.ErrInvalidCapability)
 	})
 	t.Run("connection limit", func(t *testing.T) {
 		f := setup(t, mod(func(h *host) { h.maxPayload = "8GB" }))
@@ -130,7 +130,7 @@ func TestPrompt_AttachmentsNotAcceptedStillTakesText(t *testing.T) {
 // catalog: SAP-5.2-02
 func TestPrompt_EnvelopeOnTheWire(t *testing.T) {
 	data := []byte{0xfb, 0xff, 0xfe, 0x01} // standard and URL-safe alphabets differ here
-	f := setup(t, nil, caller.WithInterceptors(caller.InterceptorFunc(func(ctx context.Context, p *caller.PromptInfo) (*caller.Extras, error) {
+	f := setup(t, nil, caller.WithInterceptors(caller.InterceptorFunc(func(_ context.Context, _ *caller.PromptInfo) (*caller.Extras, error) {
 		return &caller.Extras{Fields: map[string]any{"trace_id": "abc-123", "n": 7}}, nil
 	})))
 	st, err := f.a.Prompt(ctxT(t), agents.Envelope{Prompt: "see file", Attachments: []agents.Attachment{agents.NewAttachment("data.bin", data)}})
@@ -160,7 +160,7 @@ func TestPrompt_EnvelopeOnTheWire(t *testing.T) {
 	}
 
 	// The envelope's own fields are not extras.
-	g := setup(t, nil, caller.WithInterceptors(caller.InterceptorFunc(func(ctx context.Context, p *caller.PromptInfo) (*caller.Extras, error) {
+	g := setup(t, nil, caller.WithInterceptors(caller.InterceptorFunc(func(_ context.Context, _ *caller.PromptInfo) (*caller.Extras, error) {
 		return &caller.Extras{Fields: map[string]any{"prompt": "hijack"}}, nil
 	})))
 	if _, err := g.a.PromptText(ctxT(t), "x"); !errors.Is(err, caller.ErrReservedField) || !errors.Is(err, agents.ErrLocal) {
@@ -256,7 +256,7 @@ func TestPrompt_RecordBeatsHeartbeat(t *testing.T) {
 	defer cancel()
 	_ = f.h.nc.Publish("agents.hb."+f.h.agent+"."+f.h.owner+"."+f.h.name, b)
 	<-got
-	refused(t, f, agents.Envelope{Prompt: strings.Repeat("x", 4096)}, agents.ErrPayloadTooLarge)
+	_ = refused(t, f, agents.Envelope{Prompt: strings.Repeat("x", 4096)}, agents.ErrPayloadTooLarge)
 }
 
 // TestInterceptors_AndHeaderHook asserts the extension points of REQ-016 on the
@@ -270,7 +270,7 @@ func TestInterceptors_AndHeaderHook(t *testing.T) {
 	ic := &phased{r: &r.phases}
 	f := setup(t, nil,
 		caller.WithInterceptors(ic),
-		caller.WithRequestHeaders(func(ctx context.Context, p *caller.PromptInfo) (map[string]string, error) {
+		caller.WithRequestHeaders(func(_ context.Context, p *caller.PromptInfo) (map[string]string, error) {
 			return map[string]string{"X-App": "hook-" + p.Prompt}, nil
 		}))
 	st, err := f.a.PromptText(ctxT(t), "go")
@@ -358,12 +358,12 @@ func TestInterceptors_AndHeaderHook(t *testing.T) {
 
 type phased struct{ r *[]string }
 
-func (p *phased) BeforePrompt(ctx context.Context, i *caller.PromptInfo) (*caller.Extras, error) {
+func (p *phased) BeforePrompt(_ context.Context, _ *caller.PromptInfo) (*caller.Extras, error) {
 	*p.r = append(*p.r, "before")
 	return &caller.Extras{Headers: map[string]string{"X-Interceptor": "yes"}, State: "state-1"}, nil
 }
 
-func (p *phased) BeforePublish(ctx context.Context, i *caller.PromptInfo, state any) {
+func (p *phased) BeforePublish(_ context.Context, _ *caller.PromptInfo, state any) {
 	*p.r = append(*p.r, "publish:"+state.(string))
 }
 

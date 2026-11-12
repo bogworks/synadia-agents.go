@@ -176,6 +176,7 @@ func TestStream_ErrorHeadersBeforeBody(t *testing.T) {
 	}{
 		{"json body with message and unknown fields", false, "429", "Too Many", `{"error":"rate_limited","message":"slow down","retry_after_s":30}`, 429, "slow down",
 			func(t *testing.T, se *agents.ServiceError) {
+				t.Helper()
 				if se.Body == nil || se.Body.Error != "rate_limited" || string(se.Body.Extra["retry_after_s"]) != "30" {
 					t.Fatalf("body %+v", se.Body)
 				}
@@ -697,11 +698,13 @@ func TestQuery_ReplyForms(t *testing.T) {
 		want  func(*testing.T, []byte)
 	}{
 		{"plain text", func(q *caller.Query) error { return q.Reply(context.Background(), "yes") }, func(t *testing.T, b []byte) {
+			t.Helper()
 			if string(b) != "yes" {
 				t.Fatalf("%q", b)
 			}
 		}},
 		{"text that looks like json goes as an envelope", func(q *caller.Query) error { return q.Reply(context.Background(), `{"a":1}`) }, func(t *testing.T, b []byte) {
+			t.Helper()
 			env, err := agents.DecodeEnvelope(b)
 			if err != nil || env.Prompt != `{"a":1}` || b[0] != '{' || !strings.Contains(string(b), `"prompt"`) {
 				t.Fatalf("%q %v", b, err)
@@ -710,6 +713,7 @@ func TestQuery_ReplyForms(t *testing.T) {
 		{"envelope with an attachment", func(q *caller.Query) error {
 			return q.ReplyEnvelope(context.Background(), agents.Envelope{Prompt: "see", Attachments: []agents.Attachment{agents.NewAttachment("a.txt", []byte("hi"))}})
 		}, func(t *testing.T, b []byte) {
+			t.Helper()
 			env, err := agents.DecodeEnvelope(b)
 			if err != nil || len(env.Attachments) != 1 {
 				t.Fatalf("%q %v", b, err)
@@ -818,7 +822,7 @@ func TestStatus(t *testing.T) {
 	})
 	t.Run("not a heartbeat", func(t *testing.T) {
 		f := setup(t, mod(func(h *host) {
-			h.statusScript = func(h *host, m *nats.Msg) { _ = m.Respond([]byte(`{"hello":1}`)) }
+			h.statusScript = func(_ *host, m *nats.Msg) { _ = m.Respond([]byte(`{"hello":1}`)) }
 		}))
 		_, err := f.a.Status(ctxT(t))
 		if !errors.Is(err, agents.ErrProtocol) {
@@ -826,7 +830,7 @@ func TestStatus(t *testing.T) {
 		}
 	})
 	t.Run("timeout", func(t *testing.T) {
-		f := setup(t, mod(func(h *host) { h.statusScript = func(h *host, m *nats.Msg) {} }))
+		f := setup(t, mod(func(h *host) { h.statusScript = func(_ *host, _ *nats.Msg) {} }))
 		_, err := f.a.Status(ctxT(t), caller.WithStatusTimeout(200*time.Millisecond))
 		if !errors.Is(err, nats.ErrTimeout) {
 			t.Fatal(err)

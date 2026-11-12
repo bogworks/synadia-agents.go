@@ -91,7 +91,7 @@ func TestReplySubject_DefaultPolicy(t *testing.T) {
 	_, nc := setup(t)
 	var ran atomic.Int64
 	logger, logs := capturingLogger()
-	h := newHost(t, nc, func(ctx context.Context, req *host.Request, w *host.Responder) error {
+	h := newHost(t, nc, func(ctx context.Context, _ *host.Request, w *host.Responder) error {
 		ran.Add(1)
 		return w.Send(ctx, "ok")
 	}, host.WithLogger(logger))
@@ -108,7 +108,7 @@ func TestReplySubject_DefaultPolicy(t *testing.T) {
 	if err := nc.Flush(); err != nil {
 		t.Fatal(err)
 	}
-	refused := 0
+	var refused uint64
 	for _, v := range append(victims, "bad..subject", "wild.*") {
 		for _, target := range []string{h.Subject().Prompt(), h.Subject().Status()} {
 			// The client library rejects some subjects itself; those cannot reach a host.

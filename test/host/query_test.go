@@ -7,6 +7,7 @@ import (
 	"context"
 	"errors"
 	"regexp"
+	"strconv"
 	"sync"
 	"testing"
 	"time"
@@ -102,7 +103,7 @@ func TestQuery_ReplyFormsAndErrors(t *testing.T) {
 	}
 	for i, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			h := newHostNamed(t, nc, "q"+string(rune('a'+i)), func(ctx context.Context, _ *host.Request, w *host.Responder) error {
+			h := newHostNamed(t, nc, "q"+strconv.Itoa(i), func(ctx context.Context, _ *host.Request, w *host.Responder) error {
 				ans, err := w.Ask(ctx, "q?", 5*time.Second)
 				if err != nil {
 					return host.Reject(400, "bad reply")
@@ -213,7 +214,7 @@ func TestQuery_ConcurrentAsksHaveDistinctReplySubjects(t *testing.T) {
 			wg.Add(1)
 			go func() {
 				defer wg.Done()
-				ans, err := w.Ask(ctx, "q"+string(rune('0'+i)), 5*time.Second)
+				ans, err := w.Ask(ctx, "q"+strconv.Itoa(i), 5*time.Second)
 				if err == nil {
 					answers[i] = ans.Prompt
 				}

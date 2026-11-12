@@ -8,6 +8,7 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -1175,7 +1176,7 @@ func TestScope_FnErrorIsReturnedAndScopeStillCloses(t *testing.T) {
 		h.run(ctx, ToolPromptAgent, obj{"address": tg.subject, "prompt": "x", "wait": false})
 		return errBoom
 	})
-	if err != errBoom {
+	if !errors.Is(err, errBoom) {
 		t.Fatalf("%v", err)
 	}
 	// After the scope closed, no call can start in it.
@@ -1452,10 +1453,10 @@ func TestClose_CancelsOpenCallsRefusesQuestionsAndEndsExecute(t *testing.T) {
 	if got := q.got(t); got != QuestionRefusal {
 		t.Errorf("refusal %q", got)
 	}
-	if _, err := h.tl.Execute(context.Background(), ToolListAgentCalls, nil); err != ErrClosed {
+	if _, err := h.tl.Execute(context.Background(), ToolListAgentCalls, nil); !errors.Is(err, ErrClosed) {
 		t.Errorf("Execute after Close: %v", err)
 	}
-	if err := h.tl.RunInPromptScope(context.Background(), "", func(context.Context) error { return nil }); err != ErrClosed {
+	if err := h.tl.RunInPromptScope(context.Background(), "", func(context.Context) error { return nil }); !errors.Is(err, ErrClosed) {
 		t.Errorf("RunInPromptScope after Close: %v", err)
 	}
 	if err := h.tl.Close(); err != nil {
