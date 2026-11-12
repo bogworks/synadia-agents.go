@@ -5,6 +5,7 @@ package connect
 
 import (
 	"bytes"
+	"context"
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/json"
@@ -353,42 +354,72 @@ type auth struct {
 	signer identity.Signer
 }
 
-// readKeyFile reads a file the context names. When secret is true (creds, seed
-// and TLS private key files) and relax is false, it first refuses a file that
-// group or others can access, on platforms that have such modes. The mode is
-// read from the open file, so it cannot change between check and read. The
-// caller zeroes the returned bytes.
-func readKeyFile(name, field, path string, secret, relax bool) ([]byte, error) {
+// maxKeyFileSize caps what readKeyFile reads for a creds, nkey seed, TLS
+// certificate or TLS key file. Each is a few KiB; the cap keeps a huge file or
+// /dev/zero from exhausting memory.
+const maxKeyFileSize = 64 << 10
+
+// maxCABundleSize caps what readKeyFile reads for the ca field, which can name
+// a CA bundle: a system bundle such as /etc/ssl/certs/ca-certificates.crt is
+// about 180 KiB.
+const maxCABundleSize = 1 << 20
+
+// readKeyFile reads a file the context names. The file must be a regular file
+// of at most limit bytes (maxKeyFileSize, 64 KiB, for creds, nkey, cert and key
+// files; maxCABundleSize, 1 MiB, for the ca field), checked on the opened
+// descriptor: a FIFO, device or directory is refused, and the open itself does
+// not block on a FIFO. When
+// secret is true (creds, seed and TLS private key files) and relax is false, it
+// also refuses a file that group or others can access, on platforms that have
+// such modes. The mode is read from the open file, so it cannot change between
+// check and read. ctx is checked before the open and before the read; a regular
+// capped file reads in bounded time, so the read is not interrupted. The caller
+// zeroes the returned bytes.
+func readKeyFile(ctx context.Context, name, field, path string, limit int64, secret, relax bool) ([]byte, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, ctxErrWrap(name, err, "reading the %s file was canceled", field)
+	}
 	p, err := expandHome(path)
 	if err != nil {
 		return nil, err
 	}
-	f, err := os.Open(p) //nolint:gosec // G304: a credential path named by the user's own NATS context file
+	f, err := openKeyFile(p)
 	if err != nil {
 		return nil, ctxErrWrap(name, err, "cannot read %s file %s", field, p)
 	}
 	defer f.Close()
+	fi, err := f.Stat()
+	if err != nil {
+		return nil, ctxErrWrap(name, err, "cannot read %s file %s", field, p)
+	}
+	if !fi.Mode().IsRegular() {
+		return nil, ctxErr(name, "%s file %s is not a regular file", field, p)
+	}
 	if secret && !relax && runtime.GOOS != "windows" {
-		fi, err := f.Stat()
-		if err != nil {
-			return nil, ctxErrWrap(name, err, "cannot read %s file %s", field, p)
-		}
 		if perm := fi.Mode().Perm(); perm&0o077 != 0 {
 			return nil, ctxErr(name, "%s file %s is accessible by group or others (mode %04o): it must be mode 0600 (chmod 600), or pass WithInsecureKeyFilePermissions",
 				field, p, perm)
 		}
 	}
-	b, err := io.ReadAll(f)
+	if err := ctx.Err(); err != nil {
+		return nil, ctxErrWrap(name, err, "reading the %s file was canceled", field)
+	}
+	b, err := io.ReadAll(io.LimitReader(f, limit+1))
 	if err != nil {
+		zero(b)
 		return nil, ctxErrWrap(name, err, "cannot read %s file %s", field, p)
+	}
+	if int64(len(b)) > limit {
+		zero(b)
+		return nil, ctxErr(name, "%s file %s is larger than the %d byte limit", field, p, limit)
 	}
 	return b, nil
 }
 
 func zero(b []byte) { clear(b) }
 
-func credsAuth(name, path string, relax bool) (auth, error) {
-	b, err := readKeyFile(name, "creds", path, true, relax)
+func credsAuth(ctx context.Context, name, path string, relax bool) (auth, error) {
+	b, err := readKeyFile(ctx, name, "creds", path, maxKeyFileSize, true, relax)
 	if err != nil {
 		return auth{}, err
 	}
@@ -400,8 +431,8 @@ func credsAuth(name, path string, relax bool) (auth, error) {
 	return auth{opt: nats.UserJWT(func() (string, error) { return s.JWT(), nil }, s.Sign), signer: s}, nil
 }
 
-func nkeyFileAuth(name, path string, relax bool) (auth, error) {
-	b, err := readKeyFile(name, "nkey", path, true, relax)
+func nkeyFileAuth(ctx context.Context, name, path string, relax bool) (auth, error) {
+	b, err := readKeyFile(ctx, name, "nkey", path, maxKeyFileSize, true, relax)
 	if err != nil {
 		return auth{}, err
 	}
@@ -433,7 +464,7 @@ type snapshot struct {
 	signer identity.Signer // nil when the context has no user seed
 }
 
-func loadSnapshot(selector string, opts []ContextOption) (*snapshot, error) {
+func loadSnapshot(ctx context.Context, selector string, opts []ContextOption) (*snapshot, error) {
 	relax := newContextConfig(opts).insecureKeyFiles
 	cf, err := ReadContext(selector, opts...)
 	if err != nil {
@@ -499,13 +530,13 @@ func loadSnapshot(selector string, opts []ContextOption) (*snapshot, error) {
 	var authOpts []nats.Option
 	switch {
 	case creds != "":
-		a, err := credsAuth(name, creds, relax)
+		a, err := credsAuth(ctx, name, creds, relax)
 		if err != nil {
 			return nil, err
 		}
 		authOpts, out.signer = []nats.Option{a.opt}, a.signer
 	case nkey != "":
-		a, err := nkeyFileAuth(name, nkey, relax)
+		a, err := nkeyFileAuth(ctx, name, nkey, relax)
 		if err != nil {
 			return nil, err
 		}
@@ -545,7 +576,7 @@ func loadSnapshot(selector string, opts []ContextOption) (*snapshot, error) {
 	}
 	out.conn.Options = append(out.conn.Options, authOpts...)
 
-	tlsOpts, err := tlsOptions(cf, relax)
+	tlsOpts, err := tlsOptions(ctx, cf, relax)
 	if err != nil {
 		wipeSigner(out.signer)
 		return nil, err
@@ -572,7 +603,7 @@ func wipeSigner(s identity.Signer) {
 // tlsOptions builds the nats.go options for cert, key, ca and tls_first. The
 // files are read once, here, so a later rotation cannot split one connection's
 // material.
-func tlsOptions(cf ContextFile, relax bool) ([]nats.Option, error) {
+func tlsOptions(ctx context.Context, cf ContextFile, relax bool) ([]nats.Option, error) {
 	cert, err := cf.field("cert")
 	if err != nil {
 		return nil, err
@@ -597,11 +628,11 @@ func tlsOptions(cf ContextFile, relax bool) ([]nats.Option, error) {
 	}
 	cfg := &tls.Config{MinVersion: tls.VersionTLS12}
 	if cert != "" {
-		certPEM, err := readKeyFile(cf.Name, "cert", cert, false, relax)
+		certPEM, err := readKeyFile(ctx, cf.Name, "cert", cert, maxKeyFileSize, false, relax)
 		if err != nil {
 			return nil, err
 		}
-		keyPEM, err := readKeyFile(cf.Name, "key", key, true, relax)
+		keyPEM, err := readKeyFile(ctx, cf.Name, "key", key, maxKeyFileSize, true, relax)
 		if err != nil {
 			return nil, err
 		}
@@ -614,7 +645,7 @@ func tlsOptions(cf ContextFile, relax bool) ([]nats.Option, error) {
 		cfg.Certificates = []tls.Certificate{pair}
 	}
 	if ca != "" {
-		caPEM, err := readKeyFile(cf.Name, "ca", ca, false, relax)
+		caPEM, err := readKeyFile(ctx, cf.Name, "ca", ca, maxCABundleSize, false, relax)
 		if err != nil {
 			return nil, err
 		}
@@ -640,7 +671,7 @@ func tlsOptions(cf ContextFile, relax bool) ([]nats.Option, error) {
 // for reconnects; use [ResolveBundle] when the program needs to [Bundle.Wipe]
 // it. See parity row 1.4; outside SAP (deviation D-1).
 func LoadContext(selector string, opts ...ContextOption) (Connection, error) {
-	s, err := loadSnapshot(selector, opts)
+	s, err := loadSnapshot(context.Background(), selector, opts)
 	if err != nil {
 		return Connection{}, err
 	}
@@ -682,12 +713,14 @@ func SignerFromContext(selector string, opts ...ContextOption) (identity.Signer,
 		return nil, err
 	}
 	relax := newContextConfig(opts).insecureKeyFiles
+	// This exported function takes no context, so the key-file read has none to honor.
+	ctx := context.Background()
 	var a auth
 	switch {
 	case creds != "":
-		a, err = credsAuth(cf.Name, creds, relax)
+		a, err = credsAuth(ctx, cf.Name, creds, relax)
 	case nkey != "":
-		a, err = nkeyFileAuth(cf.Name, nkey, relax)
+		a, err = nkeyFileAuth(ctx, cf.Name, nkey, relax)
 	case userSeed != "":
 		if userJWT == "" {
 			// LoadContext connects with a lone seed as NKEY auth. Beside another

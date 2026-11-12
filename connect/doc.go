@@ -15,7 +15,9 @@
 // path the program did not name: a context is read only when the program names
 // it (or passes "current", which the program chose to ask for), and a context's
 // key files are read only because that context names them. No key material is
-// read from a fixed path.
+// read from a fixed path. A key file must be a regular file of at most 64 KiB
+// (1 MiB for a ca bundle): a FIFO, device or directory is refused without
+// blocking, and a larger file is refused unread.
 //
 // # Context lookup
 //
