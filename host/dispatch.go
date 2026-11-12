@@ -49,12 +49,12 @@ func (h *Host) leave() {
 func (h *Host) replyAllowed(req micro.Request, kind string) bool {
 	reply := req.Reply()
 	if reply == "" {
-		h.log.Debug(kind + " request without a reply subject dropped")
+		h.log.Debug("request without a reply subject dropped", "kind", kind)
 		return false
 	}
 	if err := h.checkReply(reply); err != nil {
 		h.refusedReply.Add(1)
-		h.log.Warn(kind+" request dropped: reply subject refused", "reply_subject", truncate(reply, 128), "reason", truncate(err.Error(), 256))
+		h.log.Warn("request dropped: reply subject refused", "kind", kind, "reply_subject", truncate(reply, 128), "reason", truncate(err.Error(), 256))
 		return false
 	}
 	return true

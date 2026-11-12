@@ -19,7 +19,7 @@ func builtinChecks() map[string]CheckFunc {
 	add := func(f CheckFunc, ids ...string) {
 		for _, id := range ids {
 			if _, dup := m[id]; dup {
-				panic("sapconform: duplicate check for " + id)
+				panic("sapconform: duplicate check for " + id) //nolint:forbidigo // a duplicate id is a programming error caught at init
 			}
 			m[id] = f
 		}

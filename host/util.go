@@ -19,7 +19,7 @@ const inboxPrefix = "_INBOX.agents."
 func randBytes(n int) []byte {
 	b := make([]byte, n)
 	if _, err := rand.Read(b); err != nil {
-		panic(fmt.Sprintf("host: crypto/rand failed: %v", err)) // never happens on supported platforms
+		panic(fmt.Sprintf("host: crypto/rand failed: %v", err)) //nolint:forbidigo // crypto/rand does not fail on supported platforms; continuing without entropy would be unsafe
 	}
 	return b
 }
