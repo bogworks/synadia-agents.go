@@ -8,21 +8,11 @@ SAP revision it implements and its conformance catalog result.
 
 ## [Unreleased]
 
-### Changed
-
-- API change before v0.1.0: `host.Host`, `caller.Client` and `tools.Tools` each have `Close() error` (an `io.Closer`,
-  bounded by the package's `DefaultCloseTimeout`) plus `Shutdown(ctx) error` (the same stop with a deadline the caller
-  controls; it returns the context error wrapped when the deadline ends first, and a later `Close` or `Shutdown`
-  still waits for the real exit). `Host.Stop` is now `Host.Shutdown`; `Host.Close` stops at once, as
-  `net/http.Server.Close` does. `host.DefaultCloseTimeout` and `tools.DefaultCloseTimeout` are new.
-  `Shutdown` and `Close` request the stop at once; the context bounds only the wait, so a slow `Host.Start` cannot defeat the
-  deadline. A `Start` that sees the request tears down and returns the new `host.ErrStopped`.
-
-## [0.1.0] - Unreleased
+## [0.1.0] - 2026-11-12
 
 The first release. SAP revision: 0.3 (spec commit `c48cea5f`). Conformance: every obligation in
 `conformance/catalog.json` is covered by a linked test, and the mutation run kills every fault in the catalog (the
-pre-release result is in [docs/releases/v0.1.0.md](docs/releases/v0.1.0.md)). The SDK is tested against the official
+result is in [docs/releases/v0.1.0.md](docs/releases/v0.1.0.md)). The SDK is tested against the official
 TypeScript and Python SDKs in `test/interop`.
 
 ### Added
@@ -35,6 +25,12 @@ TypeScript and Python SDKs in `test/interop`.
     outgoing-header hook;
   - package `host`: registration as a NATS micro service, prompt and status endpoints, replies, queries,
     heartbeats, extra endpoints, a verified-sender admission hook, interceptors, bounded concurrency;
+  - a lifecycle as `net/http.Server` has: `host.Host`, `caller.Client` and `tools.Tools` each have `Close() error`
+    (an `io.Closer`, bounded by the package's `DefaultCloseTimeout`) and `Shutdown(ctx) error` (the same stop with a
+    deadline the caller sets). `host.Host.Close` stops at once; `host.Host.Shutdown` lets the handlers in flight
+    finish. The stop is requested at once and the context bounds only the wait: when the deadline ends first, the
+    context error is returned wrapped, and a later `Close` or `Shutdown` still waits for the real exit. A
+    `host.Host.Start` that sees the stop request tears down and returns `host.ErrStopped`;
   - package `identity`: the section 13 sender identity (agent IDs, the `Agent-Sender` header, signing,
     live and stored verification, replay protection, `id_sig` registration, signed heartbeats);
   - package `connect`: NATS CLI contexts, credential files and reconnect defaults (outside SAP); `LoadContext` and
@@ -43,6 +39,8 @@ TypeScript and Python SDKs in `test/interop`.
   - package `agentstest`: a reference agent for tests;
   - package `conformance` and the command `cmd/sapconform`: the conformance catalog and a host-side runner;
   - runnable examples in `examples/`: `host-echo`, `caller-basic`, `host-query`, `signed`, `extension-points`;
+  - `Example` functions for the main paths in `agents`, `caller`, `host`, `identity` and `connect`; the README quick
+    start is `caller`'s, and a test fails when the two differ;
   - documentation: `docs/protocol-mapping.md` (every exported identifier mapped to its SAP section, checked by
     a test), `docs/parity.md` (every feature of the official TypeScript and Python SDKs and its Go
     counterpart) and `docs/api-plan.md` (the original plan);
@@ -50,6 +48,8 @@ TypeScript and Python SDKs in `test/interop`.
 - CI on self-hosted runners: build, test, vet, lint, `govulncheck`, `go mod tidy`, an independence check, the
   catalog check and the mutation run, gathered in one required `pr-check` job; a separate `interop` workflow runs
   the official TypeScript and Python SDKs against this one.
+- A documentation-only pull request skips the heavy CI jobs; every required check still reports, a cheap
+  `docs-guard` job runs the tests that read documentation, and merge-queue runs and pushes to `main` run in full.
 - A release workflow (`.github/workflows/release.yml`) that, on a `v*` tag, builds the `sapconform` binaries for
   linux/amd64, linux/arm64 and darwin/arm64, a source archive, an SBOM and `SHA256SUMS`, attests build provenance
   for each, and attaches them to a GitHub release (ADR 0002).
