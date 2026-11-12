@@ -54,6 +54,7 @@ var jobWrites = map[string]bool{
 var shaPin = regexp.MustCompile(`@[0-9a-f]{40}$`)
 
 type step struct {
+	ID   string            `yaml:"id"`
 	Uses string            `yaml:"uses"`
 	With map[string]any    `yaml:"with"`
 	Env  map[string]string `yaml:"env"`
@@ -964,5 +965,177 @@ func TestDocsGuard_RunsEveryTestThatReadsDocs(t *testing.T) {
 		if _, err := os.Stat(filepath.Join("../..", f)); err != nil {
 			t.Errorf("docsExempt names %s (%s), which is gone: %v", f, why, err)
 		}
+	}
+}
+
+// classifyStep returns the run script of the changes job's classify step in a workflow file, or "" if it has none.
+func classifyStep(t *testing.T, file string) string {
+	t.Helper()
+	raw, err := os.ReadFile(filepath.Join("../../.github/workflows", file))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var wf workflow
+	if err := yaml.Unmarshal(raw, &wf); err != nil {
+		t.Fatal(err)
+	}
+	for _, s := range wf.Jobs["changes"].Steps {
+		if s.ID == "classify" {
+			return s.Run
+		}
+	}
+	return ""
+}
+
+// TestChangesStep_ClassifierComesFromTheBase pins the trust boundary of the changes job: the pull request must not be
+// able to rewrite the script that decides whether it is checked. For every workflow with a changes job it checks the
+// step text, then runs the step itself in a throwaway repository.
+func TestChangesStep_ClassifierComesFromTheBase(t *testing.T) {
+	bash, err := exec.LookPath("bash")
+	if err != nil {
+		t.Skip("no bash")
+	}
+	git, err := exec.LookPath("git")
+	if err != nil {
+		t.Skip("no git")
+	}
+	realScript, err := os.ReadFile("../../.github/scripts/changes.sh")
+	if err != nil {
+		t.Fatal(err)
+	}
+	const script = ".github/scripts/changes.sh"
+	for _, file := range []string{"go-sdk.yml", "interop.yml"} {
+		run := classifyStep(t, file)
+		if run == "" {
+			t.Fatalf("%s: the changes job has no classify step", file)
+		}
+		t.Run(file+"/text", func(t *testing.T) {
+			for _, bad := range []string{"| " + script, "bash " + script, "sh " + script, "\n" + script} {
+				if strings.Contains(run, bad) {
+					t.Errorf("the step runs the classifier from the working tree (%q)", bad)
+				}
+			}
+			if !strings.Contains(run, `git show "$BASE_SHA:`+script+`"`) {
+				t.Error("the step does not read the classifier with git show \"$BASE_SHA:" + script + "\"")
+			}
+			if !strings.Contains(run, `grep -q '^\.github/'`) {
+				t.Error("the step has no .github/ override")
+			}
+		})
+
+		// repo builds a repository whose base commit holds baseScript (nil: none), and whose head commit adds the
+		// named files. tree, when set, then overwrites the script in the working tree without committing it.
+		type repoSpec struct {
+			baseScript []byte
+			headFiles  map[string]string
+			tree       string
+		}
+		g := func(t *testing.T, dir string, args ...string) string {
+			t.Helper()
+			cmd := exec.Command(git, args...)
+			cmd.Dir = dir
+			cmd.Env = append(os.Environ(), "GIT_AUTHOR_NAME=t", "GIT_AUTHOR_EMAIL=t@e", "GIT_COMMITTER_NAME=t", "GIT_COMMITTER_EMAIL=t@e",
+				"GIT_CONFIG_GLOBAL=/dev/null", "GIT_CONFIG_SYSTEM=/dev/null")
+			out, err := cmd.CombinedOutput()
+			if err != nil {
+				t.Fatalf("git %v: %v: %s", args, err, out)
+			}
+			return strings.TrimSpace(string(out))
+		}
+		write := func(t *testing.T, dir, name, content string) {
+			t.Helper()
+			p := filepath.Join(dir, name)
+			if err := os.MkdirAll(filepath.Dir(p), 0o750); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(p, []byte(content), 0o600); err != nil {
+				t.Fatal(err)
+			}
+		}
+		// classify runs the step and returns what it appended to GITHUB_OUTPUT.
+		classify := func(t *testing.T, event string, spec repoSpec) string {
+			t.Helper()
+			dir := t.TempDir()
+			g(t, dir, "init", "-q")
+			write(t, dir, "README.md", "base\n")
+			if spec.baseScript != nil {
+				write(t, dir, script, string(spec.baseScript))
+			}
+			g(t, dir, "add", "-A")
+			g(t, dir, "commit", "-q", "-m", "base")
+			base := g(t, dir, "rev-parse", "HEAD")
+			for n, c := range spec.headFiles {
+				write(t, dir, n, c)
+			}
+			g(t, dir, "add", "-A")
+			g(t, dir, "commit", "-q", "-m", "head")
+			head := g(t, dir, "rev-parse", "HEAD")
+			if spec.tree != "" {
+				write(t, dir, script, spec.tree)
+			}
+			tmp, out := t.TempDir(), filepath.Join(t.TempDir(), "out")
+			cmd := exec.Command(bash, "-c", run)
+			cmd.Dir = dir
+			cmd.Env = []string{"PATH=" + os.Getenv("PATH"), "EVENT_NAME=" + event, "HEAD_REF=feature", "PR_AUTHOR=alice",
+				"HEAD_REPO=o/r", "REPO=o/r", "BASE_SHA=" + base, "HEAD_SHA=" + head, "RUNNER_TEMP=" + tmp, "GITHUB_OUTPUT=" + out}
+			if b, err := cmd.CombinedOutput(); err != nil {
+				t.Fatalf("step failed: %v: %s", err, b)
+			}
+			got, err := os.ReadFile(out)
+			if err != nil {
+				t.Fatal(err)
+			}
+			return strings.TrimSpace(string(got))
+		}
+		saysFalse := []byte("#!/usr/bin/env bash\necho code=false\n")
+		tests := []struct {
+			name  string
+			event string
+			spec  repoSpec
+			want  string
+		}{
+			{"docs-only change, real classifier on the base", "pull_request", repoSpec{realScript, map[string]string{"README.md": "new\n"}, ""}, "code=false"},
+			{"code change, real classifier on the base", "pull_request", repoSpec{realScript, map[string]string{"a.go": "package a\n"}, ""}, "code=true"},
+			{"base has no classifier", "pull_request", repoSpec{nil, map[string]string{"README.md": "new\n"}, ""}, "code=true"},
+			{"a working-tree classifier is not run", "pull_request", repoSpec{realScript, map[string]string{"README.md": "new\n"}, "#!/usr/bin/env bash\necho code=true\n"}, "code=false"},
+			{"pull request rewrites the classifier to say false", "pull_request", repoSpec{realScript, map[string]string{"README.md": "new\n", script: string(saysFalse)}, ""}, "code=true"},
+			{"a .github change is code even when the base classifier says false", "pull_request", repoSpec{saysFalse, map[string]string{".github/x": "x\n"}, ""}, "code=true"},
+			{"the base classifier's false is honored", "pull_request", repoSpec{saysFalse, map[string]string{"README.md": "new\n"}, ""}, "code=false"},
+			{"a base classifier that fails is code", "pull_request", repoSpec{[]byte("#!/usr/bin/env bash\nexit 3\n"), map[string]string{"README.md": "new\n"}, ""}, "code=true"},
+			{"not a pull request", "push", repoSpec{realScript, map[string]string{"README.md": "new\n"}, ""}, "code=true"},
+		}
+		for _, tc := range tests {
+			t.Run(file+"/"+tc.name, func(t *testing.T) {
+				if got := classify(t, tc.event, tc.spec); got != tc.want {
+					t.Fatalf("GITHUB_OUTPUT = %q, want %q", got, tc.want)
+				}
+			})
+		}
+	}
+}
+
+// TestDocsGuard_NamedTestsMustRun: go test -run passes when no test matches, so every `go test -run '^Name$'` of the
+// docs-guard job must be followed by a check that `--- PASS: Name` was printed.
+func TestDocsGuard_NamedTestsMustRun(t *testing.T) {
+	raw, err := os.ReadFile("../../.github/workflows/go-sdk.yml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var wf workflow
+	if err := yaml.Unmarshal(raw, &wf); err != nil {
+		t.Fatal(err)
+	}
+	named := regexp.MustCompile(`-run '\^(\w+)\$'`)
+	n := 0
+	for _, s := range wf.Jobs["docs-guard"].Steps {
+		for _, m := range named.FindAllStringSubmatch(s.Run, -1) {
+			n++
+			if !strings.Contains(s.Run, "-v") || !strings.Contains(s.Run, "grep -q '^--- PASS: "+m[1]+" '") {
+				t.Errorf("docs-guard runs %s with -run but does not require `--- PASS: %s` in a -v output", m[1], m[1])
+			}
+		}
+	}
+	if n == 0 {
+		t.Error("docs-guard names no test with -run")
 	}
 }

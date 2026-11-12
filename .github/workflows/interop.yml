@@ -59,12 +59,21 @@ jobs:
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: |
           set -euo pipefail
-          files=""
+          # The answer is code=true unless the base revision's own classifier says docs-only. The classifier is read
+          # from the base, never run from the pull request checkout: a pull request must not be able to rewrite the
+          # script that decides whether it gets checked.
+          code=true
           if [ "$EVENT_NAME" = pull_request ]; then
             # --no-renames lists both sides of a rename, so a file moved out of a code path counts as code.
             files="$(git -c core.quotepath=off diff --no-renames --name-only "$BASE_SHA...$HEAD_SHA")"
+            if grep -q '^\.github/' <<<"$files"; then
+              : # the CI itself changed (workflows, scripts, templates): always a full run
+            elif git show "$BASE_SHA:.github/scripts/changes.sh" >"$RUNNER_TEMP/changes.sh" 2>/dev/null; then
+              answer="$(bash "$RUNNER_TEMP/changes.sh" <<<"$files" || true)"
+              [ "$answer" != code=false ] || code=false
+            fi # no classifier on the base (this is the pull request that adds it): code=true
           fi
-          printf '%s\n' "$files" | .github/scripts/changes.sh | tee -a "$GITHUB_OUTPUT"
+          echo "code=$code" | tee -a "$GITHUB_OUTPUT"
 
   interop:
     name: interop (official TypeScript and Python SDKs)

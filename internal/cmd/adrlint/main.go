@@ -62,11 +62,13 @@ const (
 // protected are the paths where "Decision: none" needs a reviewer's decision-confirmed label. A trailing slash is a
 // directory prefix; anything else is one file. They are the records themselves and the files that decide what may
 // merge or how it is checked: the merge queue (.mergify.yml), the workflows (.github/workflows/), composite actions
-// (.github/actions/), this linter's source and the CI guard test (test/ci/). A "Decision: none" pull request must not
+// (.github/actions/), the scripts they run (.github/scripts/: the docs-only classifier is a merge gate), this linter's
+// source and the CI guard test (test/ci/). A "Decision: none" pull request must not
 // change them without a reviewer's confirmation. The changed-path list must include a rename's old path and a deletion
 // (git diff --no-renames), or a move out of a protected path would escape.
 var protected = []string{
-	"docs/decisions/", ".mergify.yml", ".github/workflows/", ".github/actions/", "internal/cmd/adrlint/", "test/ci/",
+	"docs/decisions/", ".mergify.yml", ".github/workflows/", ".github/actions/", ".github/scripts/",
+	"internal/cmd/adrlint/", "test/ci/",
 }
 
 // sections are the required "##" headings, in order.

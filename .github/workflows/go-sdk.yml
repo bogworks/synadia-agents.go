@@ -65,12 +65,21 @@ jobs:
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: |
           set -euo pipefail
-          files=""
+          # The answer is code=true unless the base revision's own classifier says docs-only. The classifier is read
+          # from the base, never run from the pull request checkout: a pull request must not be able to rewrite the
+          # script that decides whether it gets checked.
+          code=true
           if [ "$EVENT_NAME" = pull_request ]; then
             # --no-renames lists both sides of a rename, so a file moved out of a code path counts as code.
             files="$(git -c core.quotepath=off diff --no-renames --name-only "$BASE_SHA...$HEAD_SHA")"
+            if grep -q '^\.github/' <<<"$files"; then
+              : # the CI itself changed (workflows, scripts, templates): always a full run
+            elif git show "$BASE_SHA:.github/scripts/changes.sh" >"$RUNNER_TEMP/changes.sh" 2>/dev/null; then
+              answer="$(bash "$RUNNER_TEMP/changes.sh" <<<"$files" || true)"
+              [ "$answer" != code=false ] || code=false
+            fi # no classifier on the base (this is the pull request that adds it): code=true
           fi
-          printf '%s\n' "$files" | .github/scripts/changes.sh | tee -a "$GITHUB_OUTPUT"
+          echo "code=$code" | tee -a "$GITHUB_OUTPUT"
 
   test:
     name: test (go ${{ matrix.go }})
@@ -342,12 +351,18 @@ jobs:
           go-version: '1.27.4'
           cache: false
       - name: Docs tests (root module)
-        run: go test -count=1 -run '^TestRepositoryADRsPass$' ./internal/cmd/adrlint/
+        run: |
+          # go test -run passes when nothing matches, so require the named test to have run and passed.
+          set -o pipefail
+          go test -count=1 -v -run '^TestRepositoryADRsPass$' ./internal/cmd/adrlint/ | tee "$RUNNER_TEMP/adrs.txt"
+          grep -q '^--- PASS: TestRepositoryADRsPass ' "$RUNNER_TEMP/adrs.txt"
       - name: Docs tests (integration module)
         working-directory: test
         run: |
+          set -o pipefail
           go test -count=1 ./docs/...
-          go test -count=1 -run '^TestQuickstart_ReadmeMatchesExample$' ./examples/
+          go test -count=1 -v -run '^TestQuickstart_ReadmeMatchesExample$' ./examples/ | tee "$RUNNER_TEMP/quickstart.txt"
+          grep -q '^--- PASS: TestQuickstart_ReadmeMatchesExample ' "$RUNNER_TEMP/quickstart.txt"
 
   # The one required check. It needs every job above, runs even when one fails or
   # is skipped (always()), and passes only if every one did what it had to. It checks out
