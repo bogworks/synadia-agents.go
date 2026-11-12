@@ -16,15 +16,21 @@ merge_protections_settings:
 # button or API merge by someone with bypass or write access) from skipping the review gates: a pull request to main
 # merges only if it meets the same review conditions the queue requires, namely the watcher's codex-review, the
 # maintainer's approval or the lead's `lead-approved` label, and no `hold`. The CI checks stay with the queue and the
-# ruleset's own required checks. Mergify's own merge-queue drafts (the mergify/merge-queue/ branches) are exempt: they
-# are Mergify's branches, not pull requests anyone reviews, and codex-review never runs on them; the pull request they
-# batch has already passed these gates to enter the queue.
+# ruleset's own required checks. Mergify's own merge-queue drafts are exempt: they are Mergify's branches, not pull
+# requests anyone reviews, and codex-review never runs on them; the pull request they batch has already passed these
+# gates to enter the queue. The exemption needs BOTH the head ref (mergify/merge-queue/) AND the author (mergify[bot]):
+# anyone who can push a branch can name it mergify/merge-queue/x, and a ref alone would switch this rule off for their
+# pull request, leave the required "Mergify Merge Protections" check neutral and let it merge through the API. The `if`
+# therefore applies the rule unless both hold, as the adr-lint skip does.
 merge_protections:
   - name: review gates outside the queue
     description: A pull request to main merges, queue or not, only with codex-review, an approval (or lead-approved) and no hold.
     if:
       - base = main
-      - -head ~= ^mergify/merge-queue/
+      - not:
+          and:
+            - head ~= ^mergify/merge-queue/
+            - author = mergify[bot]
     success_conditions:
       - label != hold
       - check-success = codex-review
