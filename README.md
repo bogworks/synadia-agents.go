@@ -70,7 +70,7 @@ func Example_quickStart() {
 	if err := h.Start(ctx); err != nil {
 		log.Fatal(err)
 	}
-	defer h.Close(ctx)
+	defer h.Close()
 
 	// Caller: discover the agent (SAP section 4), prompt it, read the stream.
 	c, err := caller.New(nc)

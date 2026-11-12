@@ -43,13 +43,13 @@ func TestQuickstart(t *testing.T) {
 	if err := h.Start(ctx); err != nil {
 		t.Fatal(err)
 	}
-	defer h.Close(ctx)
+	defer h.Close()
 
 	c, err := caller.New(nc)
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer c.Close(ctx)
+	defer c.Close()
 
 	agent, err := c.Find(ctx, caller.Filter{Agent: "echo"})
 	if err != nil {
