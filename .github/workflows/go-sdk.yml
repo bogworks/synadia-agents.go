@@ -6,7 +6,11 @@
 #
 # Every job runs on self-hosted runners only, on one of exactly two label sets:
 # [self-hosted, rh-linux] (build, test, lint) or [self-hosted, rh-gate] (the light
-# pr-check aggregate, so it never queues behind a test job). No GitHub-hosted
+# changes and pr-check jobs, so they never queue behind a test job).
+#
+# Documentation changes do not run CI: the changes job (.github/scripts/changes.sh) says code=false for a docs-only
+# pull request and the heavy jobs skip. Work is skipped, never checks: there is no `paths:` filter, because a required
+# check that never reports stalls the merge queue. pr-check still runs and passes a skip only when changes said so. No GitHub-hosted
 # runner, no other label; test/ci/workflows_test.go enforces this.
 #
 # pr-check is the single required check for branch protection and the merge queue.
@@ -34,9 +38,53 @@ env:
   GOVULNCHECK_VERSION: v1.9.0
 
 jobs:
+  # Decides whether the change needs the full run (see .github/scripts/changes.sh): code=false only for a docs-only pull
+  # request. The heavy jobs wait on it and skip when it says false; pr-check/interop-check still run and still decide.
+  # A plain git diff, no third-party action. Same fork guard as the other jobs: no fork code runs on a runner.
+  changes:
+    name: changes
+    if: github.event.pull_request.head.repo.full_name == github.repository || github.event_name != 'pull_request'
+    runs-on: [self-hosted, rh-gate]
+    timeout-minutes: 5
+    outputs:
+      code: ${{ steps.classify.outputs.code }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Classify the change
+        id: classify
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          HEAD_REF: ${{ github.event.pull_request.head.ref }}
+          PR_AUTHOR: ${{ github.event.pull_request.user.login }}
+          HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name }}
+          REPO: ${{ github.repository }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          # The answer is code=true unless the base revision's own classifier says docs-only. The classifier is read
+          # from the base, never run from the pull request checkout: a pull request must not be able to rewrite the
+          # script that decides whether it gets checked.
+          code=true
+          if [ "$EVENT_NAME" = pull_request ]; then
+            # --no-renames lists both sides of a rename, so a file moved out of a code path counts as code.
+            files="$(git -c core.quotepath=off diff --no-renames --name-only "$BASE_SHA...$HEAD_SHA")"
+            if grep -q '^\.github/' <<<"$files"; then
+              : # the CI itself changed (workflows, scripts, templates): always a full run
+            elif git show "$BASE_SHA:.github/scripts/changes.sh" >"$RUNNER_TEMP/changes.sh" 2>/dev/null; then
+              answer="$(bash "$RUNNER_TEMP/changes.sh" <<<"$files" || true)"
+              [ "$answer" != code=false ] || code=false
+            fi # no classifier on the base (this is the pull request that adds it): code=true
+          fi
+          echo "code=$code" | tee -a "$GITHUB_OUTPUT"
+
   test:
     name: test (go ${{ matrix.go }})
-    if: github.event.pull_request.head.repo.full_name == github.repository || github.event_name != 'pull_request'
+    needs: changes
+    if: needs.changes.outputs.code == 'true' && (github.event.pull_request.head.repo.full_name == github.repository || github.event_name != 'pull_request')
     runs-on: [self-hosted, rh-linux]
     env:
       # Run the Go that setup-go installed: the toolchain line in go.mod would
@@ -62,7 +110,8 @@ jobs:
 
   vet:
     name: vet and gofmt (go ${{ matrix.go }})
-    if: github.event.pull_request.head.repo.full_name == github.repository || github.event_name != 'pull_request'
+    needs: changes
+    if: needs.changes.outputs.code == 'true' && (github.event.pull_request.head.repo.full_name == github.repository || github.event_name != 'pull_request')
     runs-on: [self-hosted, rh-linux]
     env:
       # Run the Go that setup-go installed: the toolchain line in go.mod would
@@ -96,7 +145,8 @@ jobs:
 
   lint:
     name: golangci-lint
-    if: github.event.pull_request.head.repo.full_name == github.repository || github.event_name != 'pull_request'
+    needs: changes
+    if: needs.changes.outputs.code == 'true' && (github.event.pull_request.head.repo.full_name == github.repository || github.event_name != 'pull_request')
     runs-on: [self-hosted, rh-linux]
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
@@ -118,7 +168,8 @@ jobs:
 
   govulncheck:
     name: govulncheck
-    if: github.event.pull_request.head.repo.full_name == github.repository || github.event_name != 'pull_request'
+    needs: changes
+    if: needs.changes.outputs.code == 'true' && (github.event.pull_request.head.repo.full_name == github.repository || github.event_name != 'pull_request')
     runs-on: [self-hosted, rh-linux]
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
@@ -140,7 +191,8 @@ jobs:
 
   tidy:
     name: go mod tidy
-    if: github.event.pull_request.head.repo.full_name == github.repository || github.event_name != 'pull_request'
+    needs: changes
+    if: needs.changes.outputs.code == 'true' && (github.event.pull_request.head.repo.full_name == github.repository || github.event_name != 'pull_request')
     runs-on: [self-hosted, rh-linux]
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
@@ -223,7 +275,8 @@ jobs:
 
   catalog:
     name: conformance catalog
-    if: github.event.pull_request.head.repo.full_name == github.repository || github.event_name != 'pull_request'
+    needs: changes
+    if: needs.changes.outputs.code == 'true' && (github.event.pull_request.head.repo.full_name == github.repository || github.event_name != 'pull_request')
     runs-on: [self-hosted, rh-linux]
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
@@ -260,7 +313,8 @@ jobs:
 
   mutate:
     name: mutation run
-    if: github.event.pull_request.head.repo.full_name == github.repository || github.event_name != 'pull_request'
+    needs: changes
+    if: needs.changes.outputs.code == 'true' && (github.event.pull_request.head.repo.full_name == github.repository || github.event_name != 'pull_request')
     runs-on: [self-hosted, rh-linux]
     timeout-minutes: 20
     steps:
@@ -277,19 +331,56 @@ jobs:
       - name: Mutation run
         run: go run ./internal/cmd/mutate
 
+  # A docs-only change skips the heavy jobs but not the tests that read documentation (a Markdown file, anything under
+  # docs/): test/docs checks docs/parity.md, docs/protocol-mapping.md, README.md and CHANGELOG.md against the code;
+  # TestRepositoryADRsPass lints docs/decisions; TestQuickstart_ReadmeMatchesExample compares the README quick start
+  # with the Example (a run on a name that does not exist yet passes, so it is safe before that test lands). None needs
+  # a NATS server. It runs only when the heavy jobs did not (a code change runs them in test). test/ci guards that
+  # every test that reads a Markdown file is run here.
+  docs-guard:
+    name: docs guard
+    needs: changes
+    if: needs.changes.outputs.code == 'false' && (github.event.pull_request.head.repo.full_name == github.repository || github.event_name != 'pull_request')
+    runs-on: [self-hosted, rh-linux]
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
+        with:
+          go-version: '1.27.4'
+          cache: false
+      - name: Docs tests (root module)
+        run: |
+          # go test -run passes when nothing matches, so require the named test to have run and passed.
+          set -euo pipefail
+          go test -count=1 -v -run '^TestRepositoryADRsPass$' ./internal/cmd/adrlint/ | tee "$RUNNER_TEMP/adrs.txt"
+          grep -q '^--- PASS: TestRepositoryADRsPass ' "$RUNNER_TEMP/adrs.txt"
+      - name: Docs tests (integration module)
+        working-directory: test
+        run: |
+          set -euo pipefail
+          go test -count=1 ./docs/...
+          go test -count=1 -v -run '^TestQuickstart_ReadmeMatchesExample$' ./examples/ | tee "$RUNNER_TEMP/quickstart.txt"
+          grep -q '^--- PASS: TestQuickstart_ReadmeMatchesExample ' "$RUNNER_TEMP/quickstart.txt"
+
   # The one required check. It needs every job above, runs even when one fails or
-  # is skipped (always()), and passes only if every one succeeded. It checks out
-  # nothing, so a fork pull request runs no fork code here; the skipped jobs make
-  # it fail, which is the intended hold for a person to handle the fork.
+  # is skipped (always()), and passes only if every one did what it had to. It checks out
+  # nothing, so a fork pull request runs no fork code here. A job may be skipped only
+  # when the changes job succeeded and said so: the heavy jobs skip on a docs-only change
+  # (code=false) and docs-guard skips on a code change (code=true). Any other skip (a fork
+  # pull request, a failed changes job) fails, which holds the fork for a person.
   pr-check:
     name: pr-check
-    needs: [test, vet, lint, govulncheck, tidy, independence, catalog, mutate]
+    needs: [changes, test, vet, lint, govulncheck, tidy, independence, catalog, mutate, docs-guard]
     if: always()
     timeout-minutes: 5
     runs-on: [self-hosted, rh-gate]
     steps:
-      - name: Every required job succeeded
+      - name: Every required job did what it had to
         env:
+          CHANGES: ${{ needs.changes.result }}
+          CODE: ${{ needs.changes.outputs.code }}
           TEST: ${{ needs.test.result }}
           VET: ${{ needs.vet.result }}
           LINT: ${{ needs.lint.result }}
@@ -298,11 +389,26 @@ jobs:
           INDEPENDENCE: ${{ needs.independence.result }}
           CATALOG: ${{ needs.catalog.result }}
           MUTATE: ${{ needs.mutate.result }}
+          DOCS_GUARD: ${{ needs.docs-guard.result }}
         run: |
           set -u
           fail=0
-          for kv in "test=$TEST" "vet=$VET" "lint=$LINT" "govulncheck=$VULN" "tidy=$TIDY" "independence=$INDEPENDENCE" "catalog=$CATALOG" "mutate=$MUTATE"; do
+          echo "changes=$CHANGES code=$CODE"
+          [ "$CHANGES" = success ] || fail=1
+          # A heavy job: success, or skipped on a docs-only change (changes succeeded and said code=false).
+          for kv in "test=$TEST" "vet=$VET" "lint=$LINT" "govulncheck=$VULN" "tidy=$TIDY" "catalog=$CATALOG" "mutate=$MUTATE"; do
             echo "$kv"
-            [ "${kv#*=}" = success ] || fail=1
+            r="${kv#*=}"
+            if [ "$r" = success ]; then continue; fi
+            if [ "$r" = skipped ] && [ "$CHANGES" = success ] && [ "$CODE" = false ]; then continue; fi
+            fail=1
           done
+          # independence runs on every change: success only.
+          echo "independence=$INDEPENDENCE"
+          [ "$INDEPENDENCE" = success ] || fail=1
+          # docs-guard: success, or skipped on a code change (the test job runs the docs tests then).
+          echo "docs-guard=$DOCS_GUARD"
+          if [ "$DOCS_GUARD" != success ]; then
+            if [ "$DOCS_GUARD" = skipped ] && [ "$CHANGES" = success ] && [ "$CODE" = true ]; then :; else fail=1; fi
+          fi
           exit "$fail"

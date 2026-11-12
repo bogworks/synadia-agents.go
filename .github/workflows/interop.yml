@@ -11,7 +11,7 @@
 # Same rules as go-sdk.yml: self-hosted runners with exactly [self-hosted, rh-linux]
 # (rh-gate for the pr-check aggregate), actions pinned by full commit SHA, a
 # pull request from a fork skips the job (no untrusted code on a self-hosted
-# runner), and test/ci/workflows_test.go enforces all of it. The job installs
+# runner), a docs-only pull request skips it (the changes job; pr-check still passes), and test/ci/workflows_test.go enforces all of it. The job installs
 # node 22 (setup.sh needs >= 20) and uv with their setup actions, pinned by SHA
 # with caching off; setup.sh installs from the committed locks in
 # test/interop/locks and fetches only what those locks name.
@@ -32,9 +32,53 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
+  # Decides whether the change needs the full run (see .github/scripts/changes.sh): code=false only for a docs-only pull
+  # request. The heavy jobs wait on it and skip when it says false; pr-check/interop-check still run and still decide.
+  # A plain git diff, no third-party action. Same fork guard as the other jobs: no fork code runs on a runner.
+  changes:
+    name: changes
+    if: github.event.pull_request.head.repo.full_name == github.repository || github.event_name != 'pull_request'
+    runs-on: [self-hosted, rh-gate]
+    timeout-minutes: 5
+    outputs:
+      code: ${{ steps.classify.outputs.code }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Classify the change
+        id: classify
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          HEAD_REF: ${{ github.event.pull_request.head.ref }}
+          PR_AUTHOR: ${{ github.event.pull_request.user.login }}
+          HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name }}
+          REPO: ${{ github.repository }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          # The answer is code=true unless the base revision's own classifier says docs-only. The classifier is read
+          # from the base, never run from the pull request checkout: a pull request must not be able to rewrite the
+          # script that decides whether it gets checked.
+          code=true
+          if [ "$EVENT_NAME" = pull_request ]; then
+            # --no-renames lists both sides of a rename, so a file moved out of a code path counts as code.
+            files="$(git -c core.quotepath=off diff --no-renames --name-only "$BASE_SHA...$HEAD_SHA")"
+            if grep -q '^\.github/' <<<"$files"; then
+              : # the CI itself changed (workflows, scripts, templates): always a full run
+            elif git show "$BASE_SHA:.github/scripts/changes.sh" >"$RUNNER_TEMP/changes.sh" 2>/dev/null; then
+              answer="$(bash "$RUNNER_TEMP/changes.sh" <<<"$files" || true)"
+              [ "$answer" != code=false ] || code=false
+            fi # no classifier on the base (this is the pull request that adds it): code=true
+          fi
+          echo "code=$code" | tee -a "$GITHUB_OUTPUT"
+
   interop:
     name: interop (official TypeScript and Python SDKs)
-    if: github.event.pull_request.head.repo.full_name == github.repository || github.event_name != 'pull_request'
+    needs: changes
+    if: needs.changes.outputs.code == 'true' && (github.event.pull_request.head.repo.full_name == github.repository || github.event_name != 'pull_request')
     runs-on: [self-hosted, rh-linux]
     timeout-minutes: 30
     steps:
@@ -62,19 +106,25 @@ jobs:
         run: go test -count=1 ./interop/...
 
   # Aggregate for the merge queue, as in go-sdk.yml. It runs even when interop
-  # fails or is skipped (always()), checks out nothing, and fails unless interop
-  # succeeded, so a fork pull request (job skipped) is held for a person.
+  # fails or is skipped (always()), checks out nothing, and passes only if interop
+  # succeeded, or was skipped because the changes job succeeded and said code=false (a
+  # docs-only change). Any other skip (a fork pull request, a failed changes job) fails,
+  # so a fork is held for a person.
   pr-check:
     name: interop-check
-    needs: [interop]
+    needs: [changes, interop]
     if: always()
     timeout-minutes: 5
     runs-on: [self-hosted, rh-gate]
     steps:
-      - name: Interop succeeded
+      - name: Interop did what it had to
         env:
+          CHANGES: ${{ needs.changes.result }}
+          CODE: ${{ needs.changes.outputs.code }}
           INTEROP: ${{ needs.interop.result }}
         run: |
           set -u
-          echo "interop=$INTEROP"
-          [ "$INTEROP" = success ]
+          echo "changes=$CHANGES code=$CODE interop=$INTEROP"
+          [ "$CHANGES" = success ] || exit 1
+          [ "$INTEROP" = success ] && exit 0
+          [ "$INTEROP" = skipped ] && [ "$CODE" = false ]

@@ -454,6 +454,8 @@ func TestPR(t *testing.T) {
 		{name: "ADR on the linter's own source", body: "Decision: ADR-0001", files: "internal/cmd/adrlint/main.go\ndocs/decisions/0001-use-one-way.md\n"},
 		{name: "none on a composite action", body: "Decision: none", files: ".github/actions/x/action.yml\n", want: "Decision: none"},
 		{name: "none on a composite action with the label", body: "Decision: none", files: ".github/actions/x/action.yml\n", labels: "decision-confirmed"},
+		{name: "none on a CI script", body: "Decision: none", files: ".github/scripts/x.sh\n", want: "Decision: none"},
+		{name: "none on a CI script with the label", body: "Decision: none", files: ".github/scripts/x.sh\n", labels: "decision-confirmed"},
 		{name: "ADR on a composite action", body: "Decision: ADR-0001", files: ".github/actions/x/action.yml\ndocs/decisions/0001-use-one-way.md\n"},
 		// git diff --no-renames lists the OLD path of a rename and a deleted path, so moving or deleting a protected file is a change to it.
 		{name: "none on a rename out of .mergify.yml (old path listed)", body: "Decision: none", files: ".mergify.yml\nelsewhere.yml\n", want: "Decision: none"},
