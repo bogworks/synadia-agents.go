@@ -33,6 +33,10 @@ import agents "github.com/bogworks/synadia-agents.go"
 
 The module path is provisional and changes if the SDK moves upstream.
 
+> **Security:** in v0.1.0 the defaults are open. A host serves any sender, and a client trusts any
+> discovery reply. Sender verification, admission and the agent trust policy are opt-in. See
+> [Secure configuration](docs/secure-configuration.md) before you run this outside a trusted network.
+
 ## Quick start
 
 A caller discovers an agent, prompts it and reads the reply as it streams:
@@ -134,6 +138,7 @@ More in [`examples/`](examples/): a caller, an echo host, a host that asks a que
 signed identity on both sides (SAP section 13) and the SDK's extension points. Every identifier is mapped to
 its SAP section in [`docs/protocol-mapping.md`](docs/protocol-mapping.md), and every feature of the official
 SDKs to its Go counterpart in [`docs/parity.md`](docs/parity.md).
+For the options that refuse unverified senders and agents, see [`docs/secure-configuration.md`](docs/secure-configuration.md).
 
 ## Conformance
 

@@ -97,4 +97,6 @@
 //
 // The host logs through the *slog.Logger of [WithLogger] and is silent
 // without one. It never logs payloads, seeds, signatures or nonces.
+//
+// See docs/secure-configuration.md for the options that restrict who may prompt.
 package host
