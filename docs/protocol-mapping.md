@@ -547,6 +547,7 @@ Registration as a micro service, prompt and status endpoints, the reply stream, 
 | `host.WithBusyPolicy` | func | SDK policy (§3.3, §5) | WithBusyPolicy sets what happens when every slot is taken; the default is [BusyQueue]. |
 | `host.Endpoint` | type | §3 (extension point) | Endpoint is an extra micro endpoint the host registers without interpreting it (the TypeS... |
 | `host.WithReplySubjectPolicy` | func | §2, §6 | WithReplySubjectPolicy sets the policy that vets the reply subject of every prompt and status request befor... |
+| `host.WithRawPromptHandler` | func | §5, §6 (extension point) | WithRawPromptHandler installs the raw prompt handler, a test-fixture hook. |
 | `host.Request` | type | §5 | Request is a prompt request as the handler sees it. |
 | `host.Request.ResolveSender` | method | §13.10 | ResolveSender maps a verified sender back to the agent instance that registered its agent ID, with the id_s... |
 | `host.RequestInfo` | type | §5 (extension point) | RequestInfo is what an [Interceptor] and the admission hook see of a request, after the envelope decode and... |
@@ -601,7 +602,7 @@ The optional sender identity extension: agent IDs, the `Agent-Sender` header, si
 | `identity.Admission` | type | §13.7 | Admission is the outcome of [Gate.AdmitPrompt]. |
 | `identity.Admission.OK` | method | §13.7 | OK reports whether the request is admitted. |
 | `identity.Gate.Classify` | method | §13.7 | Classify parses and verifies the sender of a live request and records its nonce (a verified request classif... |
-| `identity.Gate.AdmitPrompt` | method | §13.7 | AdmitPrompt runs the full admission of a prompt request, in this order: header parse (400), ts, sub, nonce... |
+| `identity.Gate.AdmitPrompt` | method | §13.7 | AdmitPrompt runs the full admission of a prompt request, in this order: header parse (400); ts, sub and the... |
 | `identity.StatusResult` | type | §13.7 | StatusResult is the outcome of [Gate.ClassifyStatus]. |
 | `identity.StatusResult.Answerable` | method | §13.9, §8.7 | Answerable reports whether the host answers the status request. |
 | `identity.Gate.ClassifyStatus` | method | §13.9 | ClassifyStatus classifies the sender of a status request so the agent knows who probed it, records a verifi... |

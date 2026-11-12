@@ -174,11 +174,11 @@ func TestHost_NilHandlerNeedsRawHandler(t *testing.T) {
 	if _, err := host.New(nc, subjectOf(t, testName), nil); err == nil {
 		t.Error("nil handler accepted")
 	}
-	if _, err := host.New(nc, subjectOf(t, testName), nil, hosttest.RawOption(nil).(host.Option)); err == nil {
+	if _, err := host.New(nc, subjectOf(t, testName), nil, host.WithRawPromptHandler(hosttest.Raw{})); err == nil {
 		t.Error("nil raw handler accepted")
 	}
 	if _, err := host.New(nc, subjectOf(t, testName), nil,
-		hosttest.RawOption(hosttest.RawHandler(func(context.Context, micro.Request, *identity.Sender) error { return nil })).(host.Option)); err != nil {
+		host.WithRawPromptHandler(hosttest.NewRaw(func(context.Context, micro.Request, *identity.Sender) error { return nil }))); err != nil {
 		t.Errorf("raw handler refused: %v", err)
 	}
 }

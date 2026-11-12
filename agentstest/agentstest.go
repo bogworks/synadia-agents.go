@@ -22,7 +22,6 @@ package agentstest
 
 import (
 	"context"
-	"errors"
 	"time"
 
 	agents "github.com/bogworks/synadia-agents.go"
@@ -98,12 +97,9 @@ func NewReferenceAgent(nc *nats.Conn, subject agents.AgentSubject, opts ...Refer
 	}
 	if c.raw != nil {
 		raw := c.raw
-		opt, ok := hosttest.RawOption(hosttest.RawHandler(func(_ context.Context, req micro.Request, s *identity.Sender) error {
+		opt := host.WithRawPromptHandler(hosttest.NewRaw(func(_ context.Context, req micro.Request, s *identity.Sender) error {
 			return raw(req, s)
-		})).(host.Option)
-		if !ok {
-			return nil, errors.New("agentstest: the host package has no raw handler hook")
-		}
+		}))
 		hopts = append(hopts, opt)
 	}
 	h, err := host.New(nc, subject, handler, append(hopts, c.host...)...)

@@ -23,8 +23,14 @@ import (
 // and a terminator.
 type RawHandler func(ctx context.Context, req micro.Request, sender *identity.Sender) error
 
-// RawOption is set by package host when it is initialized: it builds the
-// host.Option, returned as any, that installs a raw prompt handler. With it
-// the handler passed to host.New may be nil. A nil f makes the option fail
-// host.New.
-var RawOption = func(RawHandler) any { panic("hosttest: package host is not linked") }
+// Raw carries a [RawHandler] to host.WithRawPromptHandler. Only this package
+// can build one (with [NewRaw]) and it is internal, so no code outside this
+// module can call that option. The zero Raw holds no handler, and the option
+// fails host.New with it.
+type Raw struct{ h RawHandler }
+
+// NewRaw wraps h; a nil h gives the zero Raw.
+func NewRaw(h RawHandler) Raw { return Raw{h} }
+
+// Handler returns the wrapped handler, or nil.
+func (r Raw) Handler() RawHandler { return r.h }

@@ -1043,7 +1043,7 @@ func TestPrompt_NotPublishedAfterItsScopeClosed(t *testing.T) {
 			res = h.run(ctx, ToolPromptAgent, obj{"address": tg.subject, "prompt": "x", "wait": false})
 		}()
 		sc := <-paused
-		h.tl.closeScope(sc)
+		h.tl.closeScope(context.Background(), sc)
 		close(release)
 		<-done
 		return nil
