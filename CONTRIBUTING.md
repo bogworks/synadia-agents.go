@@ -60,7 +60,9 @@ it.
 
 - `go vet ./...` must be clean and `gofmt -l .` must print nothing. CI also runs `golangci-lint`
   (see `.golangci.yml`), `govulncheck`, a `go mod tidy` check and the conformance catalog check, on
-  the two latest Go releases.
+  the two latest Go releases. A documentation-only pull request (every file is `*.md`, under `docs/`,
+  or `LICENSE`, `CODE_OF_CONDUCT` or `.gitignore`) skips those jobs, which are work, not checks: `pr-check` and
+  `interop-check` still report and pass, and the tests that read documentation still run (docs-guard) (`.github/scripts/changes.sh`).
 
 ## Commits and pull requests
 
