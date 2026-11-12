@@ -4,7 +4,7 @@ In v0.1.0 none of these settings is on by default: you opt in to each one.
 
 This page lists the options that make a caller and a host refuse senders and agents they cannot verify. The defaults are open: a host serves any sender, and a client trusts any discovery reply.
 
-The examples are in `host/example_secure_test.go` and `caller/example_secure_test.go`. They need a NATS server, so they compile but do not run.
+The examples are in `host/example_secure_test.go` and `caller/example_secure_test.go`. They need a NATS server, so they compile but do not run in the root module. The `TestSecureExamples_*` tests in `test/examples` run the same code against an embedded server, and `TestSecureExamples_MatchRunners` fails if an example and the code run diverge.
 
 ## Caller: trust policy
 

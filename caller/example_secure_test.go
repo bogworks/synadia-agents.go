@@ -15,6 +15,8 @@ import (
 
 // A client that discovers only agents whose id_sig verifies and whose signer is
 // on a list. The example needs a NATS server, so it compiles but does not run.
+//
+//nolint:testableexamples // needs a NATS server; test/examples TestSecureExamples_WithTrustPolicy runs the same code and TestSecureExamples_MatchRunners fails if they diverge
 func ExampleWithTrustPolicy() {
 	var nc *nats.Conn
 	trusted := []identity.AgentID{"ACCOUNT.USER"} // real IDs: identity.ParseAgentID

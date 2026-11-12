@@ -18,6 +18,8 @@ import (
 
 // A host that serves verified senders only, and of those only the ones on an
 // allow list. The example needs a NATS server, so it compiles but does not run.
+//
+//nolint:testableexamples // needs a NATS server; test/examples TestSecureExamples_WithAdmission runs the same code and TestSecureExamples_MatchRunners fails if they diverge
 func ExampleWithAdmission() {
 	var nc *nats.Conn // a connection that authenticates with an NKEY or creds
 	subject, _ := agents.NewAgentSubject("secure", "example", "default")
@@ -45,6 +47,8 @@ func ExampleWithAdmission() {
 // An extra endpoint is outside the admission gate. Its handler verifies the
 // signature, records the nonce and checks the sender itself. The example needs
 // a NATS server, so it compiles but does not run.
+//
+//nolint:testableexamples // needs a NATS server; test/examples TestSecureExamples_WithEndpoint runs the same code and TestSecureExamples_MatchRunners fails if they diverge
 func ExampleWithEndpoint() {
 	nonces := identity.NewNonceSet(identity.NonceSetOptions{})
 	opts := identity.LiveOptions{Nonces: nonces}
