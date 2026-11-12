@@ -845,7 +845,8 @@ func (t *Tools) promptAgent(ctx context.Context, sc *scope, raw json.RawMessage,
 	sc.order = append(sc.order, c)
 	t.wg.Add(1)
 	t.mu.Unlock()
-	go t.read(sctx, c) //nolint:gosec // the reader outlives this tool call by design; it ends with its stream, or at Close
+	// The reader outlives this tool call by design; it ends with its stream, or at Close.
+	go t.read(sctx, c)
 
 	if !a.wait {
 		t.mu.Lock()
