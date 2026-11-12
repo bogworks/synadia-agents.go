@@ -49,6 +49,7 @@ type job struct {
 	Steps       []step `yaml:"steps"`
 	Uses        string `yaml:"uses"`
 	Permissions any    `yaml:"permissions"`
+	If          string `yaml:"if"`
 }
 
 type workflow struct {
@@ -324,4 +325,71 @@ func TestWorkflows_GuardSelfTest(t *testing.T) {
 			t.Fatal("workflow without pr-check accepted")
 		}
 	})
+}
+
+// adr-lint skips Mergify's merge-queue drafts, and only those: the job-level if needs the head ref prefix, the same-repo
+// head and the Mergify bot as author, all three. Any one alone would let a pull request opt out of the check.
+func TestADRLint_skipsOnlyMergifyQueueDrafts(t *testing.T) {
+	raw, err := os.ReadFile("../../.github/workflows/adr-lint.yml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var wf workflow
+	if err := yaml.Unmarshal(raw, &wf); err != nil {
+		t.Fatal(err)
+	}
+	cond := wf.Jobs["adr-lint"].If
+	if !strings.HasPrefix(cond, "${{ !(") || !strings.HasSuffix(cond, ") }}") {
+		t.Fatalf("the adr-lint if must be a negated group, got %q", cond)
+	}
+	for _, want := range []string{
+		"startsWith(github.event.pull_request.head.ref, 'mergify/merge-queue/')",
+		"github.event.pull_request.head.repo.full_name == github.repository",
+		"github.event.pull_request.user.login == 'mergify[bot]'",
+	} {
+		if !strings.Contains(cond, want) {
+			t.Errorf("the adr-lint if lacks %q: %s", want, cond)
+		}
+	}
+	if n := strings.Count(cond, "&&"); n != 2 || strings.Contains(cond, "||") {
+		t.Errorf("the three conditions must be joined by && only, got %q", cond)
+	}
+}
+
+// The ruleset requires "Mergify Merge Protections", so .mergify.yml must carry a merge_protections rule that holds a
+// merge outside the queue to the queue's review gates, scoped to main, with Mergify's own queue drafts exempt.
+func TestMergify_mergeProtectionsMirrorTheQueueGates(t *testing.T) {
+	raw, err := os.ReadFile("../../.mergify.yml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var cfg struct {
+		MergeProtections []struct {
+			Name              string `yaml:"name"`
+			If                []any  `yaml:"if"`
+			SuccessConditions []any  `yaml:"success_conditions"`
+		} `yaml:"merge_protections"`
+		Settings map[string]any `yaml:"merge_protections_settings"`
+	}
+	if err := yaml.Unmarshal(raw, &cfg); err != nil {
+		t.Fatal(err)
+	}
+	if cfg.Settings == nil {
+		t.Error("merge_protections_settings is gone")
+	}
+	if len(cfg.MergeProtections) != 1 {
+		t.Fatalf("want one merge_protections rule, got %d", len(cfg.MergeProtections))
+	}
+	r := cfg.MergeProtections[0]
+	ifs, succ := fmt.Sprint(r.If), fmt.Sprint(r.SuccessConditions)
+	for _, want := range []string{"base = main", "-head ~= ^mergify/merge-queue/"} {
+		if !strings.Contains(ifs, want) {
+			t.Errorf("the rule's if lacks %q: %s", want, ifs)
+		}
+	}
+	for _, want := range []string{"label != hold", "check-success = codex-review", "approved-reviews-by = randybias", "label = lead-approved"} {
+		if !strings.Contains(succ, want) {
+			t.Errorf("the rule's success_conditions lack %q: %s", want, succ)
+		}
+	}
 }

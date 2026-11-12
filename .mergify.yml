@@ -12,6 +12,26 @@ merge_protections_settings:
     - -draft
     - label != hold
 
+# The ruleset requires the "Mergify Merge Protections" check, so this rule is what stops a merge outside the queue (a
+# button or API merge by someone with bypass or write access) from skipping the review gates: a pull request to main
+# merges only if it meets the same review conditions the queue requires, namely the watcher's codex-review, the
+# maintainer's approval or the lead's `lead-approved` label, and no `hold`. The CI checks stay with the queue and the
+# ruleset's own required checks. Mergify's own merge-queue drafts (the mergify/merge-queue/ branches) are exempt: they
+# are Mergify's branches, not pull requests anyone reviews, and codex-review never runs on them; the pull request they
+# batch has already passed these gates to enter the queue.
+merge_protections:
+  - name: review gates outside the queue
+    description: A pull request to main merges, queue or not, only with codex-review, an approval (or lead-approved) and no hold.
+    if:
+      - base = main
+      - -head ~= ^mergify/merge-queue/
+    success_conditions:
+      - label != hold
+      - check-success = codex-review
+      - or:
+          - approved-reviews-by = randybias
+          - label = lead-approved
+
 queue_rules:
   - name: default
     # To enter the queue: CI green (pr-check), interop green (interop-check), label-reset and adr-lint (each runs on
