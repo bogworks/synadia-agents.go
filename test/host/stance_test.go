@@ -40,7 +40,7 @@ func TestStance_PromptEndpoint(t *testing.T) {
 	}
 	for i, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			name := "s" + string(rune('a'+i))
+			name := "s" + "abcdefghijklmnopqrstuvwxyz"[i:i+1]
 			h := newHostNamed(t, nc, name, sawSender, tc.opts...)
 			ep := endpointOf(t, info(t, nc, h.InstanceID()), "prompt")
 			if got := ep.Metadata["min_sender_trust"]; got != tc.advertise {
