@@ -86,6 +86,7 @@ jobs:
     needs: changes
     if: needs.changes.outputs.code == 'true' && (github.event.pull_request.head.repo.full_name == github.repository || github.event_name != 'pull_request')
     runs-on: [self-hosted, rh-linux]
+    timeout-minutes: 30
     env:
       # Run the Go that setup-go installed: the toolchain line in go.mod would
       # otherwise switch the 1.26.x leg to 1.27.4 and hide a break on 1.26.
@@ -113,6 +114,7 @@ jobs:
     needs: changes
     if: needs.changes.outputs.code == 'true' && (github.event.pull_request.head.repo.full_name == github.repository || github.event_name != 'pull_request')
     runs-on: [self-hosted, rh-linux]
+    timeout-minutes: 15
     env:
       # Run the Go that setup-go installed: the toolchain line in go.mod would
       # otherwise switch the 1.26.x leg to 1.27.4 and hide a break on 1.26.
@@ -148,6 +150,7 @@ jobs:
     needs: changes
     if: needs.changes.outputs.code == 'true' && (github.event.pull_request.head.repo.full_name == github.repository || github.event_name != 'pull_request')
     runs-on: [self-hosted, rh-linux]
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
@@ -171,6 +174,7 @@ jobs:
     needs: changes
     if: needs.changes.outputs.code == 'true' && (github.event.pull_request.head.repo.full_name == github.repository || github.event_name != 'pull_request')
     runs-on: [self-hosted, rh-linux]
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
@@ -194,6 +198,7 @@ jobs:
     needs: changes
     if: needs.changes.outputs.code == 'true' && (github.event.pull_request.head.repo.full_name == github.repository || github.event_name != 'pull_request')
     runs-on: [self-hosted, rh-linux]
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
@@ -217,6 +222,7 @@ jobs:
     name: independence check
     if: github.event.pull_request.head.repo.full_name == github.repository || github.event_name != 'pull_request'
     runs-on: [self-hosted, rh-linux]
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
@@ -277,6 +283,7 @@ jobs:
     needs: changes
     if: needs.changes.outputs.code == 'true' && (github.event.pull_request.head.repo.full_name == github.repository || github.event_name != 'pull_request')
     runs-on: [self-hosted, rh-linux]
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
@@ -289,6 +296,8 @@ jobs:
       # upstream docs repository carries no license that permits
       # redistribution, so the spec is fetched at the commit the catalog pins
       # and its sha256 (also pinned in the catalog) is verified before use.
+      # The file is kept on the host under its sha256, so a warm runner makes
+      # no request; a cached copy that fails the check is never used.
       - name: Fetch the pinned spec
         shell: bash
         run: |
@@ -297,10 +306,23 @@ jobs:
             pin() { sed -nE 's/^ *"'"$1"'": *"([^"]+)".*/\1/p' conformance/catalog.json | head -n1; }
             repo=$(pin repo); commit=$(pin commit); path=$(pin path); sha=$(pin sha256)
             [[ "$commit" =~ ^[0-9a-f]{40}$ && "$sha" =~ ^[0-9a-f]{64}$ && "$repo" == https://github.com/* ]]
-            mkdir -p conformance/testdata/spec
-            curl -fsSL --retry 3 -o conformance/testdata/spec/core-protocol.md \
-              "https://raw.githubusercontent.com/${repo#https://github.com/}/${commit}/${path}"
-            echo "${sha}  conformance/testdata/spec/core-protocol.md" | sha256sum -c -
+            cache="${XDG_CACHE_HOME:-$HOME/.cache}/synadia-agents/spec/${sha}"
+            cached="${cache}/core-protocol.md"
+            dest=conformance/testdata/spec/core-protocol.md
+            mkdir -p conformance/testdata/spec "$cache"
+            if [ -f "$cached" ] && echo "${sha}  ${cached}" | sha256sum -c - >/dev/null 2>&1; then
+              echo "pinned spec: cache hit ${cached}"
+            else
+              echo "pinned spec: cache miss or bad copy, fetching"
+              tmp=$(mktemp "${cache}/.fetch.XXXXXX")
+              trap 'rm -f "$tmp"' EXIT
+              curl -fsSL --retry 3 -o "$tmp" \
+                "https://raw.githubusercontent.com/${repo#https://github.com/}/${commit}/${path}"
+              echo "${sha}  ${tmp}" | sha256sum -c -
+              mv -f "$tmp" "$cached"
+            fi
+            cp -f "$cached" "$dest"
+            echo "${sha}  ${dest}" | sha256sum -c -
           else
             echo "no conformance package yet"
           fi
@@ -341,6 +363,7 @@ jobs:
     needs: changes
     if: needs.changes.outputs.code == 'false' && (github.event.pull_request.head.repo.full_name == github.repository || github.event_name != 'pull_request')
     runs-on: [self-hosted, rh-linux]
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
