@@ -10,10 +10,11 @@ SAP revision it implements and its conformance catalog result.
 
 ### Changed
 
-- API change before v0.1.0: `host.Host.Close` and `caller.Client.Close` take a `context.Context` and
-  return once the heartbeat and prompt workers (host) or the SDK's goroutines and subscriptions (client)
-  have exited, or at the context's deadline with the context error wrapped. `Close()` becomes
-  `Close(ctx)`. Without a deadline, the client's drain is still bounded by `caller.DefaultCloseTimeout`.
+- API change before v0.1.0: `host.Host`, `caller.Client` and `tools.Tools` each have `Close() error` (an `io.Closer`,
+  bounded by the package's `DefaultCloseTimeout`) plus `Shutdown(ctx) error` (the same stop with a deadline the caller
+  controls; it returns the context error wrapped when the deadline ends first, and a later `Close` or `Shutdown`
+  still waits for the real exit). `Host.Stop` is now `Host.Shutdown`; `Host.Close` stops at once, as
+  `net/http.Server.Close` does. `host.DefaultCloseTimeout` and `tools.DefaultCloseTimeout` are new.
 
 ## [0.1.0] - Unreleased
 

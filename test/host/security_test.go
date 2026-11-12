@@ -209,7 +209,7 @@ func TestLifecycle_StartStopRace(t *testing.T) {
 			if i%3 == 0 {
 				time.Sleep(time.Duration(i%7) * 100 * time.Microsecond)
 			}
-			if err := h.Stop(context.Background()); err != nil {
+			if err := h.Shutdown(context.Background()); err != nil {
 				t.Errorf("stop: %v", err)
 			}
 		}()
@@ -224,7 +224,7 @@ func TestLifecycle_StartStopRace(t *testing.T) {
 				t.Fatalf("iteration %d: %q answered after Stop returned: %v", i, s, err)
 			}
 		}
-		if err := h.Stop(context.Background()); err != nil {
+		if err := h.Shutdown(context.Background()); err != nil {
 			t.Fatal(err)
 		}
 		if err := h.Start(context.Background()); !errors.Is(err, host.ErrStarted) {
@@ -245,7 +245,7 @@ func TestLifecycle_StartFailureThenStop(t *testing.T) {
 	cancel()
 	_ = h.Start(ctx) // may fail on the canceled flush
 	for range 3 {
-		if err := h.Stop(context.Background()); err != nil {
+		if err := h.Shutdown(context.Background()); err != nil {
 			t.Fatal(err)
 		}
 	}

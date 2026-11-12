@@ -209,7 +209,7 @@ func TestClient_CloseDrainsAndLeaksNothing(t *testing.T) {
 	}()
 	time.Sleep(100 * time.Millisecond)
 
-	if err := c.Close(context.Background()); err != nil {
+	if err := c.Close(); err != nil {
 		t.Fatal(err)
 	}
 	select {
@@ -220,7 +220,7 @@ func TestClient_CloseDrainsAndLeaksNothing(t *testing.T) {
 	case <-time.After(5 * time.Second):
 		t.Fatal("Close did not end the stream in flight")
 	}
-	if err := c.Close(context.Background()); err != nil || !c.IsClosed() {
+	if err := c.Close(); err != nil || !c.IsClosed() {
 		t.Fatalf("second Close: %v", err)
 	}
 	select {
@@ -347,10 +347,10 @@ func TestTracker_StopDrainsAndRestarts(t *testing.T) {
 	_ = tr.Stop(ctxT(t))
 }
 
-// TestClient_CloseWithExpiredContextReturnsPromptly: Close with a context that
+// TestClient_ShutdownWithExpiredContextReturnsPromptly: Shutdown with a context that
 // is already done does not wait for the drain; the client is closed and its
 // reply subscription is gone all the same.
-func TestClient_CloseWithExpiredContextReturnsPromptly(t *testing.T) {
+func TestClient_ShutdownWithExpiredContextReturnsPromptly(t *testing.T) {
 	srv := startServer(t)
 	nc := connect(t, srv)
 	c := newClient(t, nc)
@@ -360,19 +360,19 @@ func TestClient_CloseWithExpiredContextReturnsPromptly(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 	done := make(chan error, 1)
-	go func() { done <- c.Close(ctx) }()
+	go func() { done <- c.Shutdown(ctx) }()
 	select {
 	case err := <-done:
 		if err != nil && !errors.Is(err, context.Canceled) {
-			t.Fatalf("Close with an expired context: %v", err)
+			t.Fatalf("Shutdown with an expired context: %v", err)
 		}
 	case <-time.After(2 * time.Second):
-		t.Fatal("Close with an expired context did not return promptly")
+		t.Fatal("Shutdown with an expired context did not return promptly")
 	}
 	if !c.IsClosed() {
 		t.Fatal("the client is not closed")
 	}
-	if err := c.Close(context.Background()); err != nil {
+	if err := c.Close(); err != nil {
 		t.Fatalf("a later Close: %v", err)
 	}
 }

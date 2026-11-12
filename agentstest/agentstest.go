@@ -113,7 +113,7 @@ func NewReferenceAgent(nc *nats.Conn, subject agents.AgentSubject, opts ...Refer
 func (r *ReferenceAgent) Start(ctx context.Context) error { return r.h.Start(ctx) }
 
 // Stop stops the agent without closing the connection.
-func (r *ReferenceAgent) Stop(ctx context.Context) error { return r.h.Stop(ctx) }
+func (r *ReferenceAgent) Stop(ctx context.Context) error { return r.h.Shutdown(ctx) }
 
 // InstanceID returns the service id, the heartbeat's instance_id; empty before
 // Start.

@@ -239,7 +239,7 @@ func TestInterceptors_HostStopReachesHandlerThroughOwnContext(t *testing.T) {
 		})))
 	p := fire(t, nc, h, "x")
 	g.waitStarted(t, 1)
-	if err := h.Close(context.Background()); err != nil {
+	if err := h.Close(); err != nil {
 		t.Fatal(err)
 	}
 	if se := collect(t, p.sub, 5*time.Second).errorFrame(); se == nil || se.Description != "service stopping" {

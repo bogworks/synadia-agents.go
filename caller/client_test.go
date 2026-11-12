@@ -24,7 +24,7 @@ func offlineClient(t *testing.T, opts ...Option) *Client {
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(func() { _ = c.Close(context.Background()) })
+	t.Cleanup(func() { _ = c.Close() })
 	return c
 }
 
@@ -168,7 +168,7 @@ func TestStream_ClientCloseWinsOverBufferedItems(t *testing.T) {
 	c := offlineClient(t)
 	s := streamOn(context.Background(), t, c, 8, 1<<20)
 	deliver(c, s, `{"type":"response","data":"buffered"}`, nil)
-	_ = c.Close(context.Background())
+	_ = c.Close()
 	got, err := drain(s)
 	if !errors.Is(err, ErrClosed) || len(got) != 0 {
 		t.Fatalf("%v %v", got, err)

@@ -55,8 +55,9 @@ const (
 	// (SDK policy). See [WithDiscoverMaxRecords].
 	DefaultDiscoverMaxRecords = 10000
 
-	// DefaultCloseTimeout bounds how long [Client.Close] waits for its
-	// subscriptions to drain when the context passed to it has no deadline.
+	// DefaultCloseTimeout bounds how long [Client.Close] waits for the client
+	// to shut down, and how long [Client.Shutdown] waits for its subscriptions
+	// to drain when the context passed to it has no deadline.
 	DefaultCloseTimeout = 5 * time.Second
 
 	// DefaultFlushTimeout bounds the flush that follows a subscription when the

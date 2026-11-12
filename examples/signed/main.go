@@ -123,7 +123,7 @@ func serve(ctx context.Context, nc *nats.Conn, signer identity.Signer, out io.Wr
 	<-ctx.Done()
 	stopCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	return h.Stop(stopCtx)
+	return h.Shutdown(stopCtx)
 }
 
 func ask(ctx context.Context, nc *nats.Conn, signer identity.Signer, out io.Writer) error {
@@ -131,7 +131,7 @@ func ask(ctx context.Context, nc *nats.Conn, signer identity.Signer, out io.Writ
 	if err != nil {
 		return err
 	}
-	defer func() { _ = c.Close(context.Background()) }()
+	defer func() { _ = c.Close() }()
 
 	target, err := c.Find(ctx, caller.Filter{Agent: "signed"})
 	if err != nil {

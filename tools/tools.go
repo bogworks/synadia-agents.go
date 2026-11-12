@@ -151,7 +151,7 @@ type Tools struct {
 	staging string
 	logger  *slog.Logger
 
-	base       context.Context
+	base       context.Context //nolint:containedctx // constructor-owned context for the helper's background work, canceled by Close and Shutdown (rule 20)
 	baseCancel context.CancelFunc
 	wg         sync.WaitGroup
 
@@ -490,11 +490,27 @@ func (t *Tools) RunInPromptScope(ctx context.Context, callerID string, fn func(c
 }
 
 // Close cancels every open call in every scope, waits for the calls' readers
-// to end, and removes the staging directory when the helper created it. It
-// does not close the caller client. It is idempotent. Calls are canceled at
-// once; the refusals of their open questions go out concurrently, and ctx
-// bounds the whole operation, refusals included.
-func (t *Tools) Close(ctx context.Context) error {
+// to end, and removes the staging directory when the helper created it, so a
+// Tools is an [io.Closer]. It waits until [DefaultCloseTimeout] and returns the
+// context error wrapped when that ends first. It does not close the caller
+// client. It is idempotent. For a deadline of your own, call [Tools.Shutdown].
+func (t *Tools) Close() error {
+	ctx, cancel := context.WithTimeout(context.Background(), DefaultCloseTimeout) //nolint:forbidigo // io.Closer has no context; the wait is bounded by DefaultCloseTimeout (rule 20)
+	defer cancel()
+	if err := t.Shutdown(ctx); err != nil {
+		return fmt.Errorf("tools: close: %w", err)
+	}
+	return nil
+}
+
+// Shutdown is [Tools.Close] with a deadline the caller controls, as
+// [net/http.Server.Shutdown] is to Close. It cancels every open call in every
+// scope, waits for the calls' readers to end, and removes the staging
+// directory when the helper created it. It does not close the caller client.
+// It is idempotent. Calls are canceled at once; the refusals of their open
+// questions go out concurrently, and ctx bounds the whole operation, refusals
+// included; when ctx ends first Shutdown returns ctx.Err().
+func (t *Tools) Shutdown(ctx context.Context) error {
 	t.mu.Lock()
 	if t.closed {
 		t.mu.Unlock()

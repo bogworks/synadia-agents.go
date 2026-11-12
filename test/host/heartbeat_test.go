@@ -175,7 +175,7 @@ func TestHeartbeat_AfterRegistration(t *testing.T) {
 	if err := h.Start(context.Background()); err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(func() { _ = h.Close(context.Background()) })
+	t.Cleanup(func() { _ = h.Close() })
 	m, err := sub.NextMsg(2 * time.Second)
 	if err != nil {
 		t.Fatal(err)
@@ -208,7 +208,7 @@ func TestHeartbeat_NoGoingAwaySignal(t *testing.T) {
 			break
 		}
 	}
-	if err := h.Stop(context.Background()); err != nil {
+	if err := h.Shutdown(context.Background()); err != nil {
 		t.Fatal(err)
 	}
 	if m, err := all.NextMsg(300 * time.Millisecond); err == nil {
@@ -226,7 +226,7 @@ func TestHeartbeat_StopsAtStop(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	if err := h.Stop(context.Background()); err != nil {
+	if err := h.Shutdown(context.Background()); err != nil {
 		t.Fatal(err)
 	}
 	for {

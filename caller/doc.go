@@ -6,7 +6,7 @@
 // heartbeats.
 //
 //	c, _ := caller.New(nc)                      // nc is a *nats.Conn
-//	defer c.Close(context.Background())
+//	defer c.Close()
 //	found, _ := c.Discover(ctx)                 // $SRV.INFO.agents (SAP §4.1)
 //	stream, _ := found[0].PromptText(ctx, "hello")
 //	defer stream.Close()

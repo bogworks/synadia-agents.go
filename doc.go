@@ -16,7 +16,7 @@
 // # Caller
 //
 //	c, _ := caller.New(nc)                          // nc is a *nats.Conn
-//	defer c.Close(context.Background())
+//	defer c.Close()
 //	agent, _ := c.Find(ctx, caller.Filter{Agent: "echo"}) // $SRV.INFO.agents (SAP §4)
 //	stream, _ := agent.PromptText(ctx, "hello")
 //	defer stream.Close()
@@ -33,7 +33,7 @@
 //	        return w.Send(ctx, "echo: "+req.Envelope.Prompt) // the host acks first, ends last
 //	    })
 //	_ = h.Start(ctx)
-//	defer h.Stop(ctx)
+//	defer h.Close()
 //
 // The two meet in this package's types: the caller sends an [Envelope] and
 // reads [Chunk] values; the host receives the [Envelope] ([DecodeEnvelope]),

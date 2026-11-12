@@ -23,7 +23,7 @@ func newClient(t *testing.T, nc *nats.Conn, opts ...caller.Option) *caller.Clien
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(func() { _ = c.Close(context.Background()) })
+	t.Cleanup(func() { _ = c.Close() })
 	return c
 }
 

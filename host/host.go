@@ -24,7 +24,7 @@ import (
 // and then the terminator: a [*RejectError] uses its code, an error wrapping
 // agents.ErrProtocol is 400, and any other error is 500 "handler error"; its
 // text never reaches the caller. ctx ends when the host stops. A handler that
-// ignores ctx can outlive [Host.Stop].
+// ignores ctx can outlive [Host.Shutdown].
 type PromptHandler func(ctx context.Context, req *Request, w *Responder) error
 
 const (
@@ -87,7 +87,7 @@ type Host struct {
 
 	promptMeta map[string]string
 
-	base   context.Context
+	base   context.Context //nolint:containedctx // constructor-owned context for the host's background work, canceled by Close and Shutdown (rule 20)
 	cancel context.CancelFunc
 
 	sem      chan struct{}
@@ -433,7 +433,7 @@ func (h *Host) start(ctx context.Context) error {
 	return nil
 }
 
-// Stop shuts the host down gracefully: it stops the heartbeat (a beat being
+// Shutdown shuts the host down gracefully, as [net/http.Server.Shutdown] does: it stops the heartbeat (a beat being
 // signed is abandoned), stops accepting prompts (a prompt that arrives
 // afterwards is answered 500 "service stopping" and the terminator, and a
 // status request is not answered), and waits until ctx is done for the handlers
@@ -442,13 +442,13 @@ func (h *Host) start(ctx context.Context) error {
 // stream still gets an error frame and the terminator.
 //
 // The host is complete when the heartbeat and prompt workers have exited and
-// the callbacks have finished; a Stop that returned ctx.Err() leaves that
-// shutdown running, and a later Stop or [Host.Close] waits for it. Once the host
+// the callbacks have finished; a Shutdown that returned ctx.Err() leaves that
+// shutdown running, and a later Shutdown or [Host.Close] waits for it. Once the host
 // is complete, a request that was still queued on a subscription is dropped
-// unanswered. Stop does not close the connection, publishes no going-away
+// unanswered. Shutdown does not close the connection, publishes no going-away
 // signal (SAP §8.6) and is idempotent. A handler that ignores its context
-// delays completion, not the return of a Stop whose ctx has ended.
-func (h *Host) Stop(ctx context.Context) error {
+// delays completion, not the return of a Shutdown whose ctx has ended.
+func (h *Host) Shutdown(ctx context.Context) error {
 	// Wait for a Start in progress; it holds the lifecycle lock through
 	// registration, and Stop must see everything it registered.
 	select {
@@ -520,20 +520,24 @@ func (h *Host) complete() {
 	h.closeDone()
 }
 
-// Close stops the host at once and then waits for it to be complete. It
-// cancels the handlers' contexts, stops the service and the heartbeat, and
-// waits until ctx is done for the heartbeat and prompt workers to exit and for
-// the callbacks to finish. Where [Host.Stop] drains the handlers in flight
-// first, Close does not.
+// Close stops the host at once and waits for it to be complete, as
+// [net/http.Server.Close] does, so a Host is an [io.Closer]. It cancels the
+// handlers' contexts, stops the service and the heartbeat, and waits for the
+// heartbeat and prompt workers to exit and for the callbacks to finish, until
+// [DefaultCloseTimeout]. Where [Host.Shutdown] lets the handlers in flight
+// finish first, Close does not.
 //
-// When ctx ends first, Close returns ctx.Err() wrapped (test it with
-// [errors.Is]); the workers have still been told to stop, and a later Close or
-// [Host.Stop] waits for the real completion. A handler that ignores its context
-// delays completion, not the return of a Close whose ctx has ended. Close is
-// idempotent and does not close the connection.
-func (h *Host) Close(ctx context.Context) error {
+// When the timeout ends first, Close returns the context error wrapped (test it
+// with [errors.Is]); the workers have still been told to stop, and a later Close
+// or [Host.Shutdown] waits for the real completion. A handler that ignores its
+// context delays completion, not the return of Close. Close is idempotent and
+// does not close the connection. For a deadline of your own, cancel nothing and
+// call [Host.Shutdown].
+func (h *Host) Close() error {
 	h.cancel()
-	if err := h.Stop(ctx); err != nil {
+	ctx, cancel := context.WithTimeout(context.Background(), DefaultCloseTimeout) //nolint:forbidigo // io.Closer has no context; the wait is bounded by DefaultCloseTimeout (rule 20)
+	defer cancel()
+	if err := h.Shutdown(ctx); err != nil {
 		return fmt.Errorf("host: close: %w", err)
 	}
 	return nil

@@ -68,7 +68,7 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	defer c.Close(ctx)
+	defer c.Close()
 
 	agent, err := c.Find(ctx, caller.Filter{Agent: "echo"}) // discovery, SAP section 4
 	if err != nil {
@@ -130,7 +130,7 @@ func main() {
 		log.Fatal(err)
 	}
 	<-ctx.Done()
-	_ = h.Stop(context.Background())
+	_ = h.Shutdown(context.Background())
 }
 ```
 
