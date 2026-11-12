@@ -29,12 +29,20 @@ const (
 var gateJobs = map[string]bool{"pr-check": true, "label-reset": true, "adr-lint": true}
 
 // noPrCheck is the allowlist of workflow files that have no pr-check job: each is a single-job gate whose job is
-// itself a required check (named in .mergify.yml). Every other workflow must have a pr-check that needs every job.
-var noPrCheck = map[string]bool{"label-reset.yml": true, "adr-lint.yml": true}
+// itself a required check (named in .mergify.yml), except release.yml, which runs on a tag push and gates no pull
+// request. Every other workflow must have a pr-check that needs every job.
+var noPrCheck = map[string]bool{"label-reset.yml": true, "adr-lint.yml": true, "release.yml": true}
 
 // jobWrites is the allowlist of job-level permission grants above read, as "file/job/permission". The top-level
-// permissions of every workflow stay read-only; label-reset edits labels and nothing else.
-var jobWrites = map[string]bool{"label-reset.yml/label-reset/pull-requests": true}
+// permissions of every workflow stay read-only; label-reset edits labels and the release workflow
+// creates a release and attests provenance; nothing else writes.
+var jobWrites = map[string]bool{
+	"label-reset.yml/label-reset/pull-requests": true,
+	// release.yml (ADR 0002): the release job creates the GitHub release; the attest job signs build provenance.
+	"release.yml/release/contents":    true,
+	"release.yml/attest/id-token":     true,
+	"release.yml/attest/attestations": true,
+}
 
 var shaPin = regexp.MustCompile(`@[0-9a-f]{40}$`)
 
@@ -316,6 +324,18 @@ func TestWorkflows_GuardSelfTest(t *testing.T) {
 		}
 		if v := checkWorkflow("label-reset.yml", strings.Replace(lr, "contents: read", "contents: write", 1)); len(v) == 0 {
 			t.Fatal("contents: write accepted")
+		}
+	})
+	t.Run("release.yml may write only in its release and attest jobs", func(t *testing.T) {
+		const rel = "permissions:\n  contents: read\njobs:\n  attest:\n    permissions:\n      id-token: write\n      attestations: write\n      contents: read\n    runs-on: [self-hosted, rh-linux]\n    steps:\n      - run: \"true\"\n  release:\n    permissions:\n      contents: write\n    runs-on: [self-hosted, rh-linux]\n    steps:\n      - run: \"true\"\n"
+		if v := checkWorkflow("release.yml", rel); len(v) != 0 {
+			t.Fatalf("release.yml rejected: %v", v)
+		}
+		if v := checkWorkflow("go-sdk.yml", rel); len(v) == 0 {
+			t.Fatal("release permissions accepted outside release.yml")
+		}
+		if v := checkWorkflow("release.yml", strings.Replace(rel, "  release:\n    permissions:\n      contents: write", "  release:\n    permissions:\n      id-token: write", 1)); len(v) == 0 {
+			t.Fatal("id-token: write accepted in the release job")
 		}
 	})
 	t.Run("no pr-check job", func(t *testing.T) {
