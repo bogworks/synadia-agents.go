@@ -16,15 +16,16 @@ This project follows the [CNCF Code of Conduct](CODE_OF_CONDUCT.md). By taking p
 
 ## The Developer Certificate of Origin
 
-Every commit must carry a `Signed-off-by` line that certifies the
-[Developer Certificate of Origin](https://developercertificate.org/):
+A sign-off is welcome but not required. If you want to certify the
+[Developer Certificate of Origin](https://developercertificate.org/) for a commit, add a
+`Signed-off-by` line:
 
 ```
 Signed-off-by: Your Name <you@example.com>
 ```
 
-Add it with `git commit -s`. A pull request with an unsigned commit will not be merged. To fix one,
-run `git commit --amend -s` for the last commit, or `git rebase --signoff` for several.
+Add it with `git commit -s`. No CI check requires it, and a pull request is not refused for lacking
+it.
 
 ## Rules for the code
 
