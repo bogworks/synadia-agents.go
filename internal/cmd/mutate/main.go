@@ -116,7 +116,7 @@ func run(root, only string, jobs int, timeout time.Duration) error {
 		}
 		faults = sel
 	}
-	if err := baseline(root, faults, timeout); err != nil {
+	if err := baseline(root, faults, jobs, timeout); err != nil {
 		return err
 	}
 	start := time.Now()
@@ -131,7 +131,7 @@ func run(root, only string, jobs int, timeout time.Duration) error {
 // baseline runs every linked test once on an unmutated copy. A test that
 // already fails there would "kill" every mutation it is linked to, so the run
 // stops instead.
-func baseline(root string, faults []fault, timeout time.Duration) error {
+func baseline(root string, faults []fault, jobs int, timeout time.Duration) error {
 	var all []target
 	for _, f := range faults {
 		for _, t := range f.targets {
@@ -148,13 +148,19 @@ func baseline(root string, faults []fault, timeout time.Duration) error {
 	if err := copyTree(root, tmp); err != nil {
 		return fmt.Errorf("copy: %w", err)
 	}
+	if err := warm(tmp, all); err != nil {
+		return err
+	}
 	fmt.Fprintf(os.Stderr, "baseline: running the linked tests of %d packages on the unmutated tree\n", len(all))
 	var wg sync.WaitGroup
 	errs := make([]error, len(all))
+	sem := make(chan struct{}, jobs)
 	for i, t := range all {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
+			sem <- struct{}{}
+			defer func() { <-sem }()
 			failed, hung, err := runTests(tmp, t, timeout)
 			switch {
 			case err != nil:
@@ -168,6 +174,42 @@ func baseline(root string, faults []fault, timeout time.Duration) error {
 	}
 	wg.Wait()
 	return errors.Join(errs...)
+}
+
+// warm fills the module and build caches before any test is timed: it
+// downloads the modules of every module a target lives in, then compiles each
+// target's test binary without running a test. On a runner with cold caches
+// the downloads and the first compile are slow, and they must not count
+// against a test's time limit.
+func warm(dir string, targets []target) error {
+	seen := map[string]bool{}
+	for _, t := range targets {
+		if seen[t.module+"\x00"+t.pkg] {
+			continue
+		}
+		seen[t.module+"\x00"+t.pkg] = true
+		mod := filepath.Join(dir, t.module)
+		if !seen[mod] {
+			seen[mod] = true
+			if out, err := exec.Command("go", "-C", mod, "mod", "download").CombinedOutput(); err != nil { //nolint:gosec // G204: fixed arguments
+				return fmt.Errorf("go mod download in %s: %w: %s", mod, err, tail(string(out)))
+			}
+		}
+		if out, err := exec.Command("go", "-C", mod, "test", "-count=1", "-run", "^$", t.pkg).CombinedOutput(); err != nil { //nolint:gosec // G204: names come from the repository's own catalog
+			return fmt.Errorf("%s: the test package does not build: %w: %s", filepath.Join(t.module, t.pkg), err, tail(string(out)))
+		}
+	}
+	return nil
+}
+
+// failure explains a go test run that failed without a failing test. A run the
+// harness itself cut off at its deadline is not a build error: it says so and
+// names the deadline, so a slow runner is not mistaken for a broken build.
+func failure(where string, ctxErr error, log, stderr string) error {
+	if errors.Is(ctxErr, context.DeadlineExceeded) {
+		return fmt.Errorf("%s: go test was stopped at the harness deadline, not a build error: %s %s", where, tail(log), tail(stderr))
+	}
+	return fmt.Errorf("%s: go test failed without a failing test (build error?): %s %s", where, tail(log), tail(stderr))
 }
 
 // findRoot walks up from the working directory to the directory holding
@@ -443,8 +485,7 @@ func runTests(dir string, t target, timeout time.Duration) (killed, hung []strin
 		}
 	}
 	if runErr != nil && len(killed) == 0 && len(hung) == 0 {
-		return nil, nil, fmt.Errorf("%s: go test failed without a failing test (build error?): %s %s",
-			where, tail(log.String()), tail(stderr.String()))
+		return nil, nil, failure(where, ctx.Err(), log.String(), stderr.String())
 	}
 	if runErr == nil && ran == 0 {
 		return nil, nil, fmt.Errorf("%s: no linked test ran (%s)", where, re)

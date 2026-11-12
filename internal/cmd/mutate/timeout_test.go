@@ -4,8 +4,10 @@
 package main
 
 import (
+	"context"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 )
@@ -57,5 +59,16 @@ func TestRunTests_RealTimeout(t *testing.T) {
 	failed, hung, err := runTests(dir, target{pkg: ".", tests: []string{"TestHang"}}, time.Second)
 	if err != nil || len(failed) != 0 || len(hung) != 1 {
 		t.Fatalf("failed=%v hung=%v err=%v, want one hung test", failed, hung, err)
+	}
+}
+
+func TestFailure_DeadlineIsNotABuildError(t *testing.T) {
+	err := failure("test/host", context.DeadlineExceeded, "", "go: downloading x v1")
+	if err == nil || !strings.Contains(err.Error(), "not a build error") {
+		t.Errorf("deadline: %v, want it named as the harness deadline", err)
+	}
+	err = failure("test/host", nil, "", "undefined: x")
+	if err == nil || !strings.Contains(err.Error(), "build error?") || !strings.Contains(err.Error(), "undefined: x") {
+		t.Errorf("real failure: %v, want a build error carrying the output", err)
 	}
 }
