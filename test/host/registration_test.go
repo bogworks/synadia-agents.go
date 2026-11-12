@@ -163,7 +163,7 @@ func TestRegistration_SessionAndExtraMetadata(t *testing.T) {
 	if err := h.Start(context.Background()); err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(func() { _ = h.Close() })
+	t.Cleanup(func() { _ = h.Close(context.Background()) })
 	md := info(t, nc, h.InstanceID()).Metadata
 	want := map[string]string{"agent": "claude-code", "owner": testOwner, "session": "s-42", "protocol_version": "0.3", "build": "abc"}
 	for k, v := range want {
@@ -306,7 +306,7 @@ func TestInstanceID_IsServiceID(t *testing.T) {
 	if err := h.Start(context.Background()); err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(func() { _ = h.Close() })
+	t.Cleanup(func() { _ = h.Close(context.Background()) })
 	if h.Service().Info().ID != h.InstanceID() {
 		t.Error("service id differs")
 	}

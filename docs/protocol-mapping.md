@@ -395,7 +395,7 @@ Discovery, prompting, the reply stream, queries, status, heartbeat tracking and 
 | `caller.DefaultStreamBufferBytes` | const | SDK policy (§5.1, §6.6) | DefaultStreamBufferBytes is the most unread bytes one stream holds. |
 | `caller.DefaultDiscoverBuffer` | const | SDK policy (§4.1, §4.2) | DefaultDiscoverBuffer is the most replies one discovery buffers. |
 | `caller.DefaultDiscoverMaxRecords` | const | SDK policy (§4.1, §4.2) | DefaultDiscoverMaxRecords is the most records one discovery keeps. |
-| `caller.DefaultCloseTimeout` | const | SDK policy (§5.1, §6.6) | DefaultCloseTimeout bounds how long [Client.Close] waits for its subscriptions to drain. |
+| `caller.DefaultCloseTimeout` | const | SDK policy (§5.1, §6.6) | DefaultCloseTimeout bounds how long [Client.Close] waits for its subscriptions to drain when the context pa... |
 | `caller.DefaultFlushTimeout` | const | SDK policy (§5.1, §6.6) | DefaultFlushTimeout bounds the flush that follows a subscription when the caller's context has no deadline. |
 | `caller.Option` | type | SDK policy | Option configures a [Client]. |
 | `caller.WithLogger` | func | SDK policy | WithLogger sets the logger. |
@@ -448,7 +448,7 @@ Discovery, prompting, the reply stream, queries, status, heartbeat tracking and 
 | `caller.HeartbeatTracker.Started` | method | §3.4, §8.1 | Started reports whether the tracker is subscribed. |
 | `caller.HeartbeatTracker.Dropped` | method | §3.4, §8.1 | Dropped counts heartbeats the tracker discarded: malformed, too large, failing verification, or refused for... |
 | `caller.HeartbeatTracker.Start` | method | §8.5 | Start subscribes to the heartbeat wildcard and flushes, so the server has the interest when Start returns:... |
-| `caller.HeartbeatTracker.Stop` | method | §3.4, §8.1 | Stop drains the subscription, so pending heartbeats are delivered, and waits for it to close or for ctx. |
+| `caller.HeartbeatTracker.Stop` | method | §3.4, §8.1 | Stop drains the subscription, so pending heartbeats are delivered, and waits for it to close or for ctx; wh... |
 | `caller.HeartbeatTracker.Liveness` | method | §8.2 | Liveness returns the tracker's view of one instance. |
 | `caller.HeartbeatTracker.Snapshot` | method | §3.4, §8.1 | Snapshot returns the view of every remembered instance, in no order. |
 | `caller.HeartbeatTracker.OnHeartbeat` | method | §3.4, §8.1 | OnHeartbeat registers fn for the heartbeats of one instance and returns the function that removes it. |
@@ -488,7 +488,7 @@ Registration as a micro service, prompt and status endpoints, the reply stream, 
 | `host.New` | func | §3 (SDK policy: lifecycle) | New validates the configuration and returns a host. |
 | `host.Host.Start` | method | §3, §8.2, §13.4 | Start registers the micro service, its prompt, status and extra endpoints, flushes, and publishes the first... |
 | `host.Host.Stop` | method | §8.6 | Stop shuts the host down gracefully: it stops the heartbeat (a beat being signed is abandoned), stops accep... |
-| `host.Host.Close` | method | §3, §5, §6, §8 | Close cancels the handlers' contexts, stops the host and waits until it is complete, so it blocks while a h... |
+| `host.Host.Close` | method | §3, §5, §6, §8 | Close stops the host at once and then waits for it to be complete. |
 | `host.Host.InstanceID` | method | §8.3 | InstanceID returns the micro service id, which is the heartbeat's instance_id (SAP §8.3). |
 | `host.Host.Subject` | method | §3, §5, §6, §8 | Subject returns the instance's subject. |
 | `host.Host.Identity` | method | §13.10 | Identity returns the agent ID the host registered (user_nkey and account), and false when it registered non... |

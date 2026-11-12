@@ -14,7 +14,7 @@
 //	    return w.Send(ctx, "hello")
 //	})
 //	_ = h.Start(ctx)
-//	defer h.Close()
+//	defer h.Close(context.Background())
 //
 // # What the host does for the handler
 //

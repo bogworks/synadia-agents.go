@@ -16,7 +16,7 @@
 // # Caller
 //
 //	c, _ := caller.New(nc)                          // nc is a *nats.Conn
-//	defer c.Close()
+//	defer c.Close(context.Background())
 //	agent, _ := c.Find(ctx, caller.Filter{Agent: "echo"}) // $SRV.INFO.agents (SAP §4)
 //	stream, _ := agent.PromptText(ctx, "hello")
 //	defer stream.Close()

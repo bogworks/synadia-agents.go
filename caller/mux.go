@@ -7,6 +7,7 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/base32"
+	"math"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -243,17 +244,30 @@ func (m *mux) beginDrain() <-chan struct{} {
 	return ch
 }
 
-// shutdown drains the subscription and waits for it to close, bounded by
-// [DefaultCloseTimeout].
-func (m *mux) shutdown() {
+// shutdown drains the subscription and waits for it to close, until ctx is done
+// and, when ctx has no deadline, until [DefaultCloseTimeout]. It returns
+// ctx.Err() when ctx ended the wait.
+func (m *mux) shutdown(ctx context.Context) error {
 	m.initMu.Lock()
 	sub := m.sub
 	m.sub = nil
 	m.initMu.Unlock()
 	if sub == nil {
-		return
+		return nil
 	}
-	waitClosed(context.Background(), sub, DefaultCloseTimeout)
+	if !waitClosed(ctx, sub, closeTimeout(ctx)) && ctx.Err() != nil {
+		return ctx.Err()
+	}
+	return nil
+}
+
+// closeTimeout is the bound on a subscription drain: [DefaultCloseTimeout]
+// when ctx has no deadline, and none beyond ctx's own when it has one.
+func closeTimeout(ctx context.Context) time.Duration {
+	if _, ok := ctx.Deadline(); ok {
+		return time.Duration(math.MaxInt64)
+	}
+	return DefaultCloseTimeout
 }
 
 // waitClosed drains sub and waits until it is no longer valid, until timeout,

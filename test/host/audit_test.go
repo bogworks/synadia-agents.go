@@ -86,7 +86,7 @@ func TestHeartbeat_BlockedSignerSkipsBeatAndCloseDoesNotHang(t *testing.T) {
 		t.Error("a timeout is also a signing failure")
 	}
 	done := make(chan error, 1)
-	go func() { done <- h.Close() }()
+	go func() { done <- h.Close(context.Background()) }()
 	select {
 	case err := <-done:
 		if err != nil {
@@ -118,7 +118,7 @@ func TestKeepalive_OnByDefault(t *testing.T) {
 	if err := h.Start(context.Background()); err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(func() { _ = h.Close() })
+	t.Cleanup(func() { _ = h.Close(context.Background()) })
 	if n := prompt(t, nc, h, "x").acks(); n < 4 {
 		t.Errorf("acks over a 400ms handler at a 50ms cadence: %d, want recurring acks", n)
 	}
@@ -227,7 +227,7 @@ func TestWithEndpoint_ClonesMetadata(t *testing.T) {
 	if err := h.Start(context.Background()); err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(func() { _ = h.Close() })
+	t.Cleanup(func() { _ = h.Close(context.Background()) })
 	got := endpointOf(t, info(t, nc, h.InstanceID()), "extra").Metadata
 	if len(got) != 1 || got["k"] != "v" {
 		t.Errorf("registered metadata %v", got)

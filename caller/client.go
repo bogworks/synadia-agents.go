@@ -42,6 +42,8 @@ type Client struct {
 	closed    atomic.Bool
 	draining  atomic.Bool
 	wg        sync.WaitGroup
+	waitOnce  sync.Once     // starts the goroutine that closes waitDone
+	waitDone  chan struct{} // closed when wg is zero after Close
 
 	malformed atomic.Uint64
 	rejected  atomic.Uint64
@@ -167,16 +169,43 @@ func (c *Client) checkOpen() error {
 
 // Close ends every stream still running with [ErrClosed], stops the heartbeat
 // tracker, drains the reply subscription and waits for the SDK's goroutines to
-// exit. It does not close the connection. Close is idempotent.
-func (c *Client) Close() error {
+// exit. It does not close the connection.
+//
+// Close waits until ctx is done. When ctx has no deadline the drain is bounded
+// by [DefaultCloseTimeout]; when it has one, the deadline alone bounds it. If
+// ctx ends first, Close returns ctx.Err() wrapped (test it with [errors.Is]);
+// the client is closed and the subscriptions are unsubscribed all the same, and
+// a later Close waits again for the goroutines still running. Close is
+// idempotent.
+func (c *Client) Close(ctx context.Context) error {
 	c.closeOnce.Do(func() {
 		c.closed.Store(true)
 		close(c.done)
 		c.mux.closeAll()
-		c.wg.Wait()
-		_ = c.tracker.Stop(context.Background())
-		c.mux.shutdown()
 	})
+	var first error
+	note := func(err error) {
+		if err != nil && first == nil {
+			first = err
+		}
+	}
+	c.waitOnce.Do(func() {
+		c.waitDone = make(chan struct{})
+		go func() {
+			c.wg.Wait()
+			close(c.waitDone)
+		}()
+	})
+	select {
+	case <-c.waitDone:
+	case <-ctx.Done():
+		note(ctx.Err())
+	}
+	note(c.tracker.Stop(ctx))
+	note(c.mux.shutdown(ctx))
+	if first != nil {
+		return fmt.Errorf("caller: close: %w", first)
+	}
 	return nil
 }
 
@@ -188,9 +217,9 @@ func (c *Client) Drain(ctx context.Context) error {
 	idle := c.mux.beginDrain()
 	select {
 	case <-idle:
-		return c.Close()
+		return c.Close(ctx)
 	case <-ctx.Done():
-		_ = c.Close()
+		_ = c.Close(ctx)
 		return ctx.Err()
 	case <-c.done:
 		return nil

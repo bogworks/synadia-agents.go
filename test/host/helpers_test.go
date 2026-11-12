@@ -89,7 +89,7 @@ func newHostNamed(t *testing.T, nc *nats.Conn, name string, handler host.PromptH
 	if err := h.Start(ctx); err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(func() { _ = h.Close() })
+	t.Cleanup(func() { _ = h.Close(context.Background()) })
 	return h
 }
 

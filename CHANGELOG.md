@@ -8,6 +8,13 @@ SAP revision it implements and its conformance catalog result.
 
 ## [Unreleased]
 
+### Changed
+
+- API change before v0.1.0: `host.Host.Close` and `caller.Client.Close` take a `context.Context` and
+  return once the heartbeat and prompt workers (host) or the SDK's goroutines and subscriptions (client)
+  have exited, or at the context's deadline with the context error wrapped. `Close()` becomes
+  `Close(ctx)`. Without a deadline, the client's drain is still bounded by `caller.DefaultCloseTimeout`.
+
 ## [0.1.0] - Unreleased
 
 The first release. SAP revision: 0.3 (spec commit `c48cea5f`). Conformance: every obligation in

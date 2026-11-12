@@ -159,7 +159,7 @@ func TestIdentity_SignerMustMatchConnection(t *testing.T) {
 		t.Fatal(err)
 	}
 	if err := h.Start(context.Background()); err == nil {
-		_ = h.Close()
+		_ = h.Close(context.Background())
 		t.Fatal("Start accepted a signer that is not the connection's user")
 	}
 	if h.InstanceID() != "" && h.Service() != nil && !h.Service().Stopped() {

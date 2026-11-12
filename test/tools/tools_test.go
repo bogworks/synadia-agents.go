@@ -72,7 +72,7 @@ func newEnv(t *testing.T) *env {
 	if err != nil {
 		t.Fatal(err)
 	}
-	e.closers = append(e.closers, func() { _ = e.client.Close() })
+	e.closers = append(e.closers, func() { _ = e.client.Close(context.Background()) })
 	t.Cleanup(e.finish)
 	return e
 }
@@ -583,7 +583,7 @@ func TestTools_ServedPromptScope(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	e.closers = append(e.closers, func() { _ = bossClient.Close() })
+	e.closers = append(e.closers, func() { _ = bossClient.Close(context.Background()) })
 	bossTools, err := tools.New(bossClient, tools.WithStagingDir(filepath.Join(t.TempDir(), "s")), tools.WithSelfAddress(addr("boss")))
 	if err != nil {
 		t.Fatal(err)
@@ -651,7 +651,7 @@ func TestTools_ToolCallIDReachesPromptInterceptors(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	e.closers = append(e.closers, func() { _ = c2.Close() })
+	e.closers = append(e.closers, func() { _ = c2.Close(context.Background()) })
 	tl, err := tools.New(c2, tools.WithStagingDir(filepath.Join(t.TempDir(), "s")))
 	if err != nil {
 		t.Fatal(err)
@@ -713,7 +713,7 @@ func TestTools_ThreeAgentCycleStopsAtTheMaxDepth(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		e.closers = append(e.closers, func() { _ = c.Close() })
+		e.closers = append(e.closers, func() { _ = c.Close(context.Background()) })
 		tl, err := tools.New(c, tools.WithStagingDir(filepath.Join(t.TempDir(), "s")), tools.WithSelfAddress(addr(name)))
 		if err != nil {
 			t.Fatal(err)

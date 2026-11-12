@@ -520,13 +520,23 @@ func (h *Host) complete() {
 	h.closeDone()
 }
 
-// Close cancels the handlers' contexts, stops the host and waits until it is
-// complete, so it blocks while a handler ignores its context. It is idempotent,
-// waits for a shutdown an earlier Stop left running, and does not close the
-// connection.
-func (h *Host) Close() error {
+// Close stops the host at once and then waits for it to be complete. It
+// cancels the handlers' contexts, stops the service and the heartbeat, and
+// waits until ctx is done for the heartbeat and prompt workers to exit and for
+// the callbacks to finish. Where [Host.Stop] drains the handlers in flight
+// first, Close does not.
+//
+// When ctx ends first, Close returns ctx.Err() wrapped (test it with
+// [errors.Is]); the workers have still been told to stop, and a later Close or
+// [Host.Stop] waits for the real completion. A handler that ignores its context
+// delays completion, not the return of a Close whose ctx has ended. Close is
+// idempotent and does not close the connection.
+func (h *Host) Close(ctx context.Context) error {
 	h.cancel()
-	return h.Stop(context.Background())
+	if err := h.Stop(ctx); err != nil {
+		return fmt.Errorf("host: close: %w", err)
+	}
+	return nil
 }
 
 // cbEnter registers a micro callback; it reports false, and the callback must

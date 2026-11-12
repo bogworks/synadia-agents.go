@@ -501,7 +501,7 @@ Lifecycle:
 func (c *Client) Connection() *nats.Conn
 func (c *Client) IsClosed() bool
 func (c *Client) Done() <-chan struct{} // closed on Close
-func (c *Client) Close() error          // see section 9
+func (c *Client) Close(ctx context.Context) error // see section 9
 func (c *Client) Drain(ctx context.Context) error
 ```
 
@@ -676,7 +676,7 @@ func New(nc *nats.Conn, subject agents.Subject, handler PromptHandler, opts ...O
 
 func (h *Host) Start(ctx context.Context) error // register, flush, publish the first heartbeat
 func (h *Host) Stop(ctx context.Context) error  // graceful; see section 9
-func (h *Host) Close() error                    // immediate
+func (h *Host) Close(ctx context.Context) error // stop at once, wait for exit until ctx; see section 9
 func (h *Host) InstanceID() string              // after Start
 func (h *Host) Subject() agents.Subject
 func (h *Host) Identity() (identity.AgentID, bool)
@@ -1164,12 +1164,12 @@ sapconform [-nats URL] [-context NAME] [-creds FILE] [-nkey FILE]
 | Call | Effect | Idempotent | Blocks until |
 |---|---|---|---|
 | `Stream.Close()` | Drops the reply registration (a dropped subscription is the SAP cancel, §6.7); buffered items discarded; the ranging loop ends; no wire message sent | yes | immediate |
-| `Client.Close()` | Marks closed; every in-flight stream ends with `agents.ErrClosed` (close wins over buffered items, as Python's); stops the tracker (drains its subscription); drains the reply-mux subscription; stops the identity watcher; waits for every SDK goroutine to exit. Does not close `nc` | yes | goroutines exited |
-| `Client.Drain(ctx)` | Refuses new prompts with `ErrClosed`; waits for in-flight streams to end on their own; then `Close()`. On `ctx` done it forces `Close()` and returns `ctx.Err()` | yes | streams ended or ctx done |
+| `Client.Close(ctx)` | Marks closed; every in-flight stream ends with `agents.ErrClosed` (close wins over buffered items, as Python's); stops the tracker (drains its subscription); drains the reply-mux subscription; stops the identity watcher; waits for every SDK goroutine to exit. Does not close `nc`. Bounded by `ctx`; without a deadline, the drain is bounded by `DefaultCloseTimeout`. On `ctx` done it returns `ctx.Err()` (wrapped), the subscriptions are unsubscribed anyway, and a later `Close` waits again | yes | goroutines exited or ctx done |
+| `Client.Drain(ctx)` | Refuses new prompts with `ErrClosed`; waits for in-flight streams to end on their own; then `Close(ctx)`. On `ctx` done it forces `Close(ctx)` and returns `ctx.Err()` | yes | streams ended or ctx done |
 | `HeartbeatTracker.Stop(ctx)` | Drains the subscription (pending beats are delivered), waits for it to close | yes | closed or ctx done |
 | `Host.Start(ctx)` | Registers, flushes, publishes the first heartbeat, starts the heartbeat goroutine | no (second call errors) | flushed |
 | `Host.Stop(ctx)` | Stops the heartbeat goroutine (a beat being signed is abandoned, a slow signer never holds teardown); stops accepting (micro drains endpoint subscriptions); waits for in-flight handlers until `ctx` is done, then cancels their contexts. A cancelled handler's stream still gets an error frame (500 "service stopping") and the terminator, so no caller waits out an inactivity timeout. Does not close `nc` | yes | handlers returned or ctx done |
-| `Host.Close()` | `Stop` with an already-cancelled context: cancel handlers, stop, wait for them to return | yes | handlers returned |
+| `Host.Close(ctx)` | Cancels the handlers' contexts, stops the service and heartbeat at once, then waits for the heartbeat and prompt workers to exit until `ctx` is done. On `ctx` done it returns `ctx.Err()` (wrapped); a later `Close` or `Stop` waits for the real completion | yes | workers exited or ctx done |
 | `Responder.Ask` | Subscribes with `AutoUnsubscribe(1)` and unsubscribes on every exit path | n/a | reply, timeout, or ctx |
 
 Every subscription the SDK creates is drained or unsubscribed on the corresponding close; leak checks (`goleak`-style,

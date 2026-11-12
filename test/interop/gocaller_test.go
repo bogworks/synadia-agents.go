@@ -66,7 +66,7 @@ func gcClient(t *testing.T, url, seedFile string, sign bool, opts ...caller.Opti
 	if err != nil {
 		t.Fatalf("caller.New: %v", err)
 	}
-	t.Cleanup(func() { _ = c.Close(); nc.Close(); b.Wipe() })
+	t.Cleanup(func() { _ = c.Close(context.Background()); nc.Close(); b.Wipe() })
 	return c
 }
 

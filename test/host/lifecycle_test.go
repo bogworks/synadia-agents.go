@@ -50,7 +50,7 @@ func TestStop_WaitsForInFlightPrompts(t *testing.T) {
 	if err := h.Stop(context.Background()); err != nil {
 		t.Errorf("second Stop: %v", err)
 	}
-	if err := h.Close(); err != nil {
+	if err := h.Close(context.Background()); err != nil {
 		t.Errorf("Close after Stop: %v", err)
 	}
 	if !h.Service().Stopped() {
@@ -96,7 +96,7 @@ func TestClose_CancelsAndWaits(t *testing.T) {
 	p := fire(t, nc, h, "x")
 	g.waitStarted(t, 1)
 	done := make(chan error, 1)
-	go func() { done <- h.Close() }()
+	go func() { done <- h.Close(context.Background()) }()
 	select {
 	case err := <-done:
 		if err != nil {
@@ -111,7 +111,7 @@ func TestClose_CancelsAndWaits(t *testing.T) {
 	if se := collect(t, p.sub, 5*time.Second).errorFrame(); se == nil || se.Code != 500 {
 		t.Errorf("stream: %+v", se)
 	}
-	if err := h.Close(); err != nil {
+	if err := h.Close(context.Background()); err != nil {
 		t.Errorf("second Close: %v", err)
 	}
 }
@@ -127,7 +127,7 @@ func TestStop_BeforeStartAndIdempotent(t *testing.T) {
 	if err := h.Stop(context.Background()); err != nil {
 		t.Fatal(err)
 	}
-	if err := h.Close(); err != nil {
+	if err := h.Close(context.Background()); err != nil {
 		t.Fatal(err)
 	}
 	if err := h.Start(context.Background()); !errors.Is(err, host.ErrStarted) {

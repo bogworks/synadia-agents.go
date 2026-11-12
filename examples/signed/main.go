@@ -131,7 +131,7 @@ func ask(ctx context.Context, nc *nats.Conn, signer identity.Signer, out io.Writ
 	if err != nil {
 		return err
 	}
-	defer c.Close()
+	defer func() { _ = c.Close(context.Background()) }()
 
 	target, err := c.Find(ctx, caller.Filter{Agent: "signed"})
 	if err != nil {

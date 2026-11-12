@@ -110,12 +110,12 @@ func run(ctx context.Context, nc *nats.Conn, out io.Writer) error {
 	if err != nil {
 		return err
 	}
-	defer withTenant.Close()
+	defer func() { _ = withTenant.Close(context.Background()) }()
 	plain, err := caller.New(nc)
 	if err != nil {
 		return err
 	}
-	defer plain.Close()
+	defer func() { _ = plain.Close(context.Background()) }()
 
 	found, err := withTenant.Discover(ctx, caller.WithFilter(caller.Filter{Agent: "ext"}))
 	if err != nil {

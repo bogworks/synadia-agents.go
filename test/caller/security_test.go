@@ -355,7 +355,7 @@ func TestClose_RacesStartTracking(t *testing.T) {
 		go func() {
 			defer wg.Done()
 			time.Sleep(time.Duration(i%40) * 10 * time.Microsecond)
-			_ = c.Close()
+			_ = c.Close(context.Background())
 		}()
 		wg.Wait()
 		if c.Tracker().Started() {

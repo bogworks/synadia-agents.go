@@ -175,7 +175,7 @@ func TestHeartbeat_AfterRegistration(t *testing.T) {
 	if err := h.Start(context.Background()); err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(func() { _ = h.Close() })
+	t.Cleanup(func() { _ = h.Close(context.Background()) })
 	m, err := sub.NextMsg(2 * time.Second)
 	if err != nil {
 		t.Fatal(err)
