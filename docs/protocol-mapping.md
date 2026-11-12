@@ -705,18 +705,18 @@ The optional sender identity extension: agent IDs, the `Agent-Sender` header, si
 | `identity.SignerFromCreds` | func | §13.4 | SignerFromCreds builds a [JWTSigner] from the text of a NATS credentials file: the user JWT and the user seed. |
 | `identity.SignerFromSeedAndJWT` | func | §13.6 | SignerFromSeedAndJWT is [SignerFromSeed] with a user JWT, for a program that holds the seed and the JWT apart. |
 | `identity.IdentityFromJWT` | func | §13.4 | IdentityFromJWT returns the agent ID a user JWT carries: sub is the user public NKEY, and the account is na... |
-| `identity.Profile` | type | §13 | Profile is a named bundle of the four identity checks of a [Stance]. |
-| `identity.ProfileDefault` | const | SDK policy (no SAP section) | ProfileDefault means the program chose no profile; the SDK applies [DefaultProfile]. |
-| `identity.Relaxed` | const | SDK policy (no SAP section) | Relaxed turns the four checks off: the behavior of v0.1.0, where every identity check is opt-in. |
-| `identity.Strict` | const | SDK policy (no SAP section) | Strict turns the four checks on: a prompt endpoint requires a signed sender, discovery is verified, heartbe... |
-| `identity.Profile.String` | method | §13 | String returns "default", "relaxed" or "strict". |
-| `identity.Setting` | type | SDK policy (no SAP section) | Setting overrides one check of a [Profile]. |
-| `identity.Inherit` | const | SDK policy (no SAP section) | Inherit takes the check from the profile. |
-| `identity.On` | const | SDK policy (no SAP section) | On turns the check on whatever the profile says. |
-| `identity.Off` | const | SDK policy (no SAP section) | Off turns the check off whatever the profile says. |
-| `identity.Setting.String` | method | SDK policy (no SAP section) | String returns "inherit", "on" or "off". |
-| `identity.DefaultProfile` | const | SDK policy (no SAP section) | DefaultProfile is the profile that applies when the program chooses none. |
-| `identity.Stance` | type | §13 | Stance is the security stance of a program: a [Profile] and, for each check, an optional override. |
+| `identity.Setting` | type | SDK policy (no SAP section) | Setting is the value of one check of a [Stance]. |
+| `identity.Unset` | const | SDK policy (no SAP section) | Unset means the program did not choose: the SDK default of the check applies (see [DefaultSignedSenders] an... |
+| `identity.On` | const | SDK policy (no SAP section) | On turns the check on. |
+| `identity.Off` | const | SDK policy (no SAP section) | Off turns the check off. |
+| `identity.Setting.String` | method | SDK policy (no SAP section) | String returns "unset", "on" or "off". |
+| `identity.DefaultSignedSenders` | const | SDK policy (no SAP section) | DefaultSignedSenders is the default of [Stance.SignedSenders]: off, so a host serves unsigned senders. |
+| `identity.DefaultVerifiedDiscovery` | const | SDK policy (no SAP section) | DefaultVerifiedDiscovery is the default of [Stance.VerifiedDiscovery]: off, so a client trusts discovery re... |
+| `identity.DefaultHeartbeatVerification` | const | SDK policy (no SAP section) | DefaultHeartbeatVerification is the default of [Stance.HeartbeatVerification]: off, so a tracker verifies n... |
+| `identity.DefaultSigning` | const | SDK policy (no SAP section) | DefaultSigning is the default of [Stance.Signing]: off, so the program does not sign. |
+| `identity.DefaultRequireSigner` | const | SDK policy (no SAP section) | DefaultRequireSigner is the default of [Stance.RequireSigner]: on, so host.New and caller.New fail when sig... |
+| `identity.Stance` | type | §13 | Stance is the security stance of a program: one [Setting] per check. |
+| `identity.Stance.Resolved` | method | §13 | Resolved returns s with every Unset check replaced by its default, so a program can print the settings that... |
 | `identity.MetadataKeyMinSenderTrust` | const | §13.9 | MetadataKeyMinSenderTrust is the key of the prompt endpoint metadata that declares what the endpoint requir... |
 | `identity.MetadataKeyUserNKey` | const | §13.10 | Registration metadata keys of the agent ID, next to agent, owner and protocol_version. |
 | `identity.MetadataKeyAccount` | const | §13.10 | Registration metadata keys of the agent ID, next to agent, owner and protocol_version. |
