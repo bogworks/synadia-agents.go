@@ -1,0 +1,70 @@
+# Secure configuration
+
+This page lists the options that make a caller and a host refuse senders and agents they cannot verify. The defaults are open: a host serves any sender, and a client trusts any discovery reply.
+
+The examples are in `host/example_secure_test.go` and `caller/example_secure_test.go`. They need a NATS server, so they compile but do not run.
+
+## Caller: trust policy
+
+By default a client does not verify the agents it discovers. `caller.WithTrustPolicy` makes verified discovery the default:
+
+```go
+c, err := caller.New(nc, caller.WithTrustPolicy(caller.TrustPolicy{
+	Agents: trusted, // []identity.AgentID
+	Accept: func(id identity.AgentID, info agents.AgentInfo) bool {
+		return info.Owner == "example"
+	},
+}))
+```
+
+`Client.Discover`, `Client.Find`, `Client.ListAgents` and `Client.LookupInstance` then return only records whose `id_sig` verifies over the record's own prompt subject and whose signer passes the policy. `Agents` is an allow list of signers. `Accept`, when set, must also return true and must not block. A policy with neither field is a configuration error. Dropped records are counted in `Stats.RejectedRecords`. `Agent.Prompt` and `Agent.Status` return `caller.ErrUntrustedAgent` for an agent discovery did not admit.
+
+The policy checks who registered the agent. A valid `id_sig` identifies the registrant. It does not prove that the discovery reply came from them, and it says nothing about what the agent does.
+
+## Host: sender trust and admission
+
+`host.WithMinSenderTrust(identity.TrustSigned)` makes the prompt endpoint serve only requests with a valid signature. Unsigned and claimed senders are refused with 401. The default is `identity.TrustAny`. A host also needs `host.WithIdentity` to register its own identity.
+
+A verified sender is not an authorized sender. `host.WithAdmission` takes an `AcceptSenderFunc` that decides which senders may prompt:
+
+```go
+host.WithAdmission(func(ctx context.Context, s *identity.Sender, _ *host.RequestInfo) (bool, error) {
+	return s != nil && s.Trust == identity.TrustVerified && slices.Contains(allowed, s.ID), nil
+})
+```
+
+The hook runs for every classified prompt request and never for status. Returning false is answered 403 for a verified sender and 401 for a claimed or absent one. Returning an error is answered 500 and the request is not served. `s` is nil for an absent sender. A claimed sender has no `ID`, so never grant on one. See `ExampleWithAdmission`.
+
+## Extra endpoints are outside the gate
+
+An endpoint added with `host.WithEndpoint` does not pass through `WithMinSenderTrust`, `WithAdmission` or the replay set. Its `Handler` receives the raw request. It must do its own signature verification, replay protection and sender checks.
+
+`identity.VerifyLive` classifies a request and verifies its `Agent-Sender` header. It requires an `identity.NonceSet` in `identity.LiveOptions.Nonces`, records the nonce atomically after the signature verifies, and refuses a replay with 401. `identity.TrustOf` returns the trust class. To map a verified sender back to a registered agent, use `identity.NewSenderResolver` with `identity.ConnLister`. `identity.NewGate` and `Gate.AdmitPrompt` apply the same order of checks as the host, including a minimum trust and an admission function, if a handler needs them.
+
+```go
+sender, err := identity.VerifyLive(identity.Message{
+	Subject: req.Subject(), Data: req.Data(), Header: nats.Header(req.Headers()),
+}, identity.LiveOptions{Nonces: nonces})
+if err != nil || identity.TrustOf(sender) != identity.TrustVerified {
+	_ = req.Error("401", "signature required", nil)
+	return
+}
+if !slices.Contains(allowed, sender.ID) {
+	_ = req.Error("403", "sender refused", nil)
+	return
+}
+```
+
+Create one `NonceSet` with `identity.NewNonceSet` and share it among the handlers. See `ExampleWithEndpoint`.
+
+## Operator attestation
+
+`host.WithOperatorAttested(true)` asserts that every request reaching the host crossed a service import. The server's stamp (an inserted account token, or `Nats-Request-Info`) is then taken as the server's, not a peer's. The host cross-checks it against the signed header, refuses a mismatch with 401, and sets `Sender.AccountAttested` on agreement. It is off by default.
+
+The SDK cannot verify the claim. If a request can reach the host without crossing an import, a peer can forge the stamp. The operator is responsible for the NATS account setup the claim describes. Endpoints that call `identity.VerifyLive` set `LiveOptions.OperatorAttested` under the same condition.
+
+## Related settings
+
+- `connect.WithInsecureKeyFilePermissions` is off by default. On Unix, a creds, seed or TLS key file that group or others can access is refused. Use the option only where the file system cannot hold modes.
+- `tools.WithAttachmentRoots` names the directories files may be sent from. By default there are none, so only returned files can be sent.
+- `host.WithReplySubjectPolicy` vets the reply subject of each prompt and status request. The default refuses `$` subjects, wildcards and protocol subjects, and drops the request unanswered. A caller chooses where the host replies, so limit the host's NATS publish permissions to the inboxes it must answer.

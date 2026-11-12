@@ -134,6 +134,7 @@ More in [`examples/`](examples/): a caller, an echo host, a host that asks a que
 signed identity on both sides (SAP section 13) and the SDK's extension points. Every identifier is mapped to
 its SAP section in [`docs/protocol-mapping.md`](docs/protocol-mapping.md), and every feature of the official
 SDKs to its Go counterpart in [`docs/parity.md`](docs/parity.md).
+For the options that refuse unverified senders and agents, see [`docs/secure-configuration.md`](docs/secure-configuration.md).
 
 ## Conformance
 
