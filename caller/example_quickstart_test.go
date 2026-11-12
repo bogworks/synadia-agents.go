@@ -19,7 +19,7 @@ import (
 // the reply as it streams. It needs a NATS server at nats.DefaultURL, so it
 // compiles but does not run under go test; the same code runs against an
 // embedded server in the test module (test/examples).
-func Example_quickStart() {
+func Example_quickStart() { //nolint:testableexamples // needs a NATS server; test/examples TestQuickstart runs the same code and TestQuickstart_ReadmeMatchesExample fails if they diverge
 	nc, err := nats.Connect(nats.DefaultURL)
 	if err != nil {
 		log.Fatal(err)

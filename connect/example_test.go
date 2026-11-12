@@ -17,7 +17,7 @@ func ExampleReadContext() {
 	if err != nil {
 		panic(err)
 	}
-	defer os.RemoveAll(dir)
+	defer func() { _ = os.RemoveAll(dir) }()
 	if err := os.Mkdir(filepath.Join(dir, "context"), 0o700); err != nil {
 		panic(err)
 	}
