@@ -16,6 +16,10 @@
 // Usage, from the repository root:
 //
 //	go run ./internal/cmd/mutate [-only id,id] [-j N] [-timeout 2m]
+//	go run ./internal/cmd/mutate -check
+//
+// -check only verifies that every patch applies to the current tree, without
+// running any test; it exits non-zero naming each patch that does not.
 //
 // A full run is a release step (see RELEASING.md and conformance/README.md).
 package main
@@ -73,7 +77,12 @@ func main() {
 	only := flag.String("only", "", "comma-separated fault ids to run (default: all)")
 	jobs := flag.Int("j", max(1, runtime.NumCPU()/2), "mutations run in parallel")
 	timeout := flag.Duration("timeout", 2*time.Minute, "go test -timeout for each package")
+	check := flag.Bool("check", false, "only verify that every patch applies cleanly; run no tests")
 	flag.Parse()
+	run := run
+	if *check {
+		run = func(root, only string, _ int, _ time.Duration) error { return checkPatches(root, only) }
+	}
 	if err := run(*root, *only, *jobs, *timeout); err != nil {
 		fmt.Fprintln(os.Stderr, "mutate:", err)
 		os.Exit(1)
@@ -99,22 +108,8 @@ func run(root, only string, jobs int, timeout time.Duration) error {
 	if err != nil {
 		return err
 	}
-	if only != "" {
-		want := map[string]bool{}
-		for _, id := range strings.Split(only, ",") {
-			want[strings.TrimSpace(id)] = true
-		}
-		var sel []fault
-		for _, f := range faults {
-			if want[f.id] {
-				sel = append(sel, f)
-				delete(want, f.id)
-			}
-		}
-		for id := range want {
-			return fmt.Errorf("-only: no fault %q in the catalog", id)
-		}
-		faults = sel
+	if faults, err = selectFaults(faults, only); err != nil {
+		return err
 	}
 	if err := baseline(root, faults, jobs, timeout); err != nil {
 		return err
@@ -124,6 +119,94 @@ func run(root, only string, jobs int, timeout time.Duration) error {
 	c := report(results, time.Since(start))
 	if bad := c.bad(); bad > 0 {
 		return fmt.Errorf("%d of %d mutations were not killed (%d timeout, %d survived or errored)", bad, len(results), c.timeout, c.failed)
+	}
+	return nil
+}
+
+// selectFaults keeps the faults named in only (comma-separated); all when only
+// is empty.
+func selectFaults(faults []fault, only string) ([]fault, error) {
+	if only == "" {
+		return faults, nil
+	}
+	want := map[string]bool{}
+	for _, id := range strings.Split(only, ",") {
+		want[strings.TrimSpace(id)] = true
+	}
+	var sel []fault
+	for _, f := range faults {
+		if want[f.id] {
+			sel = append(sel, f)
+			delete(want, f.id)
+		}
+	}
+	for id := range want {
+		return nil, fmt.Errorf("-only: no fault %q in the catalog", id)
+	}
+	return sel, nil
+}
+
+// checkPatches verifies that every fault's patch applies to the tree at root,
+// without running any test. It returns an error naming each patch that does
+// not.
+func checkPatches(root, only string) error {
+	if root == "" {
+		var err error
+		if root, err = findRoot(); err != nil {
+			return err
+		}
+	}
+	cat, err := conformance.Load(filepath.Join(root, "conformance", "catalog.json"))
+	if err != nil {
+		return err
+	}
+	tests, err := conformance.ScanTests(root)
+	if err != nil {
+		return err
+	}
+	faults, err := Faults(cat, tests)
+	if err != nil {
+		return err
+	}
+	if faults, err = selectFaults(faults, only); err != nil {
+		return err
+	}
+	tmp, err := os.MkdirTemp("", "mutate-check-")
+	if err != nil {
+		return err
+	}
+	defer os.RemoveAll(tmp)
+	if err := copyTree(root, tmp); err != nil {
+		return fmt.Errorf("copy: %w", err)
+	}
+	var errs []error
+	for _, f := range faults {
+		if err := applyPatch(tmp, root, f.id, true); err != nil {
+			errs = append(errs, fmt.Errorf("%s: %w", f.id, err))
+		}
+	}
+	if err := errors.Join(errs...); err != nil {
+		return fmt.Errorf("%d of %d patches do not apply:\n%w", len(errs), len(faults), err)
+	}
+	fmt.Fprintf(os.Stderr, "mutate: all %d patches apply\n", len(faults))
+	return nil
+}
+
+// applyPatch applies (or, with checkOnly, only checks) the patch of fault id
+// from the repository at root to the copy in dir.
+func applyPatch(dir, root, id string, checkOnly bool) error {
+	patch := filepath.Join(root, "conformance", "mutations", id+".patch")
+	if _, err := os.Stat(patch); err != nil {
+		return fmt.Errorf("no patch: %w", err)
+	}
+	args := []string{"apply", "--whitespace=nowarn"}
+	if checkOnly {
+		args = append(args, "--check")
+	}
+	cmd := exec.Command("git", append(args, patch)...) //nolint:gosec // G204: the patch path is a file of the repository being tested
+	cmd.Dir = dir
+	if out, err := cmd.CombinedOutput(); err != nil {
+		return fmt.Errorf("patch does not apply: %w: %s", err, strings.TrimSpace(string(out)))
 	}
 	return nil
 }
@@ -376,10 +459,6 @@ func report(results []result, total time.Duration) counts {
 
 // mutate copies the tree, applies the patch and runs the linked tests.
 func mutate(root string, f fault, timeout time.Duration) (killed, hung []string, err error) {
-	patch := filepath.Join(root, "conformance", "mutations", f.id+".patch")
-	if _, err := os.Stat(patch); err != nil {
-		return nil, nil, fmt.Errorf("no patch: %w", err)
-	}
 	tmp, err := os.MkdirTemp("", "mutate-"+f.id+"-")
 	if err != nil {
 		return nil, nil, err
@@ -388,10 +467,8 @@ func mutate(root string, f fault, timeout time.Duration) (killed, hung []string,
 	if err := copyTree(root, tmp); err != nil {
 		return nil, nil, fmt.Errorf("copy: %w", err)
 	}
-	cmd := exec.Command("git", "apply", "--whitespace=nowarn", patch) //nolint:gosec // G204: the patch path is a file of the repository being tested
-	cmd.Dir = tmp
-	if out, err := cmd.CombinedOutput(); err != nil {
-		return nil, nil, fmt.Errorf("patch does not apply: %w: %s", err, strings.TrimSpace(string(out)))
+	if err := applyPatch(tmp, root, f.id, false); err != nil {
+		return nil, nil, err
 	}
 	return runTargets(tmp, f, timeout, runTests)
 }

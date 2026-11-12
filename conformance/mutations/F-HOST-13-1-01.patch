@@ -1,7 +1,7 @@
 --- a/identity/gate.go
 +++ b/identity/gate.go
 @@ -207,7 +207,7 @@
- 		return g.refuse(msg, err.(*Error)) //nolint:errcheck // invariant: sender verification returns only *Error
+ 		return g.refuse(msg, toError(err))
  	}
  
 -	if g.min == TrustSigned && TrustOf(sender) != TrustVerified {
