@@ -38,10 +38,14 @@ jobs:
     name: test (go ${{ matrix.go }})
     if: github.event.pull_request.head.repo.full_name == github.repository || github.event_name != 'pull_request'
     runs-on: [self-hosted, rh-linux]
+    env:
+      # Run the Go that setup-go installed: the toolchain line in go.mod would
+      # otherwise switch the 1.26.x leg to 1.27.4 and hide a break on 1.26.
+      GOTOOLCHAIN: local
     strategy:
       fail-fast: false
       matrix:
-        go: ['1.26.x', '1.27.x']
+        go: ['1.26.x', '1.27.4']
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
@@ -60,10 +64,14 @@ jobs:
     name: vet and gofmt (go ${{ matrix.go }})
     if: github.event.pull_request.head.repo.full_name == github.repository || github.event_name != 'pull_request'
     runs-on: [self-hosted, rh-linux]
+    env:
+      # Run the Go that setup-go installed: the toolchain line in go.mod would
+      # otherwise switch the 1.26.x leg to 1.27.4 and hide a break on 1.26.
+      GOTOOLCHAIN: local
     strategy:
       fail-fast: false
       matrix:
-        go: ['1.26.x', '1.27.x']
+        go: ['1.26.x', '1.27.4']
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
@@ -96,7 +104,7 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
         with:
-          go-version: '1.26.x'
+          go-version: '1.27.4'
           cache: false
       - name: Install golangci-lint
         run: |
@@ -118,7 +126,7 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
         with:
-          go-version: '1.26.x'
+          go-version: '1.27.4'
           cache: false
       - name: Install govulncheck
         run: |
@@ -140,7 +148,7 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
         with:
-          go-version: '1.26.x'
+          go-version: '1.27.4'
           cache: false
       - name: Tidy both modules
         run: |
@@ -223,7 +231,7 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
         with:
-          go-version: '1.26.x'
+          go-version: '1.27.4'
           cache: false
       # The catalog is checked against the pinned spec on every run. The
       # upstream docs repository carries no license that permits
@@ -261,7 +269,7 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
         with:
-          go-version: '1.26.x'
+          go-version: '1.27.4'
           cache: false
       - name: Mutation run
         run: go run ./internal/cmd/mutate
