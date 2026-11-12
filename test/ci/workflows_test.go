@@ -377,7 +377,9 @@ func TestADRLint_skipsOnlyMergifyQueueDrafts(t *testing.T) {
 }
 
 // The ruleset requires "Mergify Merge Protections", so .mergify.yml must carry a merge_protections rule that holds a
-// merge outside the queue to the queue's review gates, scoped to main, with Mergify's own queue drafts exempt.
+// merge outside the queue to the queue's PR-level review gates (approval, hold), scoped to main, with Mergify's own
+// queue drafts exempt. It must carry no check condition: Mergify applies those to the queue draft's commit, where
+// codex-review never runs, so the queue would stall.
 func TestMergify_mergeProtectionsMirrorTheQueueGates(t *testing.T) {
 	raw, err := os.ReadFile("../../.mergify.yml")
 	if err != nil {
@@ -405,10 +407,34 @@ func TestMergify_mergeProtectionsMirrorTheQueueGates(t *testing.T) {
 	if !strings.Contains(fmt.Sprint(r.If), "base = main") {
 		t.Errorf("the rule's if lacks base = main: %v", r.If)
 	}
-	for _, want := range []string{"label != hold", "check-success = codex-review", "approved-reviews-by = randybias", "label = lead-approved"} {
+	for _, want := range []string{"label != hold", "approved-reviews-by = randybias", "label = lead-approved"} {
 		if !strings.Contains(succ, want) {
 			t.Errorf("the rule's success_conditions lack %q: %s", want, succ)
 		}
+	}
+	var hasCheck func(c any) bool
+	hasCheck = func(c any) bool {
+		switch v := c.(type) {
+		case string:
+			return strings.HasPrefix(v, "check-")
+		case []any:
+			for _, x := range v {
+				if hasCheck(x) {
+					return true
+				}
+			}
+		case map[string]any:
+			for _, x := range v {
+				if hasCheck(x) {
+					return true
+				}
+			}
+		}
+		return false
+	}
+	if hasCheck(r.SuccessConditions) {
+		t.Errorf("the rule's success_conditions carry a check condition (Mergify applies check conditions to the "+
+			"queue draft, where codex-review never runs, so the queue stalls): %s", succ)
 	}
 
 	// The queue-draft exemption needs both the head ref and Mergify's bot as author; either alone is attacker-chosen
@@ -485,9 +511,9 @@ func evalMergify(t *testing.T, c any, attrs map[string]string) bool {
 	return false
 }
 
-// The merge_protections rule's success_conditions are the queue's review gates (codex-review, the approval group, the
-// hold label), so changing one without the other fails. Both are compared as parsed values, `-label = hold` and
-// `label != hold` being the same condition.
+// The merge_protections rule's success_conditions are the queue's PR-level review gates (the approval group and the
+// hold label), so changing one without the other fails; codex-review stays in queue_conditions only. Both are compared
+// as parsed values, `-label = hold` and `label != hold` being the same condition.
 func TestMergify_mergeProtectionsMatchQueueReviewGates(t *testing.T) {
 	raw, err := os.ReadFile("../../.mergify.yml")
 	if err != nil {
@@ -528,7 +554,7 @@ func TestMergify_mergeProtectionsMatchQueueReviewGates(t *testing.T) {
 		return "or(" + strings.Join(parts, ",") + ")"
 	}
 	gate := func(s string) bool {
-		return s == "label != hold" || s == "check-success = codex-review" || strings.HasPrefix(s, "or(")
+		return s == "label != hold" || strings.HasPrefix(s, "or(")
 	}
 	var queue, rule []string
 	for _, c := range cfg.QueueRules[0].QueueConditions {
@@ -541,7 +567,7 @@ func TestMergify_mergeProtectionsMatchQueueReviewGates(t *testing.T) {
 	}
 	sort.Strings(queue)
 	sort.Strings(rule)
-	if len(rule) != 3 || strings.Join(queue, "\n") != strings.Join(rule, "\n") {
+	if len(rule) != 2 || strings.Join(queue, "\n") != strings.Join(rule, "\n") {
 		t.Errorf("merge_protections success_conditions %v differ from the queue's review gates %v", rule, queue)
 	}
 }
