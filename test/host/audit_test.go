@@ -275,7 +275,7 @@ func TestReplySubject_AgentsNamespaceOnlyLoops(t *testing.T) {
 		}
 	}
 	settle(t, 3*time.Second, "refusals", func() bool { return h.Stats().RefusedReplies == before+uint64(len(own)) })
-	if !strings.Contains(logs.String(), `level=WARN msg="status request dropped`) {
+	if !strings.Contains(logs.String(), `level=WARN msg="request dropped: reply subject refused" kind=status`) {
 		t.Errorf("no warn for a refused status request:\n%s", logs.String())
 	}
 }

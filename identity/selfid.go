@@ -286,7 +286,7 @@ func (r *SelfIDResolver) userInfo(ctx context.Context) (AgentID, error) {
 		if errors.Is(err, nats.ErrNoResponders) {
 			return "", fmt.Errorf("%w: no responder for %s (server without the system responder?)", ErrIdentityUnknown, UserInfoSubject)
 		}
-		return "", fmt.Errorf("%w: %v", ErrIdentityUnknown, err)
+		return "", fmt.Errorf("%w: %w", ErrIdentityUnknown, err)
 	}
 	return IdentityFromUserInfoReply(msg.Data)
 }
