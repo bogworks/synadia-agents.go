@@ -155,7 +155,7 @@ func ResolveBundle(ctx context.Context, src Source, opts ...BundleOption) (*Bund
 		signer identity.Signer
 	)
 	if src.Context != "" {
-		s, err := loadSnapshot(src.Context, cfg.ctx)
+		s, err := loadSnapshot(ctx, src.Context, cfg.ctx)
 		if err != nil {
 			return nil, err
 		}
@@ -172,13 +172,13 @@ func ResolveBundle(ctx context.Context, src Source, opts ...BundleOption) (*Bund
 		conn = Connection{URL: strings.Join(ua.servers, ",")}
 		switch {
 		case src.Creds != "":
-			a, err := credsAuth("", src.Creds, relax)
+			a, err := credsAuth(ctx, "", src.Creds, relax)
 			if err != nil {
 				return nil, err
 			}
 			conn.Options, signer = append(conn.Options, a.opt), a.signer
 		case src.NKey != "":
-			a, err := nkeyFileAuth("", src.NKey, relax)
+			a, err := nkeyFileAuth(ctx, "", src.NKey, relax)
 			if err != nil {
 				return nil, err
 			}
