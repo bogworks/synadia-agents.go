@@ -8,6 +8,14 @@ SAP revision it implements and its conformance catalog result.
 
 ## [Unreleased]
 
+### Added
+
+- A security stance, `identity.Stance`, that selects the strict or relaxed profile of four identity checks (signed
+  senders on a host, verified discovery and heartbeat verification on a caller, and signing), with a separate
+  `Signing` override and a per-check setting, through `host.WithStance`, `caller.WithStance`,
+  `caller.WithTrackerStance` and `connect.WithStance`. The default profile is relaxed, the behaviour of v0.1.0, and it
+  may change; a program that chooses nothing and has a logger gets one warning. See ADR-0003.
+
 ## [0.1.0] - 2026-11-12
 
 The first release. SAP revision: 0.3 (spec commit `c48cea5f`). Conformance: every obligation in
