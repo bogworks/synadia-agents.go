@@ -1160,7 +1160,7 @@ func (t *Tools) stagingDir() (string, error) {
 func newCallID() string {
 	var b [6]byte
 	if _, err := rand.Read(b[:]); err != nil {
-		panic(err) // crypto/rand does not fail on supported platforms
+		panic(err) //nolint:forbidigo // crypto/rand does not fail on supported platforms; a call id without entropy would be unsafe
 	}
 	return "call_" + hex.EncodeToString(b[:])
 }

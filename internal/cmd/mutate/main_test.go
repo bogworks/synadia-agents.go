@@ -4,7 +4,10 @@
 package main
 
 import (
+	"os"
+	"os/exec"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/bogworks/synadia-agents.go/conformance"
@@ -78,5 +81,44 @@ func TestFaults_EveryFaultHasTests(t *testing.T) {
 		if len(f.targets) == 0 {
 			t.Errorf("%s: no linked test", f.id)
 		}
+	}
+}
+
+// TestCheckPatches checks that -check names a patch that does not apply, and
+// passes when every patch applies.
+func TestCheckPatches(t *testing.T) {
+	if _, err := exec.LookPath("git"); err != nil {
+		t.Skip("git not available")
+	}
+	root := t.TempDir()
+	write := func(rel, content string) {
+		t.Helper()
+		p := filepath.Join(root, rel)
+		if err := os.MkdirAll(filepath.Dir(p), 0o750); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(p, []byte(content), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	write("conformance/catalog.json", `{"entries":[
+{"id":"E1","fault_id":"F-ONE","mutation":"m","tests":["TestX"]},
+{"id":"E2","fault_id":"F-TWO","mutation":"m","tests":["TestX"]}]}`)
+	write("x_test.go", "package x\n\nimport \"testing\"\n\nfunc TestX(t *testing.T) {}\n")
+	write("a.txt", "one\ntwo\nthree\n")
+	good := "--- a/a.txt\n+++ b/a.txt\n@@ -1,3 +1,3 @@\n one\n-two\n+2\n three\n"
+	bad := "--- a/a.txt\n+++ b/a.txt\n@@ -1,3 +1,3 @@\n one\n-zwei\n+2\n three\n"
+	write("conformance/mutations/F-ONE.patch", good)
+	write("conformance/mutations/F-TWO.patch", good)
+	if err := checkPatches(root, ""); err != nil {
+		t.Fatalf("all patches apply: %v", err)
+	}
+	write("conformance/mutations/F-TWO.patch", bad)
+	err := checkPatches(root, "")
+	if err == nil || !strings.Contains(err.Error(), "F-TWO") || strings.Contains(err.Error(), "F-ONE") {
+		t.Fatalf("want an error naming only F-TWO, got %v", err)
+	}
+	if err := checkPatches(root, "F-ONE"); err != nil {
+		t.Fatalf("-only F-ONE: %v", err)
 	}
 }
