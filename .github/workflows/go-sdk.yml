@@ -263,6 +263,14 @@ jobs:
         with:
           go-version: '1.26.x'
           cache: false
+      # The runner starts with a cold build cache (cache: false). Without this
+      # step every parallel mutation compiles the dependencies (nats-server in
+      # the test module) at once, about 2 min each; built once here, each
+      # mutation reuses them.
+      - name: Warm the build cache
+        run: |
+          go test -count=1 -run '^$' ./...
+          go -C test test -count=1 -run '^$' ./...
       - name: Mutation run
         run: go run ./internal/cmd/mutate
 
