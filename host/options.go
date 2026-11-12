@@ -118,12 +118,17 @@ type config struct {
 	hbExtras         func() map[string]any
 	maxConc          int
 	busy             BusyPolicy
-	raw              hosttest.RawHandler
+	hooks            hosttest.Hooks
 	replyPolicy      ReplySubjectPolicy
 }
 
 // Option configures a [Host]. An invalid value is reported by [New].
 type Option func(*config) error
+
+// TestHooks lets internal/hosttest set the fixture-only raw prompt handler
+// through [hosttest.RawOption] without any exported host symbol. The method
+// is on the unexported config, so it is not part of the public API.
+func (c *config) TestHooks() *hosttest.Hooks { return &c.hooks }
 
 func defaultConfig() config {
 	return config{

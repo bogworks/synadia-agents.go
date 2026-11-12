@@ -601,7 +601,7 @@ The optional sender identity extension: agent IDs, the `Agent-Sender` header, si
 | `identity.Admission` | type | §13.7 | Admission is the outcome of [Gate.AdmitPrompt]. |
 | `identity.Admission.OK` | method | §13.7 | OK reports whether the request is admitted. |
 | `identity.Gate.Classify` | method | §13.7 | Classify parses and verifies the sender of a live request and records its nonce (a verified request classif... |
-| `identity.Gate.AdmitPrompt` | method | §13.7 | AdmitPrompt runs the full admission of a prompt request, in this order: header parse (400), ts, sub, nonce... |
+| `identity.Gate.AdmitPrompt` | method | §13.7 | AdmitPrompt runs the full admission of a prompt request, in this order: header parse (400); ts, sub and the... |
 | `identity.StatusResult` | type | §13.7 | StatusResult is the outcome of [Gate.ClassifyStatus]. |
 | `identity.StatusResult.Answerable` | method | §13.9, §8.7 | Answerable reports whether the host answers the status request. |
 | `identity.Gate.ClassifyStatus` | method | §13.9 | ClassifyStatus classifies the sender of a status request so the agent knows who probed it, records a verifi... |
