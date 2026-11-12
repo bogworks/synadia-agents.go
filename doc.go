@@ -33,7 +33,7 @@
 //	        return w.Send(ctx, "echo: "+req.Envelope.Prompt) // the host acks first, ends last
 //	    })
 //	_ = h.Start(ctx)
-//	defer h.Stop(ctx)
+//	defer h.Close()
 //
 // The two meet in this package's types: the caller sends an [Envelope] and
 // reads [Chunk] values; the host receives the [Envelope] ([DecodeEnvelope]),

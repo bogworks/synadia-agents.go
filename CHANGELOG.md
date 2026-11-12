@@ -8,6 +8,16 @@ SAP revision it implements and its conformance catalog result.
 
 ## [Unreleased]
 
+### Changed
+
+- API change before v0.1.0: `host.Host`, `caller.Client` and `tools.Tools` each have `Close() error` (an `io.Closer`,
+  bounded by the package's `DefaultCloseTimeout`) plus `Shutdown(ctx) error` (the same stop with a deadline the caller
+  controls; it returns the context error wrapped when the deadline ends first, and a later `Close` or `Shutdown`
+  still waits for the real exit). `Host.Stop` is now `Host.Shutdown`; `Host.Close` stops at once, as
+  `net/http.Server.Close` does. `host.DefaultCloseTimeout` and `tools.DefaultCloseTimeout` are new.
+  `Shutdown` and `Close` request the stop at once; the context bounds only the wait, so a slow `Host.Start` cannot defeat the
+  deadline. A `Start` that sees the request tears down and returns the new `host.ErrStopped`.
+
 ## [0.1.0] - Unreleased
 
 The first release. SAP revision: 0.3 (spec commit `c48cea5f`). Conformance: every obligation in

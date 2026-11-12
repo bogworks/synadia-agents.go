@@ -55,7 +55,7 @@ func run(ctx context.Context, nc *nats.Conn, out io.Writer, f caller.Filter, pro
 	if err != nil {
 		return err
 	}
-	defer c.Close()
+	defer func() { _ = c.Close() }()
 
 	// Discover: $SRV.INFO.agents (SAP §4.1).
 	found, err := c.Discover(ctx)

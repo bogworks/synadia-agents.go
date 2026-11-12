@@ -324,6 +324,7 @@ Discovery, prompting, the reply stream, queries, status, heartbeat tracking and 
 | `caller.Stats` | type | §5, §6 (SDK policy: lifecycle and counters) | Stats is a snapshot of the client's counters. |
 | `caller.Client.Stats` | method | §5, §6 (SDK policy: lifecycle and counters) | Stats returns the client's counters. |
 | `caller.Client.Close` | method | §5, §6 (SDK policy: lifecycle and counters) | Close ends every stream still running with [ErrClosed], stops the heartbeat tracker, drains the reply subsc... |
+| `caller.Client.Shutdown` | method | §5, §6 (SDK policy: lifecycle and counters) | Shutdown is [Client.Close] with a deadline the caller controls, as [net/http.Server.Shutdown] is to Close. |
 | `caller.Client.Drain` | method | §5, §6 (SDK policy: lifecycle and counters) | Drain refuses new prompts with [ErrClosed], waits for the streams in flight to end on their own, and then c... |
 | `caller.Client.ObserveError` | method | §13.4 | ObserveError feeds an asynchronous NATS error to the identity lookup, so a permission that blocks $SYS.REQ.... |
 | `caller.Filter` | type | §4.2 | Filter selects agents on the caller's side: every non-empty field must equal the record's. |
@@ -395,7 +396,7 @@ Discovery, prompting, the reply stream, queries, status, heartbeat tracking and 
 | `caller.DefaultStreamBufferBytes` | const | SDK policy (§5.1, §6.6) | DefaultStreamBufferBytes is the most unread bytes one stream holds. |
 | `caller.DefaultDiscoverBuffer` | const | SDK policy (§4.1, §4.2) | DefaultDiscoverBuffer is the most replies one discovery buffers. |
 | `caller.DefaultDiscoverMaxRecords` | const | SDK policy (§4.1, §4.2) | DefaultDiscoverMaxRecords is the most records one discovery keeps. |
-| `caller.DefaultCloseTimeout` | const | SDK policy (§5.1, §6.6) | DefaultCloseTimeout bounds how long [Client.Close] waits for its subscriptions to drain. |
+| `caller.DefaultCloseTimeout` | const | SDK policy (§5.1, §6.6) | DefaultCloseTimeout bounds how long [Client.Close] waits for the client to shut down, and how long [Client.... |
 | `caller.DefaultFlushTimeout` | const | SDK policy (§5.1, §6.6) | DefaultFlushTimeout bounds the flush that follows a subscription when the caller's context has no deadline. |
 | `caller.Option` | type | SDK policy | Option configures a [Client]. |
 | `caller.WithLogger` | func | SDK policy | WithLogger sets the logger. |
@@ -448,7 +449,7 @@ Discovery, prompting, the reply stream, queries, status, heartbeat tracking and 
 | `caller.HeartbeatTracker.Started` | method | §3.4, §8.1 | Started reports whether the tracker is subscribed. |
 | `caller.HeartbeatTracker.Dropped` | method | §3.4, §8.1 | Dropped counts heartbeats the tracker discarded: malformed, too large, failing verification, or refused for... |
 | `caller.HeartbeatTracker.Start` | method | §8.5 | Start subscribes to the heartbeat wildcard and flushes, so the server has the interest when Start returns:... |
-| `caller.HeartbeatTracker.Stop` | method | §3.4, §8.1 | Stop drains the subscription, so pending heartbeats are delivered, and waits for it to close or for ctx. |
+| `caller.HeartbeatTracker.Stop` | method | §3.4, §8.1 | Stop drains the subscription, so pending heartbeats are delivered, and waits for it to close or for ctx; wh... |
 | `caller.HeartbeatTracker.Liveness` | method | §8.2 | Liveness returns the tracker's view of one instance. |
 | `caller.HeartbeatTracker.Snapshot` | method | §3.4, §8.1 | Snapshot returns the view of every remembered instance, in no order. |
 | `caller.HeartbeatTracker.OnHeartbeat` | method | §3.4, §8.1 | OnHeartbeat registers fn for the heartbeats of one instance and returns the function that removes it. |
@@ -469,6 +470,7 @@ Registration as a micro service, prompt and status endpoints, the reply stream, 
 | `host.ErrNextCalledTwice` | var | §5, §6 (extension point) | ErrNextCalledTwice is returned by the next function of an [Interceptor] called a second time. |
 | `host.ErrNextNotCalled` | var | §5, §6 (extension point) | ErrNextNotCalled is the failure recorded when an [Interceptor] returns nil without calling next; the reques... |
 | `host.ErrStarted` | var | §3 (SDK policy: lifecycle) | ErrStarted is returned by [Host.Start] on a host that already started, stopped or is stopping. |
+| `host.ErrStopped` | var | §3 (SDK policy: lifecycle) | ErrStopped is returned by [Host.Start] when [Host.Shutdown] or [Host.Close] was requested while Start was r... |
 | `host.ErrNotStarted` | var | §3 (SDK policy: lifecycle) | ErrNotStarted is returned when a call needs a started host. |
 | `host.ErrEndpointOverlap` | var | §13.7 | ErrEndpointOverlap is wrapped with [ErrConfig] by [New] when an extra endpoint's subject or pattern could m... |
 | `host.ErrConfig` | var | §3 (SDK policy: lifecycle) | ErrConfig matches the error [New] returns for an invalid configuration. |
@@ -487,8 +489,8 @@ Registration as a micro service, prompt and status endpoints, the reply stream, 
 | `host.Host` | type | §3, §5, §6, §8 | Host serves one agent instance: its prompt and status endpoints and its heartbeat. |
 | `host.New` | func | §3 (SDK policy: lifecycle) | New validates the configuration and returns a host. |
 | `host.Host.Start` | method | §3, §8.2, §13.4 | Start registers the micro service, its prompt, status and extra endpoints, flushes, and publishes the first... |
-| `host.Host.Stop` | method | §8.6 | Stop shuts the host down gracefully: it stops the heartbeat (a beat being signed is abandoned), stops accep... |
-| `host.Host.Close` | method | §3, §5, §6, §8 | Close cancels the handlers' contexts, stops the host and waits until it is complete, so it blocks while a h... |
+| `host.Host.Shutdown` | method | §8.6 | Shutdown shuts the host down gracefully, as [net/http.Server.Shutdown] does: it stops the heartbeat (a beat... |
+| `host.Host.Close` | method | §3, §5, §6, §8 | Close stops the host at once and waits for it to be complete, as [net/http.Server.Close] does, so a Host is... |
 | `host.Host.InstanceID` | method | §8.3 | InstanceID returns the micro service id, which is the heartbeat's instance_id (SAP §8.3). |
 | `host.Host.Subject` | method | §3, §5, §6, §8 | Subject returns the instance's subject. |
 | `host.Host.Identity` | method | §13.10 | Identity returns the agent ID the host registered (user_nkey and account), and false when it registered non... |
@@ -511,6 +513,7 @@ Registration as a micro service, prompt and status endpoints, the reply stream, 
 | `host.DefaultMinSenderTrust` | const | §13.9 | DefaultMinSenderTrust is the min_sender_trust the prompt endpoint advertises. |
 | `host.DefaultVersion` | const | §3.1 | DefaultVersion is the service version registered when [WithVersion] is not used. |
 | `host.DefaultStartTimeout` | const | §3 (SDK policy: lifecycle) | DefaultStartTimeout bounds the flush of [Host.Start] when its context has no deadline. |
+| `host.DefaultCloseTimeout` | const | §3 (SDK policy: lifecycle) | DefaultCloseTimeout bounds how long [Host.Close] waits for the host to be complete. |
 | `host.DefaultMaxPayload` | const | §2.1 | DefaultMaxPayload is advertised when the connection reports no limit. |
 | `host.BusyPolicy` | type | SDK policy (§3.3, §5) | BusyPolicy says what the host does with a prompt when every concurrency slot is taken. |
 | `host.BusyQueue` | const | SDK policy (§3.3, §5) | BusyQueue holds the prompt endpoint's subscription callback until a slot frees, which back-pressures that s... |
@@ -830,6 +833,7 @@ The SDK counterpart of the official SDKs' agent-tool helpers: tool definitions a
 | `tools.DefaultMaxCalls` | const | outside SAP: agent tool layer | DefaultMaxCalls is the number of calls tracked per scope (256, the value both official SDKs use). |
 | `tools.DefaultMaxSavedBytesPerCall` | const | outside SAP: agent tool layer | DefaultMaxSavedBytesPerCall is the total of returned files saved per call, 64 MiB, the SDK's default for [a... |
 | `tools.QuestionRefusal` | const | §7.2 | QuestionRefusal is what an open question is answered with when its call is canceled (by cancel_agent, a hos... |
+| `tools.DefaultCloseTimeout` | const | outside SAP: agent tool layer | DefaultCloseTimeout bounds how long [Tools.Close] waits for the calls to end. |
 | `tools.DefaultMaxReplyBytes` | const | outside SAP: agent tool layer | DefaultMaxReplyBytes is the reply text kept per call, 4 MiB. |
 | `tools.DefaultMaxQuestions` | const | outside SAP: agent tool layer | DefaultMaxQuestions is the questions one call may ask over its life, 64. |
 | `tools.DefaultMaxReturnedFiles` | const | outside SAP: agent tool layer | DefaultMaxReturnedFiles is the returned-file records one call may collect, 64. |
@@ -883,6 +887,7 @@ The SDK counterpart of the official SDKs' agent-tool helpers: tool definitions a
 | `tools.Tools.Interceptor` | method | §13.7 | Interceptor returns the host interceptor that opens a scope around each served prompt: tool calls made from... |
 | `tools.Tools.RunInPromptScope` | method | §13.3 | RunInPromptScope runs fn as the handler of a served prompt, for hosts that do not use [Tools.Interceptor]:... |
 | `tools.Tools.Close` | method | §5 | Close cancels every open call in every scope, waits for the calls' readers to end, and removes the staging... |
+| `tools.Tools.Shutdown` | method | §5 | Shutdown is [Tools.Close] with a deadline the caller controls, as [net/http.Server.Shutdown] is to Close. |
 
 ## Package `conformance`: the conformance catalog
 

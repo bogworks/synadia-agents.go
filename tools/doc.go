@@ -17,7 +17,7 @@
 // blocking-only descriptions are the vendored fixtures, embedded.
 //
 //	tl, _ := tools.New(client)                    // client is a *caller.Client
-//	defer tl.Close(ctx)
+//	defer tl.Close()
 //	for _, d := range tl.Definitions() { ... }    // hand to the model API
 //	res, _ := tl.Execute(ctx, call.Name, call.Arguments, tools.WithToolCallID(call.ID))
 //	text, _ := json.Marshal(res)                  // hand back to the model

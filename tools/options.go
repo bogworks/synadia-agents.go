@@ -34,6 +34,9 @@ const QuestionRefusal = "no: the caller stopped waiting for this prompt and cann
 // long as it likes and ask as many questions as it likes (SAP §6, §7), so a
 // program that offers these tools to a model protects itself with them.
 const (
+	// DefaultCloseTimeout bounds how long [Tools.Close] waits for the calls to
+	// end. [Tools.Shutdown] takes a context of the caller's own instead.
+	DefaultCloseTimeout = 10 * time.Second
 	// DefaultMaxReplyBytes is the reply text kept per call, 4 MiB.
 	DefaultMaxReplyBytes = 4 << 20
 	// DefaultMaxQuestions is the questions one call may ask over its life, 64.

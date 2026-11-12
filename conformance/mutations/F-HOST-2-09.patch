@@ -1,8 +1,8 @@
 --- a/host/host.go
 +++ b/host/host.go
-@@ -377,12 +377,6 @@
- 	h.agentID, h.hasID, h.signer = id, hasID, signer
- 	h.mu.Unlock()
+@@ -495,12 +495,6 @@ func (h *Host) start(ctx context.Context) error {
+ 		return err
+ 	}
  
 -	if err := svc.AddEndpoint(agents.EndpointPrompt, micro.HandlerFunc(h.onPrompt),
 -		micro.WithEndpointSubject(h.subject.Prompt()),

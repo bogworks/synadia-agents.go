@@ -49,7 +49,7 @@ func (p *holdPolicy) waitEntered(t *testing.T) {
 func stopWithin(h *host.Host, d time.Duration) error {
 	ctx, cancel := context.WithTimeout(context.Background(), d)
 	defer cancel()
-	return h.Stop(ctx)
+	return h.Shutdown(ctx)
 }
 
 // TestStop_CloseWaitsForHandlerAfterTimedOutStop (audit findings 1, 11): a Stop
@@ -76,7 +76,7 @@ func TestStop_CloseWaitsForHandlerAfterTimedOutStop(t *testing.T) {
 	closed := make(chan error, 1)
 	go func() { closed <- h.Close() }()
 	stopped := make(chan error, 1)
-	go func() { stopped <- h.Stop(context.Background()) }()
+	go func() { stopped <- h.Shutdown(context.Background()) }()
 	select {
 	case err := <-closed:
 		t.Fatalf("Close returned with a handler running: %v", err)
@@ -175,7 +175,7 @@ func TestStop_NoStatusReplyAfterShutdownBegins(t *testing.T) {
 	}
 	pol.waitEntered(t)
 	stopped := make(chan error, 1)
-	go func() { stopped <- h.Stop(context.Background()) }()
+	go func() { stopped <- h.Shutdown(context.Background()) }()
 	settle(t, 5*time.Second, "service stop", func() bool { return h.Service().Stopped() })
 	open()
 	select {
@@ -247,7 +247,7 @@ func TestStart_FailureWaitsForInFlightPrompt(t *testing.T) {
 	closed := make(chan error, 1)
 	go func() { closed <- h.Close() }()
 	stopped := make(chan error, 1)
-	go func() { stopped <- h.Stop(context.Background()) }()
+	go func() { stopped <- h.Shutdown(context.Background()) }()
 	select {
 	case err := <-closed:
 		t.Fatalf("Close returned with a handler running: %v", err)
@@ -271,6 +271,52 @@ func TestStart_FailureWaitsForInFlightPrompt(t *testing.T) {
 	}
 	if running.Load() != 0 {
 		t.Error("completion signaled with a handler running")
+	}
+	collect(t, p.sub, 5*time.Second)
+}
+
+// TestShutdown_ReturnsContextErrorAtDeadlineAndLaterCloseWaits: Shutdown(ctx) with a
+// handler that ignores its context returns the wrapped ctx error at the
+// deadline; a later Close waits for the handler's real exit and then returns
+// nil.
+func TestShutdown_ReturnsContextErrorAtDeadlineAndLaterCloseWaits(t *testing.T) {
+	_, nc := setup(t)
+	started, release := make(chan struct{}), make(chan struct{})
+	var running atomic.Int32
+	h := newHost(t, nc, func(_ context.Context, _ *host.Request, _ *host.Responder) error {
+		running.Add(1)
+		defer running.Add(-1)
+		close(started)
+		<-release // deliberately ignores ctx
+		return nil
+	})
+	open := closeOnce(t, release)
+	p := fire(t, nc, h, "x")
+	<-started
+
+	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+	defer cancel()
+	if err := h.Shutdown(ctx); !errors.Is(err, context.DeadlineExceeded) {
+		t.Fatalf("Shutdown at the deadline: %v, want context.DeadlineExceeded", err)
+	}
+	second := make(chan error, 1)
+	go func() { second <- h.Close() }()
+	select {
+	case err := <-second:
+		t.Fatalf("a second Close returned with a handler running: %v", err)
+	case <-time.After(300 * time.Millisecond):
+	}
+	open()
+	select {
+	case err := <-second:
+		if err != nil {
+			t.Fatal(err)
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("the second Close did not return after the handler exited")
+	}
+	if running.Load() != 0 {
+		t.Error("Close completed with a handler running")
 	}
 	collect(t, p.sub, 5*time.Second)
 }

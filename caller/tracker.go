@@ -236,7 +236,8 @@ func (t *HeartbeatTracker) Start(ctx context.Context) error {
 }
 
 // Stop drains the subscription, so pending heartbeats are delivered, and waits
-// for it to close or for ctx. It is idempotent. The remembered instances are
+// for it to close or for ctx; when ctx has no deadline the wait is bounded by
+// [DefaultCloseTimeout]. It is idempotent. The remembered instances are
 // kept.
 func (t *HeartbeatTracker) Stop(ctx context.Context) error {
 	t.startMu.Lock()
@@ -247,7 +248,7 @@ func (t *HeartbeatTracker) Stop(ctx context.Context) error {
 	}
 	t.sub = nil
 	t.started.Store(false)
-	if !waitClosed(ctx, sub, DefaultCloseTimeout) && ctx.Err() != nil {
+	if !waitClosed(ctx, sub, closeTimeout(ctx)) && ctx.Err() != nil {
 		return ctx.Err()
 	}
 	return nil

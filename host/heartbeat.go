@@ -223,13 +223,16 @@ func (h *Host) publishHeartbeat(ctx context.Context) error {
 	if err := ctx.Err(); err != nil {
 		return err
 	}
+	if err := h.checkStop(); err != nil {
+		return err
+	}
 	return h.nc.PublishMsg(msg)
 }
 
 // heartbeatLoop publishes a beat every interval until ctx ends. One beat is in
 // flight at a time: a tick that finds the previous beat still being signed is
 // skipped, so a slow signer never piles beats up or reorders them, and never
-// holds teardown (the loop returns at once; see [Host.Stop]).
+// holds teardown (the loop returns at once; see [Host.Shutdown]).
 func (h *Host) heartbeatLoop(ctx context.Context, wg *sync.WaitGroup) {
 	defer wg.Done()
 	t := time.NewTicker(h.cfg.hbInterval)
@@ -254,7 +257,7 @@ func (h *Host) heartbeatLoop(ctx context.Context, wg *sync.WaitGroup) {
 		go func() {
 			defer wg.Done()
 			defer func() { mu.Lock(); beating = false; mu.Unlock() }()
-			if err := h.publishHeartbeat(ctx); err != nil && ctx.Err() == nil && !errors.Is(err, errHeartbeatSign) {
+			if err := h.publishHeartbeat(ctx); err != nil && ctx.Err() == nil && !errors.Is(err, errHeartbeatSign) && !errors.Is(err, ErrStopped) {
 				h.log.Error("heartbeat publish failed")
 			}
 		}()

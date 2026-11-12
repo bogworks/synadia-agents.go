@@ -130,7 +130,7 @@ func main() {
 		log.Fatal(err)
 	}
 	<-ctx.Done()
-	_ = h.Stop(context.Background())
+	_ = h.Shutdown(context.Background())
 }
 ```
 

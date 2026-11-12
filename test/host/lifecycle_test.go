@@ -24,7 +24,7 @@ func TestStop_WaitsForInFlightPrompts(t *testing.T) {
 	g.waitStarted(t, 1)
 
 	stopped := make(chan error, 1)
-	go func() { stopped <- h.Stop(context.Background()) }()
+	go func() { stopped <- h.Shutdown(context.Background()) }()
 	select {
 	case err := <-stopped:
 		t.Fatalf("Stop returned with a handler in flight: %v", err)
@@ -47,7 +47,7 @@ func TestStop_WaitsForInFlightPrompts(t *testing.T) {
 	if got := s.texts(t); len(got) != 1 || got[0] != "finish me" || s.errorFrame() != nil {
 		t.Fatalf("in-flight stream: %v %+v", got, s.errorFrame())
 	}
-	if err := h.Stop(context.Background()); err != nil {
+	if err := h.Shutdown(context.Background()); err != nil {
 		t.Errorf("second Stop: %v", err)
 	}
 	if err := h.Close(); err != nil {
@@ -72,7 +72,7 @@ func TestStop_CancelsHandlersAtDeadline(t *testing.T) {
 	g.waitStarted(t, 1)
 	ctx, cancel := context.WithTimeout(context.Background(), 150*time.Millisecond)
 	defer cancel()
-	err := h.Stop(ctx)
+	err := h.Shutdown(ctx)
 	if !errors.Is(err, context.DeadlineExceeded) {
 		t.Fatalf("Stop: %v", err)
 	}
@@ -82,7 +82,7 @@ func TestStop_CancelsHandlersAtDeadline(t *testing.T) {
 		t.Fatalf("stream of a canceled handler: %+v", se)
 	}
 	settle(t, 5*time.Second, "handler exit", func() bool { return g.running.Load() == 0 })
-	if err := h.Stop(context.Background()); err != nil {
+	if err := h.Shutdown(context.Background()); err != nil {
 		t.Errorf("Stop after forced stop: %v", err)
 	}
 }
@@ -124,7 +124,7 @@ func TestStop_BeforeStartAndIdempotent(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := h.Stop(context.Background()); err != nil {
+	if err := h.Shutdown(context.Background()); err != nil {
 		t.Fatal(err)
 	}
 	if err := h.Close(); err != nil {
@@ -141,7 +141,7 @@ func TestStop_ConcurrentCallersAllReturn(t *testing.T) {
 	h := newHost(t, nc, echo)
 	errs := make(chan error, 4)
 	for range 4 {
-		go func() { errs <- h.Stop(context.Background()) }()
+		go func() { errs <- h.Shutdown(context.Background()) }()
 	}
 	for range 4 {
 		select {
@@ -197,7 +197,7 @@ func TestStop_NoGoroutineLeak(t *testing.T) {
 	if len(ownGoroutines()) == 0 {
 		t.Fatal("the leak check sees no SDK goroutine while the host runs")
 	}
-	if err := h.Stop(context.Background()); err != nil {
+	if err := h.Shutdown(context.Background()); err != nil {
 		t.Fatal(err)
 	}
 	collect(t, sub, 5*time.Second)

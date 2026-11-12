@@ -45,6 +45,12 @@ var (
 	// stopped or is stopping.
 	ErrStarted = errors.New("host: already started or stopped")
 
+	// ErrStopped is returned by [Host.Start] when [Host.Shutdown] or
+	// [Host.Close] was requested while Start was running (or before it took
+	// the lifecycle lock, by a Shutdown whose context ended first). Start has
+	// then torn down what it registered and the host is stopped.
+	ErrStopped = errors.New("host: stopped before Start finished")
+
 	// ErrNotStarted is returned when a call needs a started host.
 	ErrNotStarted = errors.New("host: not started")
 

@@ -134,7 +134,7 @@ func startGoHost(t *testing.T, url, seedFile string, sign bool, m hostMode, opts
 	t.Cleanup(func() {
 		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 		defer cancel()
-		_ = h.Stop(ctx)
+		_ = h.Shutdown(ctx)
 	})
 	return g
 }

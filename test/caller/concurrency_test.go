@@ -346,3 +346,33 @@ func TestTracker_StopDrainsAndRestarts(t *testing.T) {
 	}
 	_ = tr.Stop(ctxT(t))
 }
+
+// TestClient_ShutdownWithExpiredContextReturnsPromptly: Shutdown with a context that
+// is already done does not wait for the drain; the client is closed and its
+// reply subscription is gone all the same.
+func TestClient_ShutdownWithExpiredContextReturnsPromptly(t *testing.T) {
+	srv := startServer(t)
+	nc := connect(t, srv)
+	c := newClient(t, nc)
+	if _, err := c.Discover(ctxT(t), caller.WithDiscoverTimeout(50*time.Millisecond)); err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	done := make(chan error, 1)
+	go func() { done <- c.Shutdown(ctx) }()
+	select {
+	case err := <-done:
+		if err != nil && !errors.Is(err, context.Canceled) {
+			t.Fatalf("Shutdown with an expired context: %v", err)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("Shutdown with an expired context did not return promptly")
+	}
+	if !c.IsClosed() {
+		t.Fatal("the client is not closed")
+	}
+	if err := c.Close(); err != nil {
+		t.Fatalf("a later Close: %v", err)
+	}
+}

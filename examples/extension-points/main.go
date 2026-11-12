@@ -98,7 +98,11 @@ func run(ctx context.Context, nc *nats.Conn, out io.Writer) error {
 		if err := h.Start(ctx); err != nil {
 			return err
 		}
-		defer func() { _ = h.Stop(context.Background()) }()
+		defer func() {
+			stopCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Second)
+			defer cancel()
+			_ = h.Shutdown(stopCtx)
+		}()
 	}
 
 	// The outgoing-header hook adds the tenant header to every prompt. It may
@@ -110,12 +114,12 @@ func run(ctx context.Context, nc *nats.Conn, out io.Writer) error {
 	if err != nil {
 		return err
 	}
-	defer withTenant.Close()
+	defer func() { _ = withTenant.Close() }()
 	plain, err := caller.New(nc)
 	if err != nil {
 		return err
 	}
-	defer plain.Close()
+	defer func() { _ = plain.Close() }()
 
 	found, err := withTenant.Discover(ctx, caller.WithFilter(caller.Filter{Agent: "ext"}))
 	if err != nil {

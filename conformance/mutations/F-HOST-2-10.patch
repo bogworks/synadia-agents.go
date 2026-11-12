@@ -1,6 +1,6 @@
 --- a/host/host.go
 +++ b/host/host.go
-@@ -383,11 +383,6 @@
+@@ -501,11 +501,6 @@ func (h *Host) start(ctx context.Context) error {
  		micro.WithEndpointMetadata(cloneMap(h.promptMeta))); err != nil {
  		return fmt.Errorf("host: register prompt endpoint: %w", err)
  	}
@@ -9,6 +9,6 @@
 -		micro.WithEndpointQueueGroup(agents.QueueGroup)); err != nil {
 -		return fmt.Errorf("host: register status endpoint: %w", err)
 -	}
- 	for _, e := range h.cfg.endpoints {
- 		eo := []micro.EndpointOpt{micro.WithEndpointSubject(e.Subject)}
- 		if e.QueueGroup != "" {
+ 	if err := h.checkStop(); err != nil {
+ 		return err
+ 	}
