@@ -274,7 +274,7 @@ func newTools(b backend, opts ...Option) (*Tools, error) {
 			}
 		}
 	}
-	t.base, t.baseCancel = context.WithCancel(context.Background())
+	t.base, t.baseCancel = context.WithCancel(context.Background()) //nolint:forbidigo // New takes no context; Close cancels this one (standard rule 20)
 	return t, nil
 }
 
@@ -1119,8 +1119,8 @@ func (t *Tools) openRoot(dir string) (*os.Root, error) {
 	return r, nil
 }
 
-// readRegular reads all of f, which must be a regular file of at most max bytes.
-func readRegular(f *os.File, max int64) ([]byte, error) {
+// readRegular reads all of f, which must be a regular file of at most limit bytes.
+func readRegular(f *os.File, limit int64) ([]byte, error) {
 	st, err := f.Stat()
 	if err != nil {
 		return nil, err
@@ -1128,14 +1128,14 @@ func readRegular(f *os.File, max int64) ([]byte, error) {
 	if !st.Mode().IsRegular() {
 		return nil, errors.New("not a regular file")
 	}
-	if st.Size() > max {
+	if st.Size() > limit {
 		return nil, errors.New("file too large")
 	}
-	data, err := io.ReadAll(io.LimitReader(f, max+1))
+	data, err := io.ReadAll(io.LimitReader(f, limit+1))
 	if err != nil {
 		return nil, err
 	}
-	if int64(len(data)) > max {
+	if int64(len(data)) > limit {
 		return nil, errors.New("file too large")
 	}
 	return data, nil
@@ -1183,10 +1183,10 @@ func newCallID() string {
 
 // --- the call's own goroutine -------------------------------------------------
 
-// callFailure is a call's failure, in words, raised inside its reader.
-type callFailure string
+// callFailureError is a call's failure, in words, raised inside its reader.
+type callFailureError string
 
-func (e callFailure) Error() string { return string(e) }
+func (e callFailureError) Error() string { return string(e) }
 
 // read reads a call's stream to its end; see the type comment of Tools.
 func (t *Tools) read(ctx context.Context, c *call) {
@@ -1217,7 +1217,7 @@ loop:
 			}
 			t.mu.Unlock()
 			if msg != "" {
-				streamErr = callFailure(msg)
+				streamErr = callFailureError(msg)
 				break loop
 			}
 			if len(ev.attachments) > 0 {
@@ -1359,7 +1359,7 @@ func (t *Tools) admitLocked(c *call, text int, isReply bool, questions int, atts
 const fileRecordOverhead = 256
 
 func (t *Tools) failure(c *call, err error) string {
-	var cf callFailure
+	var cf callFailureError
 	if errors.As(err, &cf) {
 		return string(cf)
 	}
@@ -1414,12 +1414,12 @@ func (t *Tools) save(c *call, atts []agents.Attachment) ([]ReturnedFile, error) 
 		staging, err := t.stagingDir()
 		if err != nil {
 			t.logger.Warn("tools: the staging directory is unavailable", "call_id", c.id, "error", err)
-			return nil, callFailure(savedFailure)
+			return nil, callFailureError(savedFailure)
 		}
 		saved, err = agents.SaveAttachments(atts, filepath.Join(staging, c.id), agents.SaveOptions{MaxTotalBytes: remaining})
 		if err != nil {
 			t.logger.Warn("tools: a returned file could not be saved", "call_id", c.id, "error", err)
-			return nil, callFailure(savedFailure)
+			return nil, callFailureError(savedFailure)
 		}
 	}
 	out := make([]ReturnedFile, len(saved))
@@ -1473,11 +1473,11 @@ func (t *Tools) afterReply(c *call, kind, text string, files []ReturnedFile) (ma
 				// call's reader with nobody to refuse to: it fails the call, loudly.
 				t.logger.Error("tools: an extension bug: a reply look set a field the contract defines; the call fails",
 					"call_id", c.id, "kind", kind, "field", rf.field, "extension", rf.ext)
-				return nil, callFailure(fmt.Sprintf("an extension of these tools has a bug (it set %q on the %s, a field the tools define); the agent at %q is not at fault",
+				return nil, callFailureError(fmt.Sprintf("an extension of these tools has a bug (it set %q on the %s, a field the tools define); the agent at %q is not at fault",
 					rf.field, kind, c.address))
 			}
 			t.logger.Warn("tools: an extension failed on a reply look", "call_id", c.id, "kind", kind, "extension", e.Name(), "error", err)
-			return nil, callFailure(fmt.Sprintf("an extension failed on the %s", kind))
+			return nil, callFailureError(fmt.Sprintf("an extension failed on the %s", kind))
 		}
 	}
 	return fields, nil

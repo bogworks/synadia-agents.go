@@ -262,7 +262,7 @@ func TestPrompt_SizesTheCompletedMessage(t *testing.T) {
 			func(context.Context, *caller.PromptInfo) (*caller.Extras, error) {
 				return &caller.Extras{Headers: big(1500)}, nil
 			})))
-		refused(t, f, env, agents.ErrPayloadTooLarge)
+		_ = refused(t, f, env, agents.ErrPayloadTooLarge)
 	})
 	t.Run("header hook against the connection's limit reports the whole message", func(t *testing.T) {
 		f := setup(t, mod(func(h *host) { h.maxPayload = "8MB" }), hook(1<<20))

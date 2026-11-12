@@ -254,7 +254,7 @@ func TestContext_NKeyAuthAndSignedBundle(t *testing.T) {
 }
 
 func TestReconnectDefaults_ConnectsAndSurvivesRestart(t *testing.T) {
-	srv := start(t, func(o *server.Options) {})
+	srv := start(t, func(_ *server.Options) {})
 	addr := srv.Addr().(*net.TCPAddr)
 	reconnected := make(chan struct{}, 1)
 	opts := connect.WithAgentReconnectDefaults(

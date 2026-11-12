@@ -1,68 +1,78 @@
 # Copyright 2026 The synadia-agents.go Authors
 # SPDX-License-Identifier: Apache-2.0
 version: "2"
-
-run:
-  timeout: 5m
-  tests: true
-
 linters:
-  default: none
+  default: standard # errcheck, govet, ineffassign, staticcheck, unused
   enable:
-    - errcheck
-    - govet
-    - staticcheck
-    - unused
-    - revive
-    - gosec
-    - misspell
+    - containedctx
+    - depguard
+    - errname
+    - errorlint
     - forbidigo
+    - gosec
+    - gochecknoinits
+    - misspell
+    - nolintlint
+    - revive
+    - sloglint
+    - testableexamples
+    - thelper
+    - usetesting
   settings:
+    depguard:
+      rules:
+        no-assertion-libraries:
+          deny:
+            - pkg: github.com/stretchr/testify
+              desc: use the testing package and go-cmp
     errcheck:
-      check-type-assertions: true
+      exclude-functions:
+        - fmt.Fprint
+        - fmt.Fprintf
+        - fmt.Fprintln
+    forbidigo:
+      forbid:
+        - pattern: ^os\.Exit$
+          msg: only package main exits
+        - pattern: ^log\.Fatal
+          msg: only package main exits
+        - pattern: ^fmt\.Print
+          msg: only package main prints; log through slog
+        - pattern: ^panic$
+          msg: return an error; a deliberate panic needs a nolint reason
+        - pattern: ^context\.Background$
+          msg: only package main and tests start a context
+        - pattern: ^context\.TODO$
+          msg: pass the caller's context
     govet:
       enable-all: true
       disable:
         - fieldalignment
         - shadow
-    revive:
-      rules:
-        - name: exported
-          arguments:
-            - checkPrivateReceivers
-            - sayRepetitiveInsteadOfStutters
-        - name: package-comments
-        - name: error-return
-        - name: error-naming
-        - name: error-strings
-        - name: receiver-naming
-        - name: context-as-argument
-        - name: context-keys-type
-        - name: indent-error-flow
-        - name: var-naming
-    forbidigo:
-      forbid:
-        - pattern: ^panic$
-          msg: return an error; a deliberate panic needs a nolint reason
     misspell:
       locale: US
+    nolintlint:
+      require-explanation: true
+      require-specific: true
+    sloglint:
+      kv-only: true
+      static-msg: true
+      key-naming-case: snake
   exclusions:
-    presets:
-      - comments
-      - std-error-handling
     rules:
-      - path: _test\.go
-        linters:
-          - gosec
-          - errcheck
-      - path: _test\.go
-        linters:
-          - forbidigo
-
-formatters:
-  enable:
-    - gofmt
-
+      - path: ^(internal/)?cmd/|^examples/
+        linters: [forbidigo]
+        text: only package main
+      - path: _test\.go$
+        linters: [forbidigo]
+        text: only package main|deliberate panic
+      - linters: [errcheck]
+        source: ^\s*defer\s.*\.Close\(\)$
 issues:
   max-issues-per-linter: 0
   max-same-issues: 0
+  uniq-by-line: false
+formatters:
+  enable:
+    - gofmt
+    - goimports

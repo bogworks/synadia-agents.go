@@ -802,18 +802,18 @@ func (c ContextFile) connectsWithOtherCredential() (string, error) {
 	return "", nil
 }
 
-type noSeed struct{ *ContextError }
+type noUserSeedError struct{ *ContextError }
 
-func (noSeed) Is(target error) bool { return target == ErrNoUserSeed }
+func (noUserSeedError) Is(target error) bool { return target == ErrNoUserSeed }
 
 // Unwrap lets errors.Is see both ErrNoUserSeed (via Is) and the embedded
 // ContextError chain.
-func (e noSeed) Unwrap() error { return e.ContextError }
+func (e noUserSeedError) Unwrap() error { return e.ContextError }
 
 func noSeedError(name string) error {
 	msg := "has no creds, nkey or user_seed: nothing to sign with"
 	if name == "" {
 		msg = "source has no user seed: signed identity needs creds or nkey"
 	}
-	return noSeed{ctxErr(name, "%s", msg)}
+	return noUserSeedError{ctxErr(name, "%s", msg)}
 }

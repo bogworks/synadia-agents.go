@@ -137,7 +137,7 @@ func TestRequestInfo_ConfigFileServers(t *testing.T) {
 func TestRequestInfo_OperatorMode(t *testing.T) {
 	srv := startServer(t, "operator/operator.conf")
 	nc, path := connectCreds(t, srv, "alice.creds")
-	raw, err := os.ReadFile(path)
+	raw, err := os.ReadFile(path) //nolint:gosec // the test reads a fixture or temp path it built itself
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -413,7 +413,7 @@ func TestOperatorMode_StampAndSignedIdentity(t *testing.T) {
 	host(t, hostConn, subject, gate)
 
 	bobConn, path := connectCreds(t, srv, "bob.creds") // APP
-	raw, _ := os.ReadFile(path)
+	raw, _ := os.ReadFile(path)                        //nolint:gosec // the test reads a fixture or temp path it built itself
 	s, err := identity.SignerFromCreds(raw)
 	if err != nil {
 		t.Fatal(err)

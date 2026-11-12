@@ -350,7 +350,7 @@ func TestStream_NothingAfterTerminator(t *testing.T) {
 	h := newHost(t, nc, func(ctx context.Context, _ *host.Request, w *host.Responder) error {
 		go func() {
 			time.Sleep(150 * time.Millisecond)
-			late <- w.Send(context.Background(), "too late")
+			late <- w.Send(context.WithoutCancel(ctx), "too late")
 		}()
 		return w.Send(ctx, "first")
 	})
@@ -605,7 +605,7 @@ func TestRequest_SeenByHandler(t *testing.T) {
 	_, nc := setup(t)
 	got := make(chan *host.Request, 1)
 	var n atomic.Int32
-	h := newHost(t, nc, func(ctx context.Context, req *host.Request, w *host.Responder) error {
+	h := newHost(t, nc, func(_ context.Context, req *host.Request, _ *host.Responder) error {
 		if n.Add(1) == 1 {
 			req.Header.Set("X-Mutated", "yes")
 		}

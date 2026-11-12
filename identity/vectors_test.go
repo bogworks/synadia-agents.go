@@ -18,7 +18,7 @@ import (
 
 func readJSON(t *testing.T, name string, v any) {
 	t.Helper()
-	raw, err := os.ReadFile(filepath.Join("testdata", name))
+	raw, err := os.ReadFile(filepath.Join("testdata", name)) //nolint:gosec // the test reads a fixture or temp path it built itself
 	if err != nil {
 		t.Fatal(err)
 	}

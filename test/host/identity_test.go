@@ -280,7 +280,10 @@ type gateCase struct {
 }
 
 func sign(u user, fix func(*identity.SignOptions)) func(t *testing.T, subj string, payload []byte) nats.Header {
-	return func(t *testing.T, subj string, payload []byte) nats.Header { return signed(t, u, subj, payload, fix) }
+	return func(t *testing.T, subj string, payload []byte) nats.Header {
+		t.Helper()
+		return signed(t, u, subj, payload, fix)
+	}
 }
 
 // TestGate_Dispatch: how each class of sender fares at an endpoint that
@@ -466,7 +469,7 @@ func TestGate_AdmissionHook(t *testing.T) {
 	mode.Store("refuse")
 	var calls atomic.Int32
 	var served atomic.Int32
-	hook := func(ctx context.Context, s *identity.Sender, req *host.RequestInfo) (bool, error) {
+	hook := func(_ context.Context, s *identity.Sender, req *host.RequestInfo) (bool, error) {
 		calls.Add(1)
 		sn := seen{trust: identity.TrustOf(s), subject: req.Subject, header: req.Header.Get("X-App"), isNil: req.Sender == nil}
 		if s != nil {
@@ -483,7 +486,7 @@ func TestGate_AdmissionHook(t *testing.T) {
 		}
 		return true, nil
 	}
-	h := newHost(t, nc, func(ctx context.Context, req *host.Request, w *host.Responder) error {
+	h := newHost(t, nc, func(ctx context.Context, _ *host.Request, w *host.Responder) error {
 		served.Add(1)
 		return w.Send(ctx, "in")
 	}, host.WithAdmission(hook))
@@ -601,7 +604,7 @@ func TestIdentity_ClaimedHasNoID(t *testing.T) {
 	hostConn := env.conn(t, carol)
 	aliceConn := env.conn(t, alice)
 	got := make(chan *host.Request, 4)
-	capture := func(ctx context.Context, req *host.Request, w *host.Responder) error {
+	capture := func(_ context.Context, req *host.Request, _ *host.Responder) error {
 		got <- req
 		return nil
 	}

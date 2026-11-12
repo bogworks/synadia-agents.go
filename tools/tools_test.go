@@ -8,6 +8,7 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -27,7 +28,7 @@ const fixtureDir = "testdata/agent-tools"
 
 func readFixture(t *testing.T, name string) []byte {
 	t.Helper()
-	b, err := os.ReadFile(filepath.Join(fixtureDir, name))
+	b, err := os.ReadFile(filepath.Join(fixtureDir, name)) //nolint:gosec // the test reads a fixture or temp path it built itself
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -701,7 +702,7 @@ func TestQuestion_FilesComeWithTheQuestion(t *testing.T) {
 	if len(files) != 1 || f["size_bytes"].(float64) != 4 || !filepath.IsAbs(p) || !strings.HasPrefix(p, h.staging+string(filepath.Separator)+str(r, "call_id")) {
 		t.Fatalf("%v", r)
 	}
-	if b, err := os.ReadFile(p); err != nil || string(b) != "data" {
+	if b, err := os.ReadFile(p); err != nil || string(b) != "data" { //nolint:gosec // the test reads a fixture or temp path it built itself
 		t.Errorf("saved file: %q %v", b, err)
 	}
 	if strings.Contains(p, "evil") {
@@ -1175,7 +1176,7 @@ func TestScope_FnErrorIsReturnedAndScopeStillCloses(t *testing.T) {
 		h.run(ctx, ToolPromptAgent, obj{"address": tg.subject, "prompt": "x", "wait": false})
 		return errBoom
 	})
-	if err != errBoom {
+	if !errors.Is(err, errBoom) {
 		t.Fatalf("%v", err)
 	}
 	// After the scope closed, no call can start in it.
@@ -1452,10 +1453,10 @@ func TestClose_CancelsOpenCallsRefusesQuestionsAndEndsExecute(t *testing.T) {
 	if got := q.got(t); got != QuestionRefusal {
 		t.Errorf("refusal %q", got)
 	}
-	if _, err := h.tl.Execute(context.Background(), ToolListAgentCalls, nil); err != ErrClosed {
+	if _, err := h.tl.Execute(context.Background(), ToolListAgentCalls, nil); !errors.Is(err, ErrClosed) {
 		t.Errorf("Execute after Close: %v", err)
 	}
-	if err := h.tl.RunInPromptScope(context.Background(), "", func(context.Context) error { return nil }); err != ErrClosed {
+	if err := h.tl.RunInPromptScope(context.Background(), "", func(context.Context) error { return nil }); !errors.Is(err, ErrClosed) {
 		t.Errorf("RunInPromptScope after Close: %v", err)
 	}
 	if err := h.tl.Close(); err != nil {

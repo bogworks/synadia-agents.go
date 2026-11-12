@@ -393,7 +393,7 @@ func (t *T) wantUnverified(s *Stream) (bool, string) {
 	return false, "expected the request served by an any endpoint, got " + s.Describe()
 }
 
-func needSeed(t *T, who signerID, what string) (Outcome, bool) {
+func needSeed(_ *T, who signerID, what string) (Outcome, bool) {
 	if who.err != nil {
 		return Outcome{ConfigMissing, what + ": " + who.err.Error()}, false
 	}
@@ -922,7 +922,7 @@ func registerSeeded(add adder) {
 		return pass("a sub that is a pattern matching the arrival subject was refused with 401")
 	}), "SAP-13.7.1-01")
 
-	add(seeded(func(_ context.Context, t *T, set *senderSet) Outcome {
+	add(seeded(func(_ context.Context, t *T, _ *senderSet) Outcome {
 		return pass("sub equal to the arrival subject was verified%s", note(t.streams["id-valid"]))
 	}), "SAP-13.7.1-02")
 

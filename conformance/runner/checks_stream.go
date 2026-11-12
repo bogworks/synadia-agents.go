@@ -235,7 +235,7 @@ func (t *T) errorStreams(ctx context.Context) []*Stream {
 
 // perStream applies check to every probe that was sent, success or error. A
 // stream that never reached a terminator is judged by what it did show.
-func perStream(ctx context.Context, t *T, streams []*Stream, okNote string, check func(*Stream) []string) Outcome {
+func perStream(_ context.Context, _ *T, streams []*Stream, okNote string, check func(*Stream) []string) Outcome {
 	if len(streams) == 0 {
 		return fail("no stream to judge")
 	}
@@ -250,7 +250,7 @@ func perStream(ctx context.Context, t *T, streams []*Stream, okNote string, chec
 
 // needServed fails a check that cannot judge a success stream because the host
 // served none of the well-formed probes.
-func needServed(t *T, all []*Stream) (Outcome, bool) {
+func needServed(_ *T, all []*Stream) (Outcome, bool) {
 	var parts []string
 	for _, s := range all {
 		parts = append(parts, s.Name+": "+s.Describe())

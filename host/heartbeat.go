@@ -175,10 +175,10 @@ func (h *Host) signBeat(ctx context.Context, o SignHeartbeatOptions) (nats.Heade
 		err error
 	}
 	ch := make(chan result, 1)
-	//nolint:gosec // identity.Signer takes no context; the call must outlive this one and is bounded by signing
+	// identity.Signer takes no context; the call must outlive this one and is bounded by signing
 	go func() {
 		defer h.signing.Store(false)
-		hdr, err := SignHeartbeat(context.Background(), o)
+		hdr, err := SignHeartbeat(context.WithoutCancel(ctx), o)
 		ch <- result{hdr, err}
 	}()
 	select {

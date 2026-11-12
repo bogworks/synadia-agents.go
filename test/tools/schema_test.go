@@ -41,7 +41,7 @@ func (s *schemaSet) load(name string) (any, error) {
 	if d, ok := s.docs[name]; ok {
 		return d, nil
 	}
-	raw, err := os.ReadFile(filepath.Join(s.dir, name))
+	raw, err := os.ReadFile(filepath.Join(s.dir, name)) //nolint:gosec // the test reads a fixture or temp path it built itself
 	if err != nil {
 		return nil, err
 	}

@@ -35,6 +35,7 @@ func TestGoHost_KeepAlive_DefaultTimeouts(t *testing.T) {
 		}
 		t.Run(name, func(t *testing.T) {
 			eachCaller(t, func(t *testing.T, e *interop.Env, impl interop.Impl) {
+				t.Helper()
 				srv := interop.StartServer(t, e)
 				var opts []host.Option
 				if !ka {

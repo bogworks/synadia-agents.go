@@ -16,7 +16,7 @@ import (
 
 func readFixture(t *testing.T, name string, v any) {
 	t.Helper()
-	b, err := os.ReadFile(filepath.Join("testdata", "attachments", name))
+	b, err := os.ReadFile(filepath.Join("testdata", "attachments", name)) //nolint:gosec // the test reads a fixture or temp path it built itself
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -64,7 +64,7 @@ func TestAttachment_EncodeIsStrictBase64(t *testing.T) {
 	for n := 0; n < 64; n++ {
 		data := make([]byte, n)
 		for i := range data {
-			data[i] = byte(i*37 + 250)
+			data[i] = byte((i*37 + 250) % 256)
 		}
 		a := NewAttachment("f", data)
 		if strings.ContainsAny(a.Content, "-_ \r\n") {
@@ -204,10 +204,10 @@ func TestAttachment_SaveNeverOverwritesOrFollowsLinks(t *testing.T) {
 	if filepath.Base(res[0].Path) != "a (2).txt" || filepath.Base(res[1].Path) != "b (2).txt" {
 		t.Fatalf("%+v", res)
 	}
-	if b, _ := os.ReadFile(victim); string(b) != "keep" {
+	if b, _ := os.ReadFile(victim); string(b) != "keep" { //nolint:gosec // the test reads a fixture or temp path it built itself
 		t.Fatal("followed a symlink")
 	}
-	if b, _ := os.ReadFile(filepath.Join(dir, "a.txt")); string(b) != "old" {
+	if b, _ := os.ReadFile(filepath.Join(dir, "a.txt")); string(b) != "old" { //nolint:gosec // the test reads a fixture or temp path it built itself
 		t.Fatal("overwrote")
 	}
 }

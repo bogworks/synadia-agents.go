@@ -154,7 +154,7 @@ func TestParseURL(t *testing.T) {
 		{name: "bare", in: "nats://host:4222", wantURL: "nats://host:4222"},
 		{name: "schemeless", in: "host:4222", wantURL: "nats://host:4222"},
 		{name: "token", in: "nats://TOK@host:4222", wantURL: "nats://host:4222", token: "TOK"},
-		{name: "user and password", in: "nats://alice:pw@host:4222", wantURL: "nats://host:4222", user: "alice", pass: "pw"},
+		{name: "user and password", in: "nats://alice:pw@host:4222", wantURL: "nats://host:4222", user: "alice", pass: "pw"}, //nolint:gosec // a fake credential in a test fixture
 		{name: "user and empty password", in: "nats://alice:@host:4222", wantURL: "nats://host:4222", user: "alice"},
 		{name: "percent decoded", in: "nats://al%40ice:p%3Aw@host", wantURL: "nats://host", user: "al@ice", pass: "p:w"},
 		{name: "tls scheme", in: "tls://TOK@host:4443", wantURL: "tls://host:4443", token: "TOK"},
@@ -193,7 +193,7 @@ func TestParseURL_Errors(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			_, err := connect.ParseURL(tc.in)
-			wantContextErr(t, err)
+			_ = wantContextErr(t, err)
 			if strings.Contains(err.Error(), "SECRETTOKEN") || strings.Contains(err.Error(), "other@") {
 				t.Errorf("error leaks userinfo: %v", err)
 			}
@@ -271,14 +271,14 @@ func TestReadContext_Current(t *testing.T) {
 	t.Run("empty selection file", func(t *testing.T) {
 		e.write(filepath.Join(e.dir, "context.txt"), " \n")
 		_, err := connect.ReadContext("current")
-		wantContextErr(t, err)
+		_ = wantContextErr(t, err)
 	})
 	t.Run("no selection", func(t *testing.T) {
 		if err := os.Remove(filepath.Join(e.dir, "context.txt")); err != nil {
 			t.Fatal(err)
 		}
 		_, err := connect.ReadContext("current")
-		wantContextErr(t, err)
+		_ = wantContextErr(t, err)
 	})
 }
 
@@ -293,7 +293,7 @@ func TestReadContext_NamesAndFiles(t *testing.T) {
 	for _, name := range []string{"", ".", "..", "../x", "a/b", `a\b`, "a\x00b"} {
 		t.Run(fmt.Sprintf("invalid name %q", name), func(t *testing.T) {
 			_, err := connect.ReadContext(name)
-			wantContextErr(t, err)
+			_ = wantContextErr(t, err)
 		})
 	}
 	for _, name := range []string{"missing", "bad", "array", "null", "secretish"} {
@@ -346,52 +346,62 @@ func TestLoadContext_Auth(t *testing.T) {
 		check  func(t *testing.T, o nats.Options)
 	}{
 		{"token", map[string]any{"url": serverURL, "token": "T1"}, func(t *testing.T, o nats.Options) {
+			t.Helper()
 			if o.Token != "T1" || o.User != "" {
 				t.Errorf("token=%q user=%q", o.Token, o.User)
 			}
 		}},
 		{"user and password", map[string]any{"url": serverURL, "user": "bob", "password": "pw"}, func(t *testing.T, o nats.Options) {
+			t.Helper()
 			if o.User != "bob" || o.Password != "pw" || o.Token != "" {
 				t.Errorf("auth = %q %q %q", o.User, o.Password, o.Token)
 			}
 		}},
 		{"user and password beat token", map[string]any{"url": serverURL, "user": "bob", "password": "pw", "token": "T"}, func(t *testing.T, o nats.Options) {
+			t.Helper()
 			if o.User != "bob" || o.Token != "" {
 				t.Errorf("auth = %q %q", o.User, o.Token)
 			}
 		}},
 		{"url userinfo token", map[string]any{"url": "nats://UT@127.0.0.1:4222"}, func(t *testing.T, o nats.Options) {
+			t.Helper()
 			if o.Token != "UT" {
 				t.Errorf("token = %q", o.Token)
 			}
 		}},
 		{"explicit field beats url userinfo", map[string]any{"url": "nats://UT@127.0.0.1:4222", "user": "bob", "password": "pw"}, func(t *testing.T, o nats.Options) {
+			t.Helper()
 			if o.Token != "" || o.User != "bob" {
 				t.Errorf("token=%q user=%q", o.Token, o.User)
 			}
 		}},
 		{"nkey file with trailing newline", map[string]any{"url": serverURL, "nkey": nkeyPath}, func(t *testing.T, o nats.Options) {
+			t.Helper()
 			if o.Nkey != u.pub || o.SignatureCB == nil {
 				t.Errorf("Nkey = %q", o.Nkey)
 			}
 		}},
 		{"creds file", map[string]any{"url": serverURL, "creds": credsPath}, func(t *testing.T, o nats.Options) {
+			t.Helper()
 			got, err := o.UserJWT()
 			if err != nil || got != jwt || o.SignatureCB == nil {
 				t.Errorf("jwt = %q, %v", got, err)
 			}
 		}},
 		{"creds beat nkey, token and user", map[string]any{"url": serverURL, "creds": credsPath, "nkey": nkeyPath, "token": "T", "user": "x"}, func(t *testing.T, o nats.Options) {
+			t.Helper()
 			if o.Nkey != "" || o.Token != "" || o.User != "" || o.UserJWT == nil {
 				t.Errorf("creds did not win: nkey=%q token=%q user=%q", o.Nkey, o.Token, o.User)
 			}
 		}},
 		{"nkey beats user_jwt", map[string]any{"url": serverURL, "nkey": nkeyPath, "user_jwt": "x.y.z", "token": "T"}, func(t *testing.T, o nats.Options) {
+			t.Helper()
 			if o.Nkey != u.pub || o.UserJWT != nil {
 				t.Errorf("nkey did not win")
 			}
 		}},
 		{"user_jwt with seed", map[string]any{"url": serverURL, "user_jwt": jwt, "user_seed": u.seed}, func(t *testing.T, o nats.Options) {
+			t.Helper()
 			got, _ := o.UserJWT()
 			sig, err := o.SignatureCB([]byte("nonce"))
 			if got != jwt || err != nil || len(sig) != 64 {
@@ -399,6 +409,7 @@ func TestLoadContext_Auth(t *testing.T) {
 			}
 		}},
 		{"user_jwt without seed signs empty", map[string]any{"url": serverURL, "user_jwt": "a.b.c", "token": "T"}, func(t *testing.T, o nats.Options) {
+			t.Helper()
 			got, _ := o.UserJWT()
 			sig, err := o.SignatureCB([]byte("nonce"))
 			if got != "a.b.c" || err != nil || len(sig) != 0 || o.Token != "" {
@@ -406,21 +417,25 @@ func TestLoadContext_Auth(t *testing.T) {
 			}
 		}},
 		{"inbox prefix", map[string]any{"url": serverURL, "inbox_prefix": "_INBOX.custom"}, func(t *testing.T, o nats.Options) {
+			t.Helper()
 			if o.InboxPrefix != "_INBOX.custom" {
 				t.Errorf("InboxPrefix = %q", o.InboxPrefix)
 			}
 		}},
 		{"ignored upstream fields", map[string]any{"url": serverURL, "socks_proxy": "x", "jetstream_domain": "d", "color_scheme": "c", "windows_cert_store": "w"}, func(t *testing.T, o nats.Options) {
+			t.Helper()
 			if o.Token != "" || o.Nkey != "" || o.UserJWT != nil {
 				t.Errorf("an ignored field changed the options")
 			}
 		}},
 		{"tls_first alone", map[string]any{"url": serverURL, "tls_first": true}, func(t *testing.T, o nats.Options) {
+			t.Helper()
 			if !o.TLSHandshakeFirst || o.TLSConfig == nil || o.TLSConfig.MinVersion < 0x0303 {
 				t.Errorf("tls_first not applied: %+v", o.TLSConfig)
 			}
 		}},
 		{"tls_first false is ignored", map[string]any{"url": serverURL, "tls_first": false}, func(t *testing.T, o nats.Options) {
+			t.Helper()
 			if o.TLSConfig != nil || o.TLSHandshakeFirst {
 				t.Errorf("TLS configured")
 			}
@@ -472,12 +487,12 @@ func TestLoadContext_PathExpansion(t *testing.T) {
 		e.write(filepath.Join(e.dir, "context", "u.nk"), u.seed)
 		e.context("c", map[string]any{"url": serverURL, "nkey": "u.nk"})
 		_, err := connect.LoadContext("c")
-		wantContextErr(t, err)
+		_ = wantContextErr(t, err)
 	})
 	t.Run("a bare tilde-user path is not expanded", func(t *testing.T) {
 		e.context("c", map[string]any{"url": serverURL, "nkey": "~keys/u.nk"})
 		_, err := connect.LoadContext("c")
-		wantContextErr(t, err)
+		_ = wantContextErr(t, err)
 	})
 }
 
@@ -605,7 +620,7 @@ func TestLoadContext_TLS(t *testing.T) {
 	t.Run("cert and key that do not pair", func(t *testing.T) {
 		e.context("c", map[string]any{"url": "tls://127.0.0.1:4222", "cert": certPath, "key": certPath})
 		_, err := connect.LoadContext("c")
-		wantContextErr(t, err)
+		_ = wantContextErr(t, err)
 	})
 }
 
@@ -635,7 +650,7 @@ func TestSource_Validate(t *testing.T) {
 				t.Fatalf("Validate() = %v, want ok=%v", err, tc.ok)
 			}
 			if err != nil {
-				wantContextErr(t, err)
+				_ = wantContextErr(t, err)
 			}
 		})
 	}
@@ -679,7 +694,7 @@ func TestResolveBundle_Context(t *testing.T) {
 	t.Run("signed without a seed", func(t *testing.T) {
 		for _, name := range []string{"jwtonly", "token"} {
 			_, err := connect.ResolveBundle(t.Context(), connect.Source{Context: name}, connect.WithSignedIdentity())
-			wantContextErr(t, err)
+			_ = wantContextErr(t, err)
 			if !errors.Is(err, connect.ErrNoUserSeed) {
 				t.Errorf("%s: error %v does not match ErrNoUserSeed", name, err)
 			}
@@ -687,7 +702,7 @@ func TestResolveBundle_Context(t *testing.T) {
 	})
 	t.Run("missing context", func(t *testing.T) {
 		_, err := connect.ResolveBundle(t.Context(), connect.Source{Context: "nope"})
-		wantContextErr(t, err)
+		_ = wantContextErr(t, err)
 	})
 	t.Run("config dir option", func(t *testing.T) {
 		t.Setenv("HOME", t.TempDir())
@@ -715,7 +730,7 @@ func TestResolveBundle_Context(t *testing.T) {
 	})
 	t.Run("ambiguous source", func(t *testing.T) {
 		_, err := connect.ResolveBundle(t.Context(), connect.Source{Context: "nkey", URL: serverURL})
-		wantContextErr(t, err)
+		_ = wantContextErr(t, err)
 	})
 }
 
@@ -751,18 +766,18 @@ func TestResolveBundle_URL(t *testing.T) {
 	})
 	t.Run("signed needs a seed", func(t *testing.T) {
 		_, err := connect.ResolveBundle(t.Context(), connect.Source{URL: serverURL}, connect.WithSignedIdentity())
-		wantContextErr(t, err)
+		_ = wantContextErr(t, err)
 		if !errors.Is(err, connect.ErrNoUserSeed) {
 			t.Errorf("err = %v", err)
 		}
 	})
 	t.Run("missing key file", func(t *testing.T) {
 		_, err := connect.ResolveBundle(t.Context(), connect.Source{URL: serverURL, NKey: filepath.Join(e.home, "nope")})
-		wantContextErr(t, err)
+		_ = wantContextErr(t, err)
 	})
 	t.Run("bad url", func(t *testing.T) {
 		_, err := connect.ResolveBundle(t.Context(), connect.Source{URL: "ftp://x"})
-		wantContextErr(t, err)
+		_ = wantContextErr(t, err)
 	})
 }
 
@@ -835,7 +850,7 @@ func TestSignerFromContext(t *testing.T) {
 			e.context("c", tc.fields)
 			s, err := connect.SignerFromContext("c")
 			if tc.noSeed {
-				wantContextErr(t, err)
+				_ = wantContextErr(t, err)
 				if !errors.Is(err, connect.ErrNoUserSeed) {
 					t.Errorf("err = %v", err)
 				}
@@ -861,12 +876,12 @@ func TestSignerFromContext(t *testing.T) {
 	}
 	t.Run("missing context", func(t *testing.T) {
 		_, err := connect.SignerFromContext("nope")
-		wantContextErr(t, err)
+		_ = wantContextErr(t, err)
 	})
 	t.Run("bad seed does not leak", func(t *testing.T) {
 		e.context("c", map[string]any{"url": serverURL, "user_seed": "SUASECRETNOTASEED"})
 		_, err := connect.SignerFromContext("c")
-		wantContextErr(t, err)
+		_ = wantContextErr(t, err)
 		if strings.Contains(err.Error(), "SECRETNOTASEED") {
 			t.Errorf("error leaks the seed: %v", err)
 		}

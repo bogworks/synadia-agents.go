@@ -102,7 +102,7 @@ func TestNonceSet_SafeUnderRace(t *testing.T) {
 	var recorded atomic.Int64
 	for g := 0; g < 8; g++ {
 		wg.Add(1)
-		go func(g int) {
+		go func(_ int) {
 			defer wg.Done()
 			for i := 0; i < 400; i++ {
 				// Half of the keys are shared across goroutines.

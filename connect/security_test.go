@@ -22,9 +22,9 @@ import (
 func TestSource_FormattingRedactsURLUserinfo(t *testing.T) {
 	srcs := []connect.Source{
 		{URL: "nats://TOPSECRETTOKEN@host:4222"},
-		{URL: "nats://alice:TOPSECRETPW@host:4222", Creds: "/keys/a.creds"},
-		{URL: "nats://alice:TOPSECRETPW@a:4222,nats://alice:TOPSECRETPW@b:4222", NKey: "/keys/a.nk"},
-		{URL: "nats://alice:TOPSECRETPW,more@host"}, // malformed userinfo
+		{URL: "nats://alice:TOPSECRETPW@host:4222", Creds: "/keys/a.creds"},                          //nolint:gosec // a fake credential in a test fixture
+		{URL: "nats://alice:TOPSECRETPW@a:4222,nats://alice:TOPSECRETPW@b:4222", NKey: "/keys/a.nk"}, //nolint:gosec // a fake credential in a test fixture
+		{URL: "nats://alice:TOPSECRETPW,more@host"},                                                  // malformed userinfo
 		{Context: "prod"},
 	}
 	for _, s := range srcs {
@@ -62,7 +62,7 @@ func TestSource_FormattingRedactsURLUserinfo(t *testing.T) {
 
 func mustRead(t *testing.T, path string) string {
 	t.Helper()
-	b, err := os.ReadFile(path)
+	b, err := os.ReadFile(path) //nolint:gosec // the test reads a fixture or temp path it built itself
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -116,7 +116,7 @@ func TestParseURL_ErrorsNeverQuoteUserinfo(t *testing.T) {
 
 func TestContextFile_MarshalJSONRedactsSecrets(t *testing.T) {
 	e := newEnv(t)
-	e.context("c", map[string]any{
+	e.context("c", map[string]any{ //nolint:gosec // a fake credential in a test fixture
 		"url":          "nats://TOKENINURL@host:4222",
 		"user_seed":    "SUASECRETSEEDVALUE",
 		"user_jwt":     "JWTSECRETVALUE",
@@ -172,7 +172,7 @@ func TestSignerFromContext_RefusesIdentityDifferentFromConnection(t *testing.T) 
 		{"seed beside token", map[string]any{"url": serverURL, "user_seed": u.seed, "token": "T"}, false},
 		{"seed beside user and password", map[string]any{"url": serverURL, "user_seed": u.seed, "user": "bob", "password": "pw"}, false},
 		{"seed beside url token", map[string]any{"url": "nats://T@host:4222", "user_seed": u.seed}, false},
-		{"seed beside url user and password", map[string]any{"url": "nats://bob:pw@host:4222", "user_seed": u.seed}, false},
+		{"seed beside url user and password", map[string]any{"url": "nats://bob:pw@host:4222", "user_seed": u.seed}, false}, //nolint:gosec // a fake credential in a test fixture
 		{"lone seed, no other credential", map[string]any{"url": serverURL, "user_seed": u.seed}, true},
 		{"seed with its jwt and a token", map[string]any{"url": serverURL, "user_seed": u.seed, "user_jwt": jwt, "token": "T"}, true},
 	}
@@ -186,7 +186,7 @@ func TestSignerFromContext_RefusesIdentityDifferentFromConnection(t *testing.T) 
 				}
 				return
 			}
-			wantContextErr(t, err)
+			_ = wantContextErr(t, err)
 			if !errors.Is(err, identity.ErrIdentityMismatch) {
 				t.Errorf("err = %v, want ErrIdentityMismatch", err)
 			}
@@ -255,7 +255,7 @@ func TestKeyFilePermissions(t *testing.T) {
 					}
 					return
 				}
-				wantContextErr(t, err)
+				_ = wantContextErr(t, err)
 				if !strings.Contains(err.Error(), "0600") || !strings.Contains(err.Error(), p) {
 					t.Errorf("error does not name the file and 0600: %v", err)
 				}
@@ -301,7 +301,7 @@ func TestKeyFilePermissions(t *testing.T) {
 		key := writeMode(t, filepath.Join(e.home, "tls", "c.key"), keyPEM, 0o644)
 		e.context("t", map[string]any{"url": serverURL, "cert": cert, "key": key})
 		_, err := connect.LoadContext("t")
-		wantContextErr(t, err)
+		_ = wantContextErr(t, err)
 		if !strings.Contains(err.Error(), "0600") || !strings.Contains(err.Error(), key) {
 			t.Errorf("err = %v", err)
 		}
@@ -339,13 +339,13 @@ func TestReadContext_FileChecks(t *testing.T) {
 			t.Fatal(err)
 		}
 		_, err := connect.ReadContext("dir")
-		wantContextErr(t, err)
+		_ = wantContextErr(t, err)
 	})
 	t.Run("over the size cap", func(t *testing.T) {
 		big := `{"url": "nats://x:1", "pad": "` + strings.Repeat("a", 1<<20) + `"}`
 		e.write(ctxPath("big"), big)
 		_, err := connect.ReadContext("big")
-		wantContextErr(t, err)
+		_ = wantContextErr(t, err)
 		if !strings.Contains(err.Error(), "too large") {
 			t.Errorf("error does not say why: %v", err)
 		}
@@ -357,14 +357,14 @@ func TestReadContext_FileChecks(t *testing.T) {
 		}
 		t.Setenv("NATS_CONTEXT", "")
 		_, err := connect.ReadContext("current")
-		wantContextErr(t, err)
+		_ = wantContextErr(t, err)
 	})
 	t.Run("current selection over the size cap", func(t *testing.T) {
 		e2 := newEnv(t)
 		e2.write(filepath.Join(e2.dir, "context.txt"), strings.Repeat("a", 1<<20+1))
 		t.Setenv("NATS_CONTEXT", "")
 		_, err := connect.ReadContext("current")
-		wantContextErr(t, err)
+		_ = wantContextErr(t, err)
 	})
 
 	if runtime.GOOS == "windows" {
@@ -376,7 +376,7 @@ func TestReadContext_FileChecks(t *testing.T) {
 		t.Run("group-readable context with inline "+field, func(t *testing.T) {
 			p := writeMode(t, ctxPath("shared-"+field), body, 0o644)
 			_, err := connect.ReadContext("shared-" + field)
-			wantContextErr(t, err)
+			_ = wantContextErr(t, err)
 			if !strings.Contains(err.Error(), "0600") || strings.Contains(err.Error(), v) {
 				t.Errorf("error %v", err)
 			}
@@ -405,7 +405,7 @@ func TestReadContext_FileChecks(t *testing.T) {
 			body := fmt.Sprintf(`{"url": %q}`, tc.url)
 			p := writeMode(t, ctxPath(name), body, 0o644)
 			_, err := connect.ReadContext(name)
-			wantContextErr(t, err)
+			_ = wantContextErr(t, err)
 			if !strings.Contains(err.Error(), "0600") || strings.Contains(err.Error(), tc.secret) {
 				t.Errorf("error %v", err)
 			}

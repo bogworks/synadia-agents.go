@@ -236,7 +236,7 @@ func TestWorkflows_Guard(t *testing.T) {
 		t.Fatal("no workflow files found")
 	}
 	for _, f := range files {
-		b, err := os.ReadFile(f)
+		b, err := os.ReadFile(f) //nolint:gosec // the test reads a fixture or temp path it built itself
 		if err != nil {
 			t.Fatal(err)
 		}

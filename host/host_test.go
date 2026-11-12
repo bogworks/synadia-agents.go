@@ -64,7 +64,7 @@ func TestRunChain_OrderAndMisuse(t *testing.T) {
 		t.Fatalf("%v, serve ran %d times", err, calls)
 	}
 	// A nil context passed to next falls back to the caller's.
-	nilCtx := InterceptorFunc(func(ctx context.Context, _ *RequestInfo, next CallNext) error { return next(nil) }) //nolint:staticcheck // the behavior under test
+	nilCtx := InterceptorFunc(func(_ context.Context, _ *RequestInfo, next CallNext) error { return next(nil) })
 	if err := runChain(context.Background(), []Interceptor{nilCtx}, &RequestInfo{}, func(ctx context.Context) error {
 		if ctx == nil {
 			t.Error("nil context reached serve")

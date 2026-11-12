@@ -413,7 +413,7 @@ func buildRunnerConfig(c fileConfig, discover, hb, stream, qwait, ack, maxDur *s
 }
 
 // writeSummary prints the human report.
-func writeSummary(w io.Writer, rep *runner.Report, cat *conformance.Catalog, verbose bool) {
+func writeSummary(w io.Writer, rep *runner.Report, _ *conformance.Catalog, verbose bool) {
 	fmt.Fprintf(w, "sapconform %s against SAP %s (spec commit %s, catalog v%d)\n", rep.ToolVersion, rep.SpecVersion, rep.SpecCommit[:12], rep.CatalogVersion)
 	fmt.Fprintf(w, "scope: %s\n", rep.Scope)
 	if len(rep.Supplied) > 0 {

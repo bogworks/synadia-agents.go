@@ -6,6 +6,7 @@ package conformance
 import (
 	"crypto/sha256"
 	"encoding/hex"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -40,7 +41,7 @@ func loadSpec(t *testing.T) []byte {
 	if path == "" {
 		path, explicit = defaultSpecPath, false
 	}
-	spec, err := os.ReadFile(path)
+	spec, err := os.ReadFile(path) //nolint:gosec // the test reads a fixture or temp path it built itself
 	switch {
 	case err == nil:
 		return spec
@@ -124,12 +125,12 @@ func TestCatalog_Summary(t *testing.T) {
 
 // --- the checker's own tests: it must reject what it claims to reject ---
 
-func fid(n int) string { return "SAP-" + "2" + "-" + string(rune('0'+n/10)) + string(rune('0'+n%10)) }
+func fid(n int) string { return fmt.Sprintf("SAP-2-%02d", n) }
 
 func goodEntry(n int) Entry {
 	return Entry{
 		ID: fid(n), Section: "2", SpecLine: 10 + n, Level: LevelShould, Role: RoleHost,
-		Summary: "a distinct paraphrase number " + string(rune('a'+n)), Capability: CapBlackBox,
+		Summary: fmt.Sprintf("a distinct paraphrase number %c", 'a'+n), Capability: CapBlackBox,
 		Tests: []string{}, Status: StatusPlanned,
 	}
 }
@@ -151,7 +152,7 @@ func TestValidate_Table(t *testing.T) {
 		mutate func(c *Catalog)
 		want   string // substring of an expected error, "" for none
 	}{
-		{"good", func(c *Catalog) {}, ""},
+		{"good", func(_ *Catalog) {}, ""},
 		{"duplicate id", func(c *Catalog) { c.Entries[1].ID = c.Entries[0].ID }, "duplicate id"},
 		{"bad id", func(c *Catalog) { c.Entries[0].ID = "X-1" }, "does not match"},
 		{"id section differs", func(c *Catalog) { c.Entries[0].Section = "3" }, "differs from section"},
@@ -244,7 +245,7 @@ func TestValidateSpec_Table(t *testing.T) {
 		mutate func(c *Catalog) []byte
 		want   string
 	}{
-		{"hash changed", func(c *Catalog) []byte { return []byte(spec + "\n") }, "spec hash"},
+		{"hash changed", func(_ *Catalog) []byte { return []byte(spec + "\n") }, "spec hash"},
 		{"missing keyword entry", func(c *Catalog) []byte {
 			c.Entries = c.Entries[:2]
 			return []byte(spec)
@@ -284,10 +285,10 @@ func writeTests(t *testing.T, files map[string]string) string {
 	root := t.TempDir()
 	for name, body := range files {
 		p := filepath.Join(root, filepath.FromSlash(name))
-		if err := os.MkdirAll(filepath.Dir(p), 0o755); err != nil {
+		if err := os.MkdirAll(filepath.Dir(p), 0o750); err != nil {
 			t.Fatal(err)
 		}
-		if err := os.WriteFile(p, []byte(body), 0o644); err != nil {
+		if err := os.WriteFile(p, []byte(body), 0o600); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -345,26 +346,26 @@ func TestCheckCoverage_Mutations(t *testing.T) {
 		mutate func(c *Catalog, tests *[]TestFunc)
 		want   string
 	}{
-		{"named test removed", func(c *Catalog, tests *[]TestFunc) { *tests = (*tests)[:0] }, "does not exist"},
-		{"test does not name the id", func(c *Catalog, tests *[]TestFunc) {
+		{"named test removed", func(_ *Catalog, tests *[]TestFunc) { *tests = (*tests)[:0] }, "does not exist"},
+		{"test does not name the id", func(_ *Catalog, tests *[]TestFunc) {
 			for i := range *tests {
 				(*tests)[i].IDs = nil
 			}
 		}, "does not name the obligation"},
-		{"MUST without tests", func(c *Catalog, tests *[]TestFunc) { c.Entries[0].Tests = nil }, "without tests"},
-		{"MUST without fault check", func(c *Catalog, tests *[]TestFunc) {
+		{"MUST without tests", func(c *Catalog, _ *[]TestFunc) { c.Entries[0].Tests = nil }, "without tests"},
+		{"MUST without fault check", func(c *Catalog, _ *[]TestFunc) {
 			c.Entries[0].FaultID, c.Entries[0].Mutation = "", ""
 		}, "neither a fault check"},
-		{"assertion note stands in", func(c *Catalog, tests *[]TestFunc) {
+		{"assertion note stands in", func(c *Catalog, _ *[]TestFunc) {
 			c.Entries[0].FaultID, c.Entries[0].Mutation, c.Entries[0].AssertionNote = "", "", "a_test.go:TestFirst asserts X"
 		}, ""},
-		{"assertion note names no test", func(c *Catalog, tests *[]TestFunc) {
+		{"assertion note names no test", func(c *Catalog, _ *[]TestFunc) {
 			c.Entries[0].FaultID, c.Entries[0].Mutation, c.Entries[0].AssertionNote = "", "", "asserts X somewhere"
 		}, "must name the asserting test"},
-		{"assertion note names the test without its file", func(c *Catalog, tests *[]TestFunc) {
+		{"assertion note names the test without its file", func(c *Catalog, _ *[]TestFunc) {
 			c.Entries[0].FaultID, c.Entries[0].Mutation, c.Entries[0].AssertionNote = "", "", "TestFirst asserts X"
 		}, "must name the asserting test"},
-		{"linked test asserts nothing", func(c *Catalog, tests *[]TestFunc) {
+		{"linked test asserts nothing", func(_ *Catalog, tests *[]TestFunc) {
 			for i := range *tests {
 				(*tests)[i].Asserts = false
 			}
@@ -378,8 +379,8 @@ func TestCheckCoverage_Mutations(t *testing.T) {
 				}
 			}
 		}, ""},
-		{"planned entry", func(c *Catalog, tests *[]TestFunc) { c.Entries[1].Status = StatusPlanned }, "still planned"},
-		{"test names unknown id", func(c *Catalog, tests *[]TestFunc) {
+		{"planned entry", func(c *Catalog, _ *[]TestFunc) { c.Entries[1].Status = StatusPlanned }, "still planned"},
+		{"test names unknown id", func(_ *Catalog, tests *[]TestFunc) {
 			(*tests)[0].IDs = append((*tests)[0].IDs, fid(77))
 		}, "unknown obligation"},
 		{"test names an unlisted id", func(c *Catalog, tests *[]TestFunc) {
@@ -390,10 +391,10 @@ func TestCheckCoverage_Mutations(t *testing.T) {
 				}
 			}
 		}, "does not list it"},
-		{"test names an na id", func(c *Catalog, tests *[]TestFunc) {
+		{"test names an na id", func(_ *Catalog, tests *[]TestFunc) {
 			(*tests)[0].IDs = append((*tests)[0].IDs, fid(3))
 		}, "not-applicable"},
-		{"test claims too many", func(c *Catalog, tests *[]TestFunc) {
+		{"test claims too many", func(_ *Catalog, tests *[]TestFunc) {
 			for i := range *tests {
 				if (*tests)[i].Name == "TestFirst" {
 					for n := 10; n < 10+MaxClaims; n++ {
@@ -402,8 +403,8 @@ func TestCheckCoverage_Mutations(t *testing.T) {
 				}
 			}
 		}, "needs review"},
-		{"same_as target has no tests", func(c *Catalog, tests *[]TestFunc) { c.Entries[0].Tests = nil }, "no tests"},
-		{"wrong directory", func(c *Catalog, tests *[]TestFunc) { c.Entries[1].Tests = []string{"other:TestSecond"} }, "does not exist"},
+		{"same_as target has no tests", func(c *Catalog, _ *[]TestFunc) { c.Entries[0].Tests = nil }, "no tests"},
+		{"wrong directory", func(c *Catalog, _ *[]TestFunc) { c.Entries[1].Tests = []string{"other:TestSecond"} }, "does not exist"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -435,7 +436,7 @@ func TestValidate_Deferred(t *testing.T) {
 		mutate(e)
 		return Validate(c)
 	}
-	if errs := mk(func(e *Entry) {}); len(errs) != 0 {
+	if errs := mk(func(_ *Entry) {}); len(errs) != 0 {
 		t.Fatalf("good deferred entry rejected: %v", errs)
 	}
 	for name, mutate := range map[string]func(e *Entry){
@@ -464,6 +465,7 @@ func TestScanTests_Assertions(t *testing.T) {
 		"a_test.go": `package p
 
 import (
+	"fmt"
 	"fmt"
 	"testing"
 )

@@ -21,33 +21,33 @@ import (
 var (
 	buildOnce sync.Once
 	binPath   string
-	buildErr  error
+	errBuild  error
 )
 
 // sapconformBinary builds the command once.
 func sapconformBinary(t *testing.T) string {
 	t.Helper()
 	buildOnce.Do(func() {
-		dir, err := os.MkdirTemp("", "sapconform-bin")
+		dir, err := os.MkdirTemp("", "sapconform-bin") //nolint:usetesting // built once for every test in the package, so it must outlive the first test's TempDir
 		if err != nil {
-			buildErr = err
+			errBuild = err
 			return
 		}
 		binPath = filepath.Join(dir, "sapconform")
-		out, err := exec.Command("go", "build", "-o", binPath, "github.com/bogworks/synadia-agents.go/cmd/sapconform").CombinedOutput()
+		out, err := exec.Command("go", "build", "-o", binPath, "github.com/bogworks/synadia-agents.go/cmd/sapconform").CombinedOutput() //nolint:gosec // the test runs the go tool or a binary it built, with arguments it chose
 		if err != nil {
-			buildErr = errors.New(string(out))
+			errBuild = errors.New(string(out))
 		}
 	})
-	if buildErr != nil {
-		t.Fatalf("build sapconform: %v", buildErr)
+	if errBuild != nil {
+		t.Fatalf("build sapconform: %v", errBuild)
 	}
 	return binPath
 }
 
 func runBinary(t *testing.T, args ...string) (stdout string, exit int) {
 	t.Helper()
-	cmd := exec.Command(sapconformBinary(t), args...)
+	cmd := exec.Command(sapconformBinary(t), args...) //nolint:gosec // the test runs the go tool or a binary it built, with arguments it chose
 	var out, errb bytes.Buffer
 	cmd.Stdout, cmd.Stderr = &out, &errb
 	err := cmd.Run()

@@ -81,7 +81,7 @@ func newInstance(nc *nats.Conn, owner, name string) (*host.Host, error) {
 		// The admission hook decides who may prompt; the SDK decides nothing.
 		// It sees the classified sender (nil when the message is unsigned) and
 		// the received headers.
-		host.WithAdmission(func(_ context.Context, sender *identity.Sender, req *host.RequestInfo) (bool, error) {
+		host.WithAdmission(func(_ context.Context, _ *identity.Sender, req *host.RequestInfo) (bool, error) {
 			return req.Header.Get(tenantHeader) == "acme", nil
 		}),
 	)

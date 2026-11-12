@@ -129,7 +129,7 @@ func TestOfficialHosts_Signed(t *testing.T) {
 
 			// The fixture server admits one user, so the runner connects, and signs,
 			// as the host's own user.
-			raw, err := os.ReadFile(hostSeed)
+			raw, err := os.ReadFile(hostSeed) //nolint:gosec // the test reads a fixture or temp path it built itself
 			if err != nil {
 				t.Fatal(err)
 			}

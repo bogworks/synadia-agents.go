@@ -331,7 +331,7 @@ func TestSelfID_ResetDuringLookupDiscardsStaleResult(t *testing.T) {
 func TestSelfID_StaleLookupDoesNotCommitWhenNothingFollows(t *testing.T) {
 	release := make(chan struct{})
 	started := make(chan struct{})
-	conn := &fakeConn{reply: func(ctx context.Context, n int) (*nats.Msg, error) {
+	conn := &fakeConn{reply: func(_ context.Context, n int) (*nats.Msg, error) {
 		if n == 1 {
 			close(started)
 			<-release
@@ -355,8 +355,8 @@ func TestSelfID_StaleLookupDoesNotCommitWhenNothingFollows(t *testing.T) {
 	}
 }
 
-func TestSelfID_ResetRaceWithManyCallers(t *testing.T) {
-	conn := &fakeConn{reply: func(ctx context.Context, n int) (*nats.Msg, error) {
+func TestSelfID_ResetRaceWithManyCallers(_ *testing.T) {
+	conn := &fakeConn{reply: func(ctx context.Context, _ int) (*nats.Msg, error) {
 		select {
 		case <-ctx.Done():
 			return nil, ctx.Err()

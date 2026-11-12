@@ -6,6 +6,7 @@ package host_test
 import (
 	"context"
 	"errors"
+	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -100,7 +101,7 @@ type tagInterceptor struct {
 	mu  *sync.Mutex
 }
 
-func (i tagInterceptor) AroundRequest(ctx context.Context, info *host.RequestInfo, next host.CallNext) error {
+func (i tagInterceptor) AroundRequest(ctx context.Context, _ *host.RequestInfo, next host.CallNext) error {
 	i.mu.Lock()
 	*i.log = append(*i.log, "in:"+i.tag)
 	i.mu.Unlock()
@@ -169,16 +170,16 @@ func TestInterceptors_RefusalMisuseAndFailure(t *testing.T) {
 		acks     int
 		served   bool
 	}{
-		{"refuses before next", func(ctx context.Context, _ *host.RequestInfo, _ host.CallNext) error {
+		{"refuses before next", func(_ context.Context, _ *host.RequestInfo, _ host.CallNext) error {
 			return host.Reject(429, "rate limited here")
 		}, 429, "rate limited here", 0, false},
-		{"plain error before next", func(ctx context.Context, _ *host.RequestInfo, _ host.CallNext) error {
+		{"plain error before next", func(_ context.Context, _ *host.RequestInfo, _ host.CallNext) error {
 			return errors.New("secret detail")
 		}, 500, "handler error", 0, false},
-		{"returns without next", func(ctx context.Context, _ *host.RequestInfo, _ host.CallNext) error {
+		{"returns without next", func(_ context.Context, _ *host.RequestInfo, _ host.CallNext) error {
 			return nil
 		}, 500, "handler error", 0, false},
-		{"panics", func(ctx context.Context, _ *host.RequestInfo, _ host.CallNext) error {
+		{"panics", func(_ context.Context, _ *host.RequestInfo, _ host.CallNext) error {
 			panic("interceptor bug")
 		}, 500, "handler error", 0, false},
 		{"calls next twice", func(ctx context.Context, _ *host.RequestInfo, next host.CallNext) error {
@@ -199,7 +200,7 @@ func TestInterceptors_RefusalMisuseAndFailure(t *testing.T) {
 	for i, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			before := handlerCalls.Load()
-			h := newHostNamed(t, nc, "i"+string(rune('a'+i)), handler, host.WithInterceptors(tc.ic))
+			h := newHostNamed(t, nc, "i"+strconv.Itoa(i), handler, host.WithInterceptors(tc.ic))
 			s := prompt(t, nc, h, "x")
 			se := s.errorFrame()
 			if tc.served {

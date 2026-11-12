@@ -65,7 +65,7 @@ func tree(t *testing.T, files map[string]string) string {
 	t.Helper()
 	dir := t.TempDir()
 	for n, c := range files {
-		if err := os.WriteFile(filepath.Join(dir, n), []byte(c), 0o644); err != nil {
+		if err := os.WriteFile(filepath.Join(dir, n), []byte(c), 0o600); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -84,11 +84,12 @@ func with(m map[string]string, kv ...string) map[string]string {
 	for k, v := range m {
 		out[k] = v
 	}
-	for i := 0; i < len(kv); i += 2 {
-		if kv[i+1] == "\x00" {
-			delete(out, kv[i])
+	for i := 0; i+1 < len(kv); i += 2 {
+		k, v := kv[i], kv[i+1]
+		if v == "\x00" {
+			delete(out, k)
 		} else {
-			out[kv[i]] = kv[i+1]
+			out[k] = v
 		}
 	}
 	return out
@@ -288,22 +289,20 @@ func TestDocs_mergeBase(t *testing.T) {
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			wd, _ := os.Getwd()
 			root := t.TempDir()
 			dir := filepath.Join(root, "docs", "decisions")
-			os.MkdirAll(dir, 0o755)
+			mkdir(t, dir)
 			files := good()
 			delete(files, "0001-use-one-way.md")
 			delete(files, "README.md")
-			os.WriteFile(filepath.Join(dir, "README.md"), []byte("# x\n"), 0o644)
+			writeFile(t, filepath.Join(dir, "README.md"), []byte("# x\n"))
 			if tc.tree != "" {
 				files["0001-use-one-way.md"] = tc.tree
 			}
 			for n, c := range files {
-				os.WriteFile(filepath.Join(dir, n), []byte(c), 0o644)
+				writeFile(t, filepath.Join(dir, n), []byte(c))
 			}
-			os.Chdir(root)
-			defer os.Chdir(wd)
+			t.Chdir(root)
 			g := fakeGitMB(map[string]map[string]string{"good": tc.tip, mbSHA: tc.mbT}, tc.mb, tc.touched)
 			code, out, errs := runCLI(t, g, nil, "docs", "--base", "good", "docs/decisions")
 			if code == 2 {
@@ -354,21 +353,17 @@ func TestImmutability(t *testing.T) {
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			wd, _ := os.Getwd()
 			root := t.TempDir()
 			dir := filepath.Join(root, "docs", "decisions")
-			if err := os.MkdirAll(dir, 0o755); err != nil {
+			if err := os.MkdirAll(dir, 0o750); err != nil {
 				t.Fatal(err)
 			}
 			for n, c := range with(good(), "0001-use-one-way.md", tc.cur) {
-				os.WriteFile(filepath.Join(dir, n), []byte(c), 0o644)
+				writeFile(t, filepath.Join(dir, n), []byte(c))
 			}
-			os.WriteFile(filepath.Join(dir, "0002-new.md"), []byte("x"), 0o644)
-			os.WriteFile(filepath.Join(dir, "0003-newer.md"), []byte("x"), 0o644)
-			if err := os.Chdir(root); err != nil {
-				t.Fatal(err)
-			}
-			defer os.Chdir(wd)
+			writeFile(t, filepath.Join(dir, "0002-new.md"), []byte("x"))
+			writeFile(t, filepath.Join(dir, "0003-newer.md"), []byte("x"))
+			t.Chdir(root)
 			base := map[string]string{}
 			if tc.base != "" {
 				base["docs/decisions/0001-use-one-way.md"] = tc.base
@@ -386,13 +381,11 @@ func TestImmutability(t *testing.T) {
 }
 
 func TestImmutability_deletedAcceptedADR(t *testing.T) {
-	wd, _ := os.Getwd()
 	root := t.TempDir()
 	dir := filepath.Join(root, "docs", "decisions")
-	os.MkdirAll(dir, 0o755)
-	os.WriteFile(filepath.Join(dir, "README.md"), []byte("# x\n"), 0o644)
-	os.Chdir(root)
-	defer os.Chdir(wd)
+	mkdir(t, dir)
+	writeFile(t, filepath.Join(dir, "README.md"), []byte("# x\n"))
+	t.Chdir(root)
 	vs, err := lintImmutable("docs/decisions", "docs/decisions", "good", fakeGit(map[string]string{"docs/decisions/0001-use-one-way.md": goodADR}))
 	if err != nil || len(vs) != 1 || !strings.Contains(vs[0], "deleted") {
 		t.Fatalf("got %v %v", vs, err)
@@ -400,15 +393,13 @@ func TestImmutability_deletedAcceptedADR(t *testing.T) {
 }
 
 func TestDocs_baseFlag(t *testing.T) {
-	wd, _ := os.Getwd()
 	root := t.TempDir()
 	dir := filepath.Join(root, "docs", "decisions")
-	os.MkdirAll(dir, 0o755)
+	mkdir(t, dir)
 	for n, c := range with(good(), "0001-use-one-way.md", edit(goodADR, "Chosen option", "Changed option")) {
-		os.WriteFile(filepath.Join(dir, n), []byte(c), 0o644)
+		writeFile(t, filepath.Join(dir, n), []byte(c))
 	}
-	os.Chdir(root)
-	defer os.Chdir(wd)
+	t.Chdir(root)
 	g := fakeGit(map[string]string{"docs/decisions/0001-use-one-way.md": goodADR})
 	if code, out, _ := runCLI(t, g, nil, "docs", "--base", "good", "docs/decisions"); code != 1 || !strings.Contains(out, "immutable") {
 		t.Errorf("--base good: %d %q", code, out)
@@ -481,14 +472,14 @@ func TestPR(t *testing.T) {
 			}
 			root := t.TempDir()
 			dir := filepath.Join(root, "docs", "decisions")
-			if err := os.MkdirAll(dir, 0o755); err != nil {
+			if err := os.MkdirAll(dir, 0o750); err != nil {
 				t.Fatal(err)
 			}
 			for n, c := range with(good(), "README.md", readme) {
-				os.WriteFile(filepath.Join(dir, n), []byte(c), 0o644)
+				writeFile(t, filepath.Join(dir, n), []byte(c))
 			}
 			fl := filepath.Join(t.TempDir(), "files")
-			os.WriteFile(fl, []byte(tc.files), 0o644)
+			writeFile(t, fl, []byte(tc.files))
 			code, out, errs := runCLI(t, nil, map[string]string{"PR_BODY": tc.body, "PR_LABELS": tc.labels}, "pr", "--files", fl, "--root", root)
 			if tc.want == "" {
 				if code != 0 || out != "" {
@@ -517,12 +508,12 @@ func TestPRConfirmationNeedsALabeledRun(t *testing.T) {
 		t.Run(tc.action+"/"+tc.via, func(t *testing.T) {
 			root := t.TempDir()
 			dir := filepath.Join(root, "docs", "decisions")
-			os.MkdirAll(dir, 0o755)
+			mkdir(t, dir)
 			for n, c := range with(good(), "README.md", goodReadme) {
-				os.WriteFile(filepath.Join(dir, n), []byte(c), 0o644)
+				writeFile(t, filepath.Join(dir, n), []byte(c))
 			}
 			fl := filepath.Join(t.TempDir(), "files")
-			os.WriteFile(fl, []byte("test/ci/x.go\n"), 0o644)
+			writeFile(t, fl, []byte("test/ci/x.go\n"))
 			envs := map[string]string{"PR_BODY": "Decision: none", "PR_LABELS": "decision-confirmed"}
 			args := []string{"pr", "--files", fl, "--root", root}
 			if tc.via == "env" {
@@ -545,9 +536,9 @@ func TestPRConfirmationNeedsALabeledRun(t *testing.T) {
 func TestRootFlag(t *testing.T) {
 	root := t.TempDir()
 	dir := filepath.Join(root, "docs", "decisions")
-	os.MkdirAll(dir, 0o755)
+	mkdir(t, dir)
 	for n, c := range with(good(), "0001-use-one-way.md", edit(goodADR, "Chosen option", "Changed option")) {
-		os.WriteFile(filepath.Join(dir, n), []byte(c), 0o644)
+		writeFile(t, filepath.Join(dir, n), []byte(c))
 	}
 	var first []string
 	g := func(args ...string) ([]byte, error) {
@@ -578,5 +569,21 @@ func TestRepositoryADRsPass(t *testing.T) {
 	}
 	if len(vs) > 0 {
 		t.Fatalf("the repository's ADRs have violations:\n%s", strings.Join(vs, "\n"))
+	}
+}
+
+// writeFile writes a test fixture file readable by the owner only.
+func writeFile(tb testing.TB, name string, data []byte) {
+	tb.Helper()
+	if err := os.WriteFile(name, data, 0o600); err != nil {
+		tb.Fatal(err)
+	}
+}
+
+// mkdir makes a test fixture directory, and its parents, for the owner only.
+func mkdir(tb testing.TB, dir string) {
+	tb.Helper()
+	if err := os.MkdirAll(dir, 0o750); err != nil {
+		tb.Fatal(err)
 	}
 }

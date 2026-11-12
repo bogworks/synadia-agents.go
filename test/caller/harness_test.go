@@ -51,7 +51,10 @@ func runServer(t *testing.T, opts *server.Options) *server.Server {
 }
 
 // startServer runs a server with no authentication.
-func startServer(t *testing.T) *server.Server { return runServer(t, &server.Options{}) }
+func startServer(t *testing.T) *server.Server {
+	t.Helper()
+	return runServer(t, &server.Options{})
+}
 
 // startNkeyServer runs the nkey fixture server: one user, alice, in $G.
 func startNkeyServer(t *testing.T) *server.Server {

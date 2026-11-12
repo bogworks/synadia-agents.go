@@ -26,6 +26,7 @@ var pairs = []pair{
 func (p pair) name() string { return fmt.Sprintf("%sCaller_%sHost", p.caller, p.host) }
 
 func eachPair(t *testing.T, fn func(t *testing.T, e *interop.Env, p pair)) {
+	t.Helper()
 	e := interop.Require(t)
 	for _, p := range pairs {
 		t.Run(p.name(), func(t *testing.T) {
@@ -37,6 +38,7 @@ func eachPair(t *testing.T, fn func(t *testing.T, e *interop.Env, p pair)) {
 
 func TestSelf_Discover_Status_Heartbeat(t *testing.T) {
 	eachPair(t, func(t *testing.T, e *interop.Env, p pair) {
+		t.Helper()
 		srv := interop.StartServer(t, e)
 		host := e.StartHost(t, p.host, srv.URL, interop.Peer{Mode: "echo", Heartbeat: time.Second})
 		res := e.RunCaller(t, p.caller, srv.URL, interop.Peer{Agent: "interop", Status: true, WatchHeartbeat: 2500 * time.Millisecond})
@@ -62,6 +64,7 @@ func TestSelf_Discover_Status_Heartbeat(t *testing.T) {
 
 func TestSelf_Echo(t *testing.T) {
 	eachPair(t, func(t *testing.T, e *interop.Env, p pair) {
+		t.Helper()
 		srv := interop.StartServer(t, e)
 		host := e.StartHost(t, p.host, srv.URL, interop.Peer{Mode: "echo", Chunks: 3})
 		const prompt = "hello from the interop harness"
@@ -89,6 +92,7 @@ func TestSelf_Echo(t *testing.T) {
 
 func TestSelf_Error(t *testing.T) {
 	eachPair(t, func(t *testing.T, e *interop.Env, p pair) {
+		t.Helper()
 		srv := interop.StartServer(t, e)
 		e.StartHost(t, p.host, srv.URL, interop.Peer{Mode: "error", ErrorCode: 503, ErrorDesc: "interop refusal"})
 		res := e.RunCaller(t, p.caller, srv.URL, interop.Peer{Prompt: "anything"})
@@ -107,6 +111,7 @@ func TestSelf_Error(t *testing.T) {
 
 func TestSelf_Query(t *testing.T) {
 	eachPair(t, func(t *testing.T, e *interop.Env, p pair) {
+		t.Helper()
 		srv := interop.StartServer(t, e)
 		host := e.StartHost(t, p.host, srv.URL, interop.Peer{Mode: "query"})
 		res := e.RunCaller(t, p.caller, srv.URL, interop.Peer{Prompt: "plan it", QueryAnswer: "go ahead"})
@@ -127,6 +132,7 @@ func TestSelf_Query(t *testing.T) {
 
 func TestSelf_Attachments(t *testing.T) {
 	eachPair(t, func(t *testing.T, e *interop.Env, p pair) {
+		t.Helper()
 		srv := interop.StartServer(t, e)
 		host := e.StartHost(t, p.host, srv.URL, interop.Peer{Mode: "attachments"})
 		atts := []interop.Attachment{{Filename: "a.txt", Data: []byte("alpha")}, {Filename: "b.bin", Data: []byte{0, 1, 2, 255}}}
@@ -148,6 +154,7 @@ func TestSelf_Attachments(t *testing.T) {
 
 func TestSelf_SlowKeepAlive(t *testing.T) {
 	eachPair(t, func(t *testing.T, e *interop.Env, p pair) {
+		t.Helper()
 		srv := interop.StartServer(t, e)
 		e.StartHost(t, p.host, srv.URL, interop.Peer{Mode: "slow", SlowDelay: time.Second, KeepAlive: 200 * time.Millisecond})
 		res := e.RunCaller(t, p.caller, srv.URL, interop.Peer{Prompt: "wait for it"})
@@ -165,6 +172,7 @@ func TestSelf_SlowKeepAlive(t *testing.T) {
 
 func TestSelf_Signed(t *testing.T) {
 	eachPair(t, func(t *testing.T, e *interop.Env, p pair) {
+		t.Helper()
 		srv := interop.StartServer(t, e, interop.WithFixtureConfig("nkey-noaccounts.conf"))
 		seed := e.Seed(t, "alice")
 		host := e.StartHost(t, p.host, srv.URL, interop.Peer{Mode: "signed", Seed: seed, Sign: true})

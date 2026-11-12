@@ -47,7 +47,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io"
 	"log/slog"
 	"sort"
 	"strings"
@@ -305,7 +304,7 @@ func (c *Config) defaults() {
 	setDefault(&c.MaxHeartbeats, 5000)
 	setDefault(&c.MaxInfoProbes, 64)
 	if c.Logger == nil {
-		c.Logger = slog.New(slog.NewTextHandler(io.Discard, nil))
+		c.Logger = slog.New(slog.DiscardHandler)
 	}
 }
 
