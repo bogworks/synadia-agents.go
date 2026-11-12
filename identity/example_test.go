@@ -38,16 +38,29 @@ func ExampleParseAgentID() {
 }
 
 func ExampleStance() {
-	// Strict turns the four checks on; each can still be overridden.
+	// Each check is its own setting; the zero value is Unset, which takes the
+	// SDK default of that check.
 	s := identity.Stance{
-		Profile:               identity.Strict,
-		HeartbeatVerification: identity.Off,
+		SignedSenders: identity.On,
+		Signing:       identity.On,
 	}
-	fmt.Println(s.Profile, s.Signing, s.HeartbeatVerification)
-
-	// The zero value chooses nothing, so the SDK default applies.
-	fmt.Println(identity.Stance{}.Profile, identity.DefaultProfile)
+	fmt.Println(s.SignedSenders, s.Signing, s.HeartbeatVerification)
 	// Output:
-	// strict inherit off
-	// default relaxed
+	// on on unset
+}
+
+func ExampleStance_Resolved() {
+	// Resolved replaces every Unset check with its SDK default.
+	s := identity.Stance{SignedSenders: identity.On}.Resolved()
+	fmt.Println("signed senders:", s.SignedSenders)
+	fmt.Println("verified discovery:", s.VerifiedDiscovery)
+	fmt.Println("heartbeat verification:", s.HeartbeatVerification)
+	fmt.Println("signing:", s.Signing)
+	fmt.Println("require signer:", s.RequireSigner)
+	// Output:
+	// signed senders: on
+	// verified discovery: off
+	// heartbeat verification: off
+	// signing: off
+	// require signer: on
 }

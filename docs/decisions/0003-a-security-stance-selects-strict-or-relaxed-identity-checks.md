@@ -1,5 +1,5 @@
 ---
-status: accepted
+status: superseded by ADR-0004
 date: 2026-11-12
 decision-makers: Project maintainers
 ---
@@ -94,3 +94,5 @@ each check set off under strict, precedence of the explicit options in both orde
 ## More Information
 
 * [docs/secure-configuration.md](../secure-configuration.md).
+
+Superseded by [ADR 0004](0004-a-security-stance-holds-concrete-per-check-settings.md)

@@ -111,7 +111,7 @@ func WithHeartbeatVerification(opts identity.LiveOptions, requireSigned bool) Tr
 // discard one that fails, with the default [identity.LiveOptions] and a replay
 // set the tracker owns. A heartbeat with no header is kept. An explicit
 // [WithHeartbeatVerification] wins over the stance. The default is
-// [identity.DefaultProfile]. [New] passes the client's stance to the tracker it
+// [identity.DefaultHeartbeatVerification]. [New] passes the client's stance to the tracker it
 // builds unless the tracker options set one. SDK policy.
 func WithTrackerStance(s identity.Stance) TrackerOption {
 	return func(c *trackerConfig) error {

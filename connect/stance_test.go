@@ -12,10 +12,9 @@ import (
 	"github.com/bogworks/synadia-agents.go/identity"
 )
 
-// TestResolveBundle_Stance asserts F4 and the signing override: a bundle yields
-// the signer under a stance that turns signing on and the source holds a seed,
-// yields none without error when signing came only from the profile and there is
-// no seed, and fails with ErrNoUserSeed when signing was asked for explicitly.
+// TestResolveBundle_Stance asserts F4 and the signing setting: a bundle yields
+// the signer when the stance sets Signing On and the source holds a seed, fails
+// with ErrNoUserSeed when it holds none, and yields no signer for Unset and Off.
 func TestResolveBundle_Stance(t *testing.T) {
 	e := newEnv(t)
 	u := newUser(t)
@@ -23,7 +22,7 @@ func TestResolveBundle_Stance(t *testing.T) {
 	e.context("seed", map[string]any{"url": serverURL, "nkey": nk})
 	e.context("token", map[string]any{"url": serverURL, "token": "T"})
 
-	strict := identity.Stance{Profile: identity.Strict}
+	on, off := identity.On, identity.Off
 	tests := []struct {
 		name    string
 		context string
@@ -34,20 +33,22 @@ func TestResolveBundle_Stance(t *testing.T) {
 		invalid bool // want an ErrContext failure
 	}{
 		{"no stance, seed", "seed", identity.Stance{}, nil, false, false, false},
-		{"relaxed, seed", "seed", identity.Stance{Profile: identity.Relaxed}, nil, false, false, false},
-		{"strict, seed", "seed", strict, nil, true, false, false},
-		{"strict, no seed", "token", strict, nil, false, false, false},
-		{"relaxed signing on, seed", "seed", identity.Stance{Profile: identity.Relaxed, Signing: identity.On}, nil, true, false, false},
-		{"relaxed signing on, no seed", "token", identity.Stance{Profile: identity.Relaxed, Signing: identity.On}, nil, false, true, false},
-		{"default profile signing on, seed", "seed", identity.Stance{Signing: identity.On}, nil, true, false, false},
-		{"strict signing off, seed", "seed", identity.Stance{Profile: identity.Strict, Signing: identity.Off}, nil, false, false, false},
-		{"strict signing off, no seed", "token", identity.Stance{Profile: identity.Strict, Signing: identity.Off}, nil, false, false, false},
-		{"strict other checks off, seed", "seed", identity.Stance{Profile: identity.Strict, SignedSenders: identity.Off, VerifiedDiscovery: identity.Off, HeartbeatVerification: identity.Off}, nil, true, false, false},
-		{"explicit option beats relaxed, seed", "seed", identity.Stance{Profile: identity.Relaxed}, []connect.BundleOption{connect.WithSignedIdentity()}, true, false, false},
-		{"explicit option beats signing off, seed", "seed", identity.Stance{Profile: identity.Strict, Signing: identity.Off}, []connect.BundleOption{connect.WithSignedIdentity()}, true, false, false},
-		{"explicit option under strict, no seed", "token", strict, []connect.BundleOption{connect.WithSignedIdentity()}, false, true, false},
-		{"invalid profile", "seed", identity.Stance{Profile: 9}, nil, false, false, true},
-		{"invalid setting", "seed", identity.Stance{Signing: 9}, nil, false, false, true},
+		{"signing unset, seed", "seed", identity.Stance{SignedSenders: on}, nil, false, false, false},
+		{"signing on, seed", "seed", identity.Stance{Signing: on}, nil, true, false, false},
+		{"signing on, no seed", "token", identity.Stance{Signing: on}, nil, false, true, false},
+		{"signing off, seed", "seed", identity.Stance{Signing: off}, nil, false, false, false},
+		{"signing off, no seed", "token", identity.Stance{Signing: off}, nil, false, false, false},
+		{"signing unset, no seed", "token", identity.Stance{VerifiedDiscovery: on}, nil, false, false, false},
+		{"other checks on, signing unset, seed", "seed", identity.Stance{SignedSenders: on, VerifiedDiscovery: on, HeartbeatVerification: on}, nil, false, false, false},
+		{"signing on, other checks off, seed", "seed", identity.Stance{Signing: on, SignedSenders: off, VerifiedDiscovery: off, HeartbeatVerification: off}, nil, true, false, false},
+		{"RequireSigner off has no effect, no seed", "token", identity.Stance{Signing: on, RequireSigner: off}, nil, false, true, false},
+		{"RequireSigner on has no effect, signing unset", "token", identity.Stance{RequireSigner: on}, nil, false, false, false},
+		{"explicit option beats unset, seed", "seed", identity.Stance{}, []connect.BundleOption{connect.WithSignedIdentity()}, true, false, false},
+		{"explicit option beats signing off, seed", "seed", identity.Stance{Signing: off}, []connect.BundleOption{connect.WithSignedIdentity()}, true, false, false},
+		{"explicit option with signing off, no seed", "token", identity.Stance{Signing: off}, []connect.BundleOption{connect.WithSignedIdentity()}, false, true, false},
+		{"invalid signing", "seed", identity.Stance{Signing: 3}, nil, false, false, true},
+		{"invalid RequireSigner", "seed", identity.Stance{RequireSigner: 3}, nil, false, false, true},
+		{"invalid setting", "seed", identity.Stance{SignedSenders: 3}, nil, false, false, true},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
@@ -86,8 +87,8 @@ func TestResolveBundle_Stance(t *testing.T) {
 			}
 		})
 	}
-	t.Run("url source, strict, no seed", func(t *testing.T) {
-		b, err := connect.ResolveBundle(t.Context(), connect.Source{URL: serverURL}, connect.WithStance(strict))
+	t.Run("url source, signing unset, no seed", func(t *testing.T) {
+		b, err := connect.ResolveBundle(t.Context(), connect.Source{URL: serverURL}, connect.WithStance(identity.Stance{VerifiedDiscovery: on}))
 		if err != nil || b.Signer != nil {
 			t.Fatalf("signer = %v, err = %v", b.Signer, err)
 		}

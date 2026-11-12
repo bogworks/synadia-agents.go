@@ -14,11 +14,12 @@ import (
 	"github.com/nats-io/nats.go"
 )
 
-// TestStance_VerifiedDiscovery asserts F2 end to end: under the strict profile
+// TestStance_VerifiedDiscovery asserts F2 end to end: with VerifiedDiscovery on
 // discovery drops the record with no id_sig and the one signed for another
 // subject, keeps the validly signed ones of any signer, and a lookup of the
-// unsigned one fails; under relaxed every record is kept. An explicit trust
-// policy wins over the stance, and Signing On makes New need a signer.
+// unsigned one fails; with it off or unset every record is kept. An explicit trust
+// policy wins over the stance, and Signing On makes New need a signer unless
+// RequireSigner is off.
 func TestStance_VerifiedDiscovery(t *testing.T) {
 	f := newTrustFixture(t)
 	ctx := ctxT(t)
@@ -33,13 +34,12 @@ func TestStance_VerifiedDiscovery(t *testing.T) {
 		plain    bool // a lookup of the unsigned record succeeds
 	}{
 		{"no stance", nil, 4, 0, true},
-		{"relaxed", []caller.Option{caller.WithStance(identity.Stance{Profile: identity.Relaxed})}, 4, 0, true},
-		{"strict", []caller.Option{caller.WithStance(identity.Stance{Profile: identity.Strict}), signer}, 2, 2, false},
-		{"strict, signing off", []caller.Option{caller.WithStance(identity.Stance{Profile: identity.Strict, Signing: identity.Off})}, 2, 2, false},
-		{"strict, discovery off", []caller.Option{caller.WithStance(identity.Stance{Profile: identity.Strict, VerifiedDiscovery: identity.Off}), signer}, 4, 0, true},
-		{"strict, other checks off", []caller.Option{caller.WithStance(identity.Stance{Profile: identity.Strict, SignedSenders: identity.Off, HeartbeatVerification: identity.Off}), signer}, 2, 2, false},
-		{"relaxed, discovery on", []caller.Option{caller.WithStance(identity.Stance{Profile: identity.Relaxed, VerifiedDiscovery: identity.On})}, 2, 2, false},
-		{"explicit policy beats strict", []caller.Option{caller.WithStance(identity.Stance{Profile: identity.Strict}), signer, caller.WithTrustPolicy(onlyAlice)}, 1, 3, false},
+		{"discovery unset", []caller.Option{caller.WithStance(identity.Stance{Signing: identity.Off})}, 4, 0, true},
+		{"discovery on", []caller.Option{caller.WithStance(identity.Stance{VerifiedDiscovery: identity.On})}, 2, 2, false},
+		{"discovery on, signing on", []caller.Option{caller.WithStance(identity.Stance{VerifiedDiscovery: identity.On, Signing: identity.On}), signer}, 2, 2, false},
+		{"discovery off", []caller.Option{caller.WithStance(identity.Stance{VerifiedDiscovery: identity.Off}), signer}, 4, 0, true},
+		{"discovery on, other checks off", []caller.Option{caller.WithStance(identity.Stance{VerifiedDiscovery: identity.On, SignedSenders: identity.Off, HeartbeatVerification: identity.Off})}, 2, 2, false},
+		{"explicit policy beats discovery on", []caller.Option{caller.WithStance(identity.Stance{VerifiedDiscovery: identity.On}), caller.WithTrustPolicy(onlyAlice)}, 1, 3, false},
 		{"explicit policy beats discovery off", []caller.Option{caller.WithTrustPolicy(onlyAlice), caller.WithStance(identity.Stance{VerifiedDiscovery: identity.Off})}, 1, 3, false},
 	}
 	for _, tc := range tests {
@@ -59,8 +59,8 @@ func TestStance_VerifiedDiscovery(t *testing.T) {
 		})
 	}
 
-	t.Run("strict client prompts an admitted agent", func(t *testing.T) {
-		c := newClient(t, f.cnc, caller.WithStance(identity.Stance{Profile: identity.Strict}), signer)
+	t.Run("client with verified discovery prompts an admitted agent", func(t *testing.T) {
+		c := newClient(t, f.cnc, caller.WithStance(identity.Stance{VerifiedDiscovery: identity.On, Signing: identity.On}), signer)
 		a, err := c.Find(ctx, caller.Filter{Name: "trusted"}, trustWin)
 		if err != nil {
 			t.Fatal(err)
@@ -73,12 +73,12 @@ func TestStance_VerifiedDiscovery(t *testing.T) {
 		}
 	})
 	t.Run("signing needs a signer", func(t *testing.T) {
-		for _, s := range []identity.Stance{{Profile: identity.Strict}, {Signing: identity.On}} {
+		for _, s := range []identity.Stance{{Signing: identity.On}, {Signing: identity.On, RequireSigner: identity.On}} {
 			if _, err := caller.New(f.cnc, caller.WithStance(s)); err == nil {
 				t.Errorf("%+v: New succeeded without a signer", s)
 			}
 		}
-		for _, s := range []identity.Stance{{Profile: identity.Strict, Signing: identity.Off}, {Profile: identity.Relaxed}} {
+		for _, s := range []identity.Stance{{Signing: identity.Off}, {Signing: identity.On, RequireSigner: identity.Off}, {RequireSigner: identity.On}} {
 			c, err := caller.New(f.cnc, caller.WithStance(s))
 			if err != nil {
 				t.Errorf("%+v: %v", s, err)
@@ -90,9 +90,9 @@ func TestStance_VerifiedDiscovery(t *testing.T) {
 }
 
 // TestStance_HeartbeatVerification asserts F3 end to end: the client's tracker
-// discards a heartbeat with a bad Agent-Sender header under the strict profile
-// and keeps it under relaxed, and keeps a verified heartbeat and an unsigned one
-// under both.
+// discards a heartbeat with a bad Agent-Sender header when the setting is on
+// and keeps it when it is off, and keeps a verified heartbeat and an unsigned one
+// in every case.
 func TestStance_HeartbeatVerification(t *testing.T) {
 	srv := startNkeyServer(t)
 	hnc, cnc := connectAlice(t, srv), connectAlice(t, srv)
@@ -126,10 +126,9 @@ func TestStance_HeartbeatVerification(t *testing.T) {
 		stance     identity.Stance
 		forgedKept bool
 	}{
-		{"relaxed", identity.Stance{Profile: identity.Relaxed}, true},
-		{"strict", identity.Stance{Profile: identity.Strict}, false},
-		{"strict, heartbeats off", identity.Stance{Profile: identity.Strict, HeartbeatVerification: identity.Off}, true},
-		{"relaxed, heartbeats on", identity.Stance{Profile: identity.Relaxed, HeartbeatVerification: identity.On}, false},
+		{"heartbeats unset", identity.Stance{Signing: identity.Off}, true},
+		{"heartbeats on", identity.Stance{HeartbeatVerification: identity.On}, false},
+		{"heartbeats off", identity.Stance{HeartbeatVerification: identity.Off}, true},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
