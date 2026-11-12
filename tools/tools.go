@@ -1241,7 +1241,7 @@ loop:
 		t.mu.Unlock()
 		if msg != "" {
 			t.refuseAll(context.WithoutCancel(ctx), []*question{q})
-			streamErr = callFailure(msg)
+			streamErr = callFailureError(msg)
 			break loop
 		}
 		var files []ReturnedFile
