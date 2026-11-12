@@ -82,6 +82,7 @@ func TestQuickstart_ReadmeMatchesExample(t *testing.T) {
 		t.Fatal(err)
 	}
 	s := string(src)
+	// The func line carries a //nolint directive that the README omits.
 	i := strings.Index(s, "func Example_quickStart() {")
 	if i < 0 {
 		t.Fatal("Example_quickStart not found")
@@ -91,6 +92,9 @@ func TestQuickstart_ReadmeMatchesExample(t *testing.T) {
 		t.Fatal("end of Example_quickStart not found")
 	}
 	fn := s[i : i+end+3]
+	if nl := strings.Index(fn, "\n"); strings.Contains(fn[:nl], "//nolint:") {
+		fn = "func Example_quickStart() {" + fn[nl:]
+	}
 	readme, err := os.ReadFile("../../README.md")
 	if err != nil {
 		t.Fatal(err)
