@@ -33,6 +33,10 @@ import agents "github.com/bogworks/synadia-agents.go"
 
 The module path is provisional and changes if the SDK moves upstream.
 
+> **Security:** in v0.1.0 the defaults are open. A host serves any sender, and a client trusts any
+> discovery reply. Sender verification, admission and the agent trust policy are opt-in. See
+> [Secure configuration](docs/secure-configuration.md) before you run this outside a trusted network.
+
 ## Quick start
 
 A caller discovers an agent, prompts it and reads the reply as it streams:
