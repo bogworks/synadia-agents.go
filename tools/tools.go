@@ -405,7 +405,7 @@ func (t *Tools) Execute(ctx context.Context, name string, args json.RawMessage, 
 	case ToolAnswerAgent:
 		res = t.answerAgent(ctx, sc, args)
 	case ToolCancelAgent:
-		res = t.cancelAgent(sc, args)
+		res = t.cancelAgent(ctx, sc, args)
 	case ToolListAgentCalls:
 		res = t.listAgentCalls(sc, args)
 	default:
@@ -484,7 +484,7 @@ func (t *Tools) RunInPromptScope(ctx context.Context, callerID string, fn func(c
 		t.mu.Lock()
 		delete(t.served, s)
 		t.mu.Unlock()
-		t.closeScope(s)
+		t.closeScope(ctx, s)
 	}()
 	return fn(context.WithValue(ctx, scopeKey, &scopeRef{t, s}))
 }
@@ -550,7 +550,9 @@ func (t *Tools) cancelScope(s *scope) []*question {
 	return qs
 }
 
-func (t *Tools) closeScope(s *scope) { t.refuseAll(context.Background(), t.cancelScope(s)) }
+func (t *Tools) closeScope(ctx context.Context, s *scope) {
+	t.refuseAll(context.WithoutCancel(ctx), t.cancelScope(s))
+}
 
 // --- discover_agents ---------------------------------------------------------
 
@@ -843,7 +845,8 @@ func (t *Tools) promptAgent(ctx context.Context, sc *scope, raw json.RawMessage,
 	sc.order = append(sc.order, c)
 	t.wg.Add(1)
 	t.mu.Unlock()
-	go t.read(c) //nolint:gosec // the reader outlives this tool call by design; it ends with its stream, or at Close
+	// The reader outlives this tool call by design; it ends with its stream, or at Close.
+	go t.read(sctx, c)
 
 	if !a.wait {
 		t.mu.Lock()
@@ -1170,7 +1173,7 @@ type callFailure string
 func (e callFailure) Error() string { return string(e) }
 
 // read reads a call's stream to its end; see the type comment of Tools.
-func (t *Tools) read(c *call) {
+func (t *Tools) read(ctx context.Context, c *call) {
 	defer t.wg.Done()
 	defer c.cancel() // release the call's context once the stream is done
 	var streamErr error
@@ -1186,7 +1189,7 @@ loop:
 		if !open {
 			// Canceled while this message was on its way.
 			if ev.query != nil {
-				t.refuseAll(context.Background(), []*question{ev.query})
+				t.refuseAll(context.WithoutCancel(ctx), []*question{ev.query})
 			}
 			continue
 		}
@@ -1221,7 +1224,7 @@ loop:
 		}
 		t.mu.Unlock()
 		if msg != "" {
-			t.refuseAll(context.Background(), []*question{q})
+			t.refuseAll(context.WithoutCancel(ctx), []*question{q})
 			streamErr = callFailure(msg)
 			break loop
 		}
@@ -1263,12 +1266,12 @@ loop:
 		if !c.stream.terminated() {
 			// A stream that ends without error and without the terminator was
 			// dropped under us (SAP §6.5): not a reply.
-			t.failCall(c, "the stream ended before the agent finished")
+			t.failCall(ctx, c, "the stream ended before the agent finished")
 			return
 		}
 		fields, err := t.afterReply(c, "reply", text, files)
 		if err != nil {
-			t.failCall(c, err.Error())
+			t.failCall(ctx, c, err.Error())
 			return
 		}
 		t.mu.Lock()
@@ -1294,19 +1297,19 @@ loop:
 			"the call ran past its runtime limit of %s and was stopped; the agent may still be working on it",
 			duration(mw.MaxWait)))
 		t.mu.Unlock()
-		t.refuseAll(context.Background(), qs)
+		t.refuseAll(context.WithoutCancel(ctx), qs)
 		return
 	}
-	t.failCall(c, t.failure(c, streamErr))
+	t.failCall(ctx, c, t.failure(c, streamErr))
 }
 
 // failCall fails the call and refuses its open questions: nobody can answer
 // them now, so the asking agent hears so at once.
-func (t *Tools) failCall(c *call, msg string) {
+func (t *Tools) failCall(ctx context.Context, c *call, msg string) {
 	t.mu.Lock()
 	qs := t.finishLocked(c, StateFailed, msg)
 	t.mu.Unlock()
-	t.refuseAll(context.Background(), qs)
+	t.refuseAll(context.WithoutCancel(ctx), qs)
 }
 
 // admitLocked checks that a message fits the call's limits and, when it does,
@@ -1519,7 +1522,9 @@ func (t *Tools) finishLocked(c *call, state CallState, errText string) []*questi
 // cancelCall ends the call as canceled, drops its stream, then refuses its
 // open questions, including one still being taken in. Nothing is sent to the
 // agent beyond the refusals (SAP §6.7: no cancel message).
-func (t *Tools) cancelCall(c *call) { t.refuseAll(context.Background(), t.stopCall(c)) }
+func (t *Tools) cancelCall(ctx context.Context, c *call) {
+	t.refuseAll(context.WithoutCancel(ctx), t.stopCall(c))
+}
 
 // stopCall ends the call as canceled and drops its stream; it returns the
 // questions to refuse.
@@ -1611,7 +1616,7 @@ func (t *Tools) untilReady(ctx context.Context, c *call) Result {
 		c.waiters--
 		t.mu.Unlock()
 		if ctx.Err() != nil {
-			t.cancelCall(c)
+			t.cancelCall(ctx, c)
 			t.mu.Lock()
 			r := t.callResultLocked(c)
 			t.mu.Unlock()
@@ -1761,7 +1766,7 @@ func (t *Tools) answerAgent(ctx context.Context, sc *scope, raw json.RawMessage)
 	return t.untilReady(ctx, c)
 }
 
-func (t *Tools) cancelAgent(sc *scope, raw json.RawMessage) Result {
+func (t *Tools) cancelAgent(ctx context.Context, sc *scope, raw json.RawMessage) Result {
 	ids, err := parseCancelArgs(raw)
 	if err != nil {
 		return Result{"error": err.Error()}
@@ -1775,7 +1780,7 @@ func (t *Tools) cancelAgent(sc *scope, raw json.RawMessage) Result {
 			results = append(results, map[string]any{"call_id": id, "error": t.unknownCalls([]string{id})})
 			continue
 		}
-		t.cancelCall(c)
+		t.cancelCall(ctx, c)
 		t.mu.Lock()
 		results = append(results, t.callResultLocked(c))
 		t.mu.Unlock()

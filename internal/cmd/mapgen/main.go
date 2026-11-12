@@ -90,7 +90,7 @@ var rules = []rule{
 	{`^caller\.WithTracker$`, "§8.5"},
 	{`^caller\.(Client\.RefreshSelfID|Client\.InvalidateSenders|Client\.RequestSigned|SignOption|WithHeaders)$`, "§13.4, §13.6"},
 	{`^caller\.(DefaultTrackerMaxInstances|TrackerOption|WithTracker.*|Beat.*|NewHeartbeatTracker)$`, "§8.5"},
-	{`^host\.(ErrNextCalledTwice|ErrNextNotCalled|CallNext|Interceptor.*|InterceptorFunc.*|WithInterceptors|RawPromptHandler|WithRawPromptHandler)$`, "§5, §6 (extension point)"},
+	{`^host\.(ErrNextCalledTwice|ErrNextNotCalled|CallNext|Interceptor.*|InterceptorFunc.*|WithInterceptors|RawPromptHandler)$`, "§5, §6 (extension point)"},
 	{`^host\.(ErrStarted|ErrNotStarted|ErrConfig|New|DefaultStartTimeout|Option|WithLogger)$`, "§3 (SDK policy: lifecycle)"},
 	{`^host\.WithEndpoint$`, "§3 (extension point)"},
 	{`^host\.Endpoint$`, "§3 (extension point)"},
