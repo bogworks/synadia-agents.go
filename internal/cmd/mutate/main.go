@@ -175,7 +175,7 @@ func checkPatches(root, only string) error {
 	if err != nil {
 		return err
 	}
-	defer os.RemoveAll(tmp)
+	defer func() { _ = os.RemoveAll(tmp) }()
 	if err := copyTree(root, tmp); err != nil {
 		return fmt.Errorf("copy: %w", err)
 	}
