@@ -97,9 +97,9 @@ func NewReferenceAgent(nc *nats.Conn, subject agents.AgentSubject, opts ...Refer
 	}
 	if c.raw != nil {
 		raw := c.raw
-		opt := host.WithRawPromptHandler(hosttest.NewRaw(func(_ context.Context, req micro.Request, s *identity.Sender) error {
+		opt := hosttest.RawOption[host.Option](func(_ context.Context, req micro.Request, s *identity.Sender) error {
 			return raw(req, s)
-		}))
+		})
 		hopts = append(hopts, opt)
 	}
 	h, err := host.New(nc, subject, handler, append(hopts, c.host...)...)
