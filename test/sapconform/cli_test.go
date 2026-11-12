@@ -7,47 +7,43 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
-	"sync"
 	"testing"
 
 	"github.com/bogworks/synadia-agents.go/conformance"
 	"github.com/bogworks/synadia-agents.go/conformance/runner"
 )
 
-var (
-	buildOnce sync.Once
-	binPath   string
-	errBuild  error
-)
+// binPath is the sapconform command, built once by TestMain for every test in
+// the package.
+var binPath string
 
-// sapconformBinary builds the command once.
-func sapconformBinary(t *testing.T) string {
-	t.Helper()
-	buildOnce.Do(func() {
-		dir, err := os.MkdirTemp("", "sapconform-bin") //nolint:usetesting // built once for every test in the package, so it must outlive the first test's TempDir
-		if err != nil {
-			errBuild = err
-			return
-		}
-		binPath = filepath.Join(dir, "sapconform")
-		out, err := exec.Command("go", "build", "-o", binPath, "github.com/bogworks/synadia-agents.go/cmd/sapconform").CombinedOutput() //nolint:gosec // the test runs the go tool or a binary it built, with arguments it chose
-		if err != nil {
-			errBuild = errors.New(string(out))
-		}
-	})
-	if errBuild != nil {
-		t.Fatalf("build sapconform: %v", errBuild)
+func TestMain(m *testing.M) {
+	os.Exit(run(m))
+}
+
+func run(m *testing.M) int {
+	dir, err := os.MkdirTemp("", "sapconform-bin")
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "sapconform test setup:", err)
+		return 1
 	}
-	return binPath
+	defer func() { _ = os.RemoveAll(dir) }()
+	binPath = filepath.Join(dir, "sapconform")
+	if out, err := exec.Command("go", "build", "-o", binPath, "github.com/bogworks/synadia-agents.go/cmd/sapconform").CombinedOutput(); err != nil {
+		fmt.Fprintf(os.Stderr, "build sapconform: %v\n%s", err, out)
+		return 1
+	}
+	return m.Run()
 }
 
 func runBinary(t *testing.T, args ...string) (stdout string, exit int) {
 	t.Helper()
-	cmd := exec.Command(sapconformBinary(t), args...) //nolint:gosec // the test runs the go tool or a binary it built, with arguments it chose
+	cmd := exec.Command(binPath, args...)
 	var out, errb bytes.Buffer
 	cmd.Stdout, cmd.Stderr = &out, &errb
 	err := cmd.Run()

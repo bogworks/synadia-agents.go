@@ -26,10 +26,14 @@ linters:
             - pkg: github.com/stretchr/testify
               desc: use the testing package and go-cmp
     errcheck:
+      check-type-assertions: true # product code only; _test.go is excluded below
       exclude-functions:
         - fmt.Fprint
         - fmt.Fprintf
         - fmt.Fprintln
+    gosec: # used only where a repository enables gosec (rule 7)
+      excludes:
+        - G104 # unhandled errors: errcheck holds rule 13
     forbidigo:
       forbid:
         - pattern: ^os\.Exit$
@@ -68,6 +72,15 @@ linters:
         text: only package main|deliberate panic
       - linters: [errcheck]
         source: ^\s*defer\s.*\.Close\(\)$
+      - path: _test\.go$
+        linters: [errcheck]
+        source: \.\( # a type assertion
+      - path: _test\.go$
+        linters: [gosec]
+        text: '^G(101|204|304):'
+      - path: _test\.go$
+        linters: [thelper]
+        source: '^\s*\{?.*\w+:\s*func\(\w+ \*testing\.[TB]\b'
 issues:
   max-issues-per-linter: 0
   max-same-issues: 0

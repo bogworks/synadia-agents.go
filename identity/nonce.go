@@ -72,7 +72,7 @@ type nonceHeap []nonceExpiry
 func (h nonceHeap) Len() int           { return len(h) }
 func (h nonceHeap) Less(i, j int) bool { return h[i].at.Before(h[j].at) }
 func (h nonceHeap) Swap(i, j int)      { h[i], h[j] = h[j], h[i] }
-func (h *nonceHeap) Push(x any)        { *h = append(*h, x.(nonceExpiry)) } // invariant: only nonceExpiry is ever pushed
+func (h *nonceHeap) Push(x any)        { *h = append(*h, x.(nonceExpiry)) } //nolint:errcheck // heap.Interface fixes this signature; only nonceExpiry is ever pushed
 func (h *nonceHeap) Pop() any {
 	old := *h
 	n := len(old)
@@ -221,7 +221,7 @@ func (s *NonceSet) Record(user, nonce string, ts time.Time) RecordResult {
 // overflow warning once the set has fallen to half its maximum.
 func (s *NonceSet) sweepLocked(now time.Time) {
 	for len(s.expiry) > 0 && s.expiry[0].at.Before(now) {
-		e := heap.Pop(&s.expiry).(nonceExpiry) // invariant: only nonceExpiry is ever pushed
+		e := heap.Pop(&s.expiry).(nonceExpiry) //nolint:errcheck // only nonceExpiry is ever pushed
 		delete(s.entries, e.key)
 		if s.counts[e.key.user]--; s.counts[e.key.user] <= 0 {
 			delete(s.counts, e.key.user)

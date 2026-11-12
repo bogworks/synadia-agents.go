@@ -28,7 +28,7 @@ const fixtureDir = "testdata/agent-tools"
 
 func readFixture(t *testing.T, name string) []byte {
 	t.Helper()
-	b, err := os.ReadFile(filepath.Join(fixtureDir, name)) //nolint:gosec // the test reads a fixture or temp path it built itself
+	b, err := os.ReadFile(filepath.Join(fixtureDir, name))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -702,7 +702,7 @@ func TestQuestion_FilesComeWithTheQuestion(t *testing.T) {
 	if len(files) != 1 || f["size_bytes"].(float64) != 4 || !filepath.IsAbs(p) || !strings.HasPrefix(p, h.staging+string(filepath.Separator)+str(r, "call_id")) {
 		t.Fatalf("%v", r)
 	}
-	if b, err := os.ReadFile(p); err != nil || string(b) != "data" { //nolint:gosec // the test reads a fixture or temp path it built itself
+	if b, err := os.ReadFile(p); err != nil || string(b) != "data" {
 		t.Errorf("saved file: %q %v", b, err)
 	}
 	if strings.Contains(p, "evil") {

@@ -66,7 +66,7 @@ func TestMutations_PatchShape(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, f := range files {
-		data, err := os.ReadFile(filepath.Join(dir, f.Name())) //nolint:gosec // G304: a file of the repository's own mutations directory
+		data, err := os.ReadFile(filepath.Join(dir, f.Name()))
 		if err != nil {
 			t.Fatal(err)
 		}

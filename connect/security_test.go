@@ -22,9 +22,9 @@ import (
 func TestSource_FormattingRedactsURLUserinfo(t *testing.T) {
 	srcs := []connect.Source{
 		{URL: "nats://TOPSECRETTOKEN@host:4222"},
-		{URL: "nats://alice:TOPSECRETPW@host:4222", Creds: "/keys/a.creds"},                          //nolint:gosec // a fake credential in a test fixture
-		{URL: "nats://alice:TOPSECRETPW@a:4222,nats://alice:TOPSECRETPW@b:4222", NKey: "/keys/a.nk"}, //nolint:gosec // a fake credential in a test fixture
-		{URL: "nats://alice:TOPSECRETPW,more@host"},                                                  // malformed userinfo
+		{URL: "nats://alice:TOPSECRETPW@host:4222", Creds: "/keys/a.creds"},
+		{URL: "nats://alice:TOPSECRETPW@a:4222,nats://alice:TOPSECRETPW@b:4222", NKey: "/keys/a.nk"},
+		{URL: "nats://alice:TOPSECRETPW,more@host"}, // malformed userinfo
 		{Context: "prod"},
 	}
 	for _, s := range srcs {
@@ -62,7 +62,7 @@ func TestSource_FormattingRedactsURLUserinfo(t *testing.T) {
 
 func mustRead(t *testing.T, path string) string {
 	t.Helper()
-	b, err := os.ReadFile(path) //nolint:gosec // the test reads a fixture or temp path it built itself
+	b, err := os.ReadFile(path)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -116,7 +116,7 @@ func TestParseURL_ErrorsNeverQuoteUserinfo(t *testing.T) {
 
 func TestContextFile_MarshalJSONRedactsSecrets(t *testing.T) {
 	e := newEnv(t)
-	e.context("c", map[string]any{ //nolint:gosec // a fake credential in a test fixture
+	e.context("c", map[string]any{
 		"url":          "nats://TOKENINURL@host:4222",
 		"user_seed":    "SUASECRETSEEDVALUE",
 		"user_jwt":     "JWTSECRETVALUE",
@@ -172,7 +172,7 @@ func TestSignerFromContext_RefusesIdentityDifferentFromConnection(t *testing.T) 
 		{"seed beside token", map[string]any{"url": serverURL, "user_seed": u.seed, "token": "T"}, false},
 		{"seed beside user and password", map[string]any{"url": serverURL, "user_seed": u.seed, "user": "bob", "password": "pw"}, false},
 		{"seed beside url token", map[string]any{"url": "nats://T@host:4222", "user_seed": u.seed}, false},
-		{"seed beside url user and password", map[string]any{"url": "nats://bob:pw@host:4222", "user_seed": u.seed}, false}, //nolint:gosec // a fake credential in a test fixture
+		{"seed beside url user and password", map[string]any{"url": "nats://bob:pw@host:4222", "user_seed": u.seed}, false},
 		{"lone seed, no other credential", map[string]any{"url": serverURL, "user_seed": u.seed}, true},
 		{"seed with its jwt and a token", map[string]any{"url": serverURL, "user_seed": u.seed, "user_jwt": jwt, "token": "T"}, true},
 	}

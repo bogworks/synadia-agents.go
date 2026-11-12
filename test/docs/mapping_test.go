@@ -154,7 +154,7 @@ func TestProtocolMapping_Complete(t *testing.T) {
 // one consumer's name. Only the consumer mapping document under docs/ may name it.
 func TestProtocolMapping_NamesNoConsumer(t *testing.T) {
 	for _, f := range []string{"README.md", "docs/protocol-mapping.md", "CHANGELOG.md", "doc.go"} {
-		b, err := os.ReadFile(filepath.Join(root, f)) //nolint:gosec // the test reads a fixture or temp path it built itself
+		b, err := os.ReadFile(filepath.Join(root, f))
 		if err != nil {
 			t.Fatal(err)
 		}

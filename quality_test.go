@@ -29,7 +29,7 @@ func TestSaveAttachments_SymlinkedAncestor(t *testing.T) {
 		t.Fatal(res, err)
 	}
 	// dir is resolved once, at call time: the file is in the directory the path named.
-	if b, err := os.ReadFile(filepath.Join(realDir, "sub", "a.txt")); err != nil || string(b) != "hi" { //nolint:gosec // the test reads a fixture or temp path it built itself
+	if b, err := os.ReadFile(filepath.Join(realDir, "sub", "a.txt")); err != nil || string(b) != "hi" {
 		t.Fatal(b, err)
 	}
 }

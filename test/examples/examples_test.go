@@ -39,7 +39,7 @@ func startServer(t *testing.T) *server.Server {
 func build(t *testing.T, dir, name string) string {
 	t.Helper()
 	bin := filepath.Join(dir, name)
-	cmd := exec.Command("go", "build", "-o", bin, pkgBase+name) //nolint:gosec // the test runs the go tool or a binary it built, with arguments it chose
+	cmd := exec.Command("go", "build", "-o", bin, pkgBase+name)
 	if out, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("go build %s: %v\n%s", name, err, out)
 	}
@@ -50,7 +50,7 @@ func build(t *testing.T, dir, name string) string {
 // the process when the test ends.
 func startHost(t *testing.T, bin string, args ...string) {
 	t.Helper()
-	cmd := exec.Command(bin, args...) //nolint:gosec // the test runs the go tool or a binary it built, with arguments it chose
+	cmd := exec.Command(bin, args...)
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
 		t.Fatal(err)
@@ -97,7 +97,7 @@ func runExample(t *testing.T, bin string, args ...string) string {
 	t.Helper()
 	ctx, cancel := context.WithTimeout(context.Background(), 40*time.Second)
 	defer cancel()
-	out, err := exec.CommandContext(ctx, bin, args...).CombinedOutput() //nolint:gosec // the test runs the go tool or a binary it built, with arguments it chose
+	out, err := exec.CommandContext(ctx, bin, args...).CombinedOutput()
 	if err != nil {
 		t.Fatalf("%s %v: %v\n%s", filepath.Base(bin), args, err, out)
 	}

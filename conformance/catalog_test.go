@@ -41,7 +41,7 @@ func loadSpec(t *testing.T) []byte {
 	if path == "" {
 		path, explicit = defaultSpecPath, false
 	}
-	spec, err := os.ReadFile(path) //nolint:gosec // the test reads a fixture or temp path it built itself
+	spec, err := os.ReadFile(path) //nolint:gosec // G703: the path is the operator's SAP_SPEC_PATH or the default spec location
 	switch {
 	case err == nil:
 		return spec

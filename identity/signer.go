@@ -129,7 +129,11 @@ func SignerFromCreds(creds []byte) (JWTSigner, error) {
 	if err != nil {
 		return nil, err
 	}
-	return s.(JWTSigner), nil // invariant: the signer built here implements JWTSigner
+	js, ok := s.(JWTSigner)
+	if !ok {
+		return nil, fmt.Errorf("%w: the signer built has no JWT", ErrInvalidSeed)
+	}
+	return js, nil
 }
 
 // SignerFromSeedAndJWT is [SignerFromSeed] with a user JWT, for a program that
@@ -140,7 +144,11 @@ func SignerFromSeedAndJWT(seed []byte, jwt string) (JWTSigner, error) {
 	if err != nil {
 		return nil, err
 	}
-	return s.(JWTSigner), nil // invariant: the signer built here implements JWTSigner
+	js, ok := s.(JWTSigner)
+	if !ok {
+		return nil, fmt.Errorf("%w: the signer built has no JWT", ErrInvalidSeed)
+	}
+	return js, nil
 }
 
 // wipeBytes zeroes b. Go gives no stronger guarantee: the runtime may have

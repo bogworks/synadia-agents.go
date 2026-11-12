@@ -154,7 +154,7 @@ func TestParseURL(t *testing.T) {
 		{name: "bare", in: "nats://host:4222", wantURL: "nats://host:4222"},
 		{name: "schemeless", in: "host:4222", wantURL: "nats://host:4222"},
 		{name: "token", in: "nats://TOK@host:4222", wantURL: "nats://host:4222", token: "TOK"},
-		{name: "user and password", in: "nats://alice:pw@host:4222", wantURL: "nats://host:4222", user: "alice", pass: "pw"}, //nolint:gosec // a fake credential in a test fixture
+		{name: "user and password", in: "nats://alice:pw@host:4222", wantURL: "nats://host:4222", user: "alice", pass: "pw"},
 		{name: "user and empty password", in: "nats://alice:@host:4222", wantURL: "nats://host:4222", user: "alice"},
 		{name: "percent decoded", in: "nats://al%40ice:p%3Aw@host", wantURL: "nats://host", user: "al@ice", pass: "p:w"},
 		{name: "tls scheme", in: "tls://TOK@host:4443", wantURL: "tls://host:4443", token: "TOK"},
