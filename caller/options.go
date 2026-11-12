@@ -303,15 +303,20 @@ func WithQueryReplyPolicy(fn func(subject string) error) Option {
 }
 
 // WithStance sets the security stance (see [identity.Stance]). The client
-// reads two checks of it. VerifiedDiscovery makes discovery verified by
+// reads three checks of it. VerifiedDiscovery makes discovery verified by
 // default, as a [WithTrustPolicy] that accepts any signer whose id_sig verifies
 // does, and it gates [Agent.Prompt] and [Agent.Status] the same way
-// ([ErrUntrustedAgent]); an explicit [WithTrustPolicy] wins over it. Signing
-// makes [New] fail unless [WithIdentity] gave a Signer. The stance also goes to
-// the heartbeat tracker the client builds, unless [WithTracker] sets one with
-// [WithTrackerStance]. The default is [identity.DefaultProfile]. When no stance
-// is chosen and no trust policy is set, a logger set with [WithLogger] gets one
-// warning per process that says so. SDK policy.
+// ([ErrUntrustedAgent]); an explicit [WithTrustPolicy] wins over it, and the
+// default is [identity.DefaultVerifiedDiscovery]. Signing says the client
+// signs; the default is [identity.DefaultSigning]. With signing on and no
+// Signer from [WithIdentity], RequireSigner decides: On makes [New] fail, Off
+// makes [New] succeed and log one warning to the logger set with [WithLogger],
+// and a request to an endpoint that requires signed senders then fails with
+// [identity.ErrCannotSign]; the default is [identity.DefaultRequireSigner]. The
+// stance also goes to the heartbeat tracker the client builds, unless
+// [WithTracker] sets one with [WithTrackerStance]. When no setting is chosen
+// and no trust policy is set, a logger set with [WithLogger] gets one warning
+// per process that says so. SDK policy.
 func WithStance(s identity.Stance) Option {
 	return func(c *config) error {
 		if _, err := stance.Resolve(s); err != nil {
@@ -393,7 +398,8 @@ func (p *TrustPolicy) trusts(id identity.AgentID, info *agents.AgentInfo) bool {
 // [ErrUntrustedAgent] an agent discovery did not admit.
 //
 // Without this option, verification stays opt-in per call, unless [WithStance]
-// turns verified discovery on; an explicit policy wins over the stance. A valid id_sig
+// turns verified discovery on (default [identity.DefaultVerifiedDiscovery]); an
+// explicit policy wins over the stance. A valid id_sig
 // identifies the registrant; it does not prove the discovery reply came from
 // them or that the signer deserves trust beyond the policy (see
 // [WithRequireVerifiedIdentity]). The policy is copied.

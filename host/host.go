@@ -178,13 +178,18 @@ func New(nc *nats.Conn, subject agents.AgentSubject, handler PromptHandler, opts
 		return nil, fmt.Errorf("%w: %w", ErrConfig, err)
 	}
 	if eff.Signing && (cfg.identity == nil || cfg.identity.Signer == nil) {
-		return nil, fmt.Errorf("%w: the security stance requires signing, but WithIdentity gave no Signer", ErrConfig)
+		if eff.RequireSigner {
+			return nil, fmt.Errorf("%w: the security stance turns signing on, but WithIdentity gave no Signer", ErrConfig)
+		}
+		if cfg.logger != nil {
+			cfg.logger.Warn("signing is on but WithIdentity gave no Signer; the host cannot sign its heartbeats")
+		}
 	}
 	if !cfg.minTrustSet && eff.SignedSenders {
 		cfg.minTrust = identity.TrustSigned
 	}
-	if !cfg.minTrustSet && !eff.Chosen {
-		stance.WarnUnchosen(&warnStanceOnce, cfg.logger, "host", eff)
+	if !cfg.minTrustSet && !stance.Chosen(cfg.stance) {
+		stance.WarnUnchosen(&warnStanceOnce, cfg.logger, "host")
 	}
 	log := cfg.logger
 	if log == nil {

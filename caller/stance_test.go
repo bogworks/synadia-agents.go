@@ -45,13 +45,14 @@ func newStanceClient(t *testing.T, opts ...Option) (*Client, error) {
 
 // TestWithStance_Client asserts F2, F3 as the client wires it, and the signer
 // requirement: verified discovery makes an unadmitted agent untrusted, an
-// explicit trust policy wins, the stance reaches the tracker, and a stance that
-// turns signing on makes New fail without a signer.
+// explicit trust policy wins, the stance reaches the tracker, and signing on
+// makes New fail without a signer unless RequireSigner is off.
 func TestWithStance_Client(t *testing.T) {
 	signer := stanceSigner(t)
 	withSigner := WithIdentity(IdentityOptions{Signer: signer})
 	own := TrustPolicy{Agents: []identity.AgentID{"acc.UOWN"}}
 	st := func(s identity.Stance) Option { return WithStance(s) }
+	on, off := identity.On, identity.Off
 	tests := []struct {
 		name      string
 		opts      []Option
@@ -61,26 +62,31 @@ func TestWithStance_Client(t *testing.T) {
 		beats     bool // the tracker verifies heartbeats
 	}{
 		{name: "no stance"},
-		{name: "relaxed", opts: []Option{st(identity.Stance{Profile: identity.Relaxed})}},
-		{name: "strict", opts: []Option{st(identity.Stance{Profile: identity.Strict}), withSigner}, verified: true, beats: true},
-		{name: "strict without a signer", opts: []Option{st(identity.Stance{Profile: identity.Strict})}, wantErr: true},
-		{name: "strict, signing off, no signer", opts: []Option{st(identity.Stance{Profile: identity.Strict, Signing: identity.Off})}, verified: true, beats: true},
-		{name: "strict, discovery off", opts: []Option{st(identity.Stance{Profile: identity.Strict, VerifiedDiscovery: identity.Off}), withSigner}, beats: true},
-		{name: "strict, heartbeats off", opts: []Option{st(identity.Stance{Profile: identity.Strict, HeartbeatVerification: identity.Off}), withSigner}, verified: true},
-		{name: "strict, senders off", opts: []Option{st(identity.Stance{Profile: identity.Strict, SignedSenders: identity.Off}), withSigner}, verified: true, beats: true},
-		{name: "relaxed, signing on, signer", opts: []Option{st(identity.Stance{Profile: identity.Relaxed, Signing: identity.On}), withSigner}},
-		{name: "relaxed, signing on, no signer", opts: []Option{st(identity.Stance{Profile: identity.Relaxed, Signing: identity.On})}, wantErr: true},
-		{name: "relaxed, discovery on", opts: []Option{st(identity.Stance{Profile: identity.Relaxed, VerifiedDiscovery: identity.On})}, verified: true},
-		{name: "relaxed, heartbeats on", opts: []Option{st(identity.Stance{Profile: identity.Relaxed, HeartbeatVerification: identity.On})}, beats: true},
-		{name: "explicit policy beats strict", opts: []Option{st(identity.Stance{Profile: identity.Strict}), withSigner, WithTrustPolicy(own)}, verified: true, ownPolicy: true, beats: true},
-		{name: "explicit policy beats strict, other order", opts: []Option{WithTrustPolicy(own), withSigner, st(identity.Stance{Profile: identity.Strict})}, verified: true, ownPolicy: true, beats: true},
-		{name: "explicit policy beats discovery off", opts: []Option{st(identity.Stance{VerifiedDiscovery: identity.Off}), WithTrustPolicy(own)}, verified: true, ownPolicy: true},
-		{name: "explicit verification beats heartbeats off", opts: []Option{st(identity.Stance{Profile: identity.Strict, HeartbeatVerification: identity.Off}), withSigner,
-			WithTracker(WithHeartbeatVerification(identity.LiveOptions{Nonces: identity.NewNonceSet(identity.NonceSetOptions{})}, false))}, verified: true, beats: true},
-		{name: "tracker stance beats the client's", opts: []Option{st(identity.Stance{Profile: identity.Strict}), withSigner,
-			WithTracker(WithTrackerStance(identity.Stance{Profile: identity.Relaxed}))}, verified: true},
-		{name: "invalid profile", opts: []Option{st(identity.Stance{Profile: 9})}, wantErr: true},
-		{name: "invalid setting", opts: []Option{st(identity.Stance{Signing: 9})}, wantErr: true},
+		{name: "discovery unset is the default", opts: []Option{st(identity.Stance{Signing: off})}},
+		{name: "discovery on", opts: []Option{st(identity.Stance{VerifiedDiscovery: on})}, verified: true},
+		{name: "discovery off", opts: []Option{st(identity.Stance{VerifiedDiscovery: off})}},
+		{name: "heartbeats unset is the default", opts: []Option{st(identity.Stance{Signing: off})}},
+		{name: "heartbeats on", opts: []Option{st(identity.Stance{HeartbeatVerification: on})}, beats: true},
+		{name: "heartbeats off", opts: []Option{st(identity.Stance{HeartbeatVerification: off})}},
+		{name: "all on with a signer", opts: []Option{st(identity.Stance{VerifiedDiscovery: on, HeartbeatVerification: on, Signing: on}), withSigner}, verified: true, beats: true},
+		{name: "signing on, signer", opts: []Option{st(identity.Stance{Signing: on}), withSigner}},
+		{name: "signing on, no signer", opts: []Option{st(identity.Stance{Signing: on})}, wantErr: true},
+		{name: "signing on, RequireSigner on, no signer", opts: []Option{st(identity.Stance{Signing: on, RequireSigner: on})}, wantErr: true},
+		{name: "signing on, RequireSigner off, no signer", opts: []Option{st(identity.Stance{Signing: on, RequireSigner: off})}},
+		{name: "signing off, RequireSigner on, no signer", opts: []Option{st(identity.Stance{Signing: off, RequireSigner: on})}},
+		{name: "explicit policy beats discovery off", opts: []Option{st(identity.Stance{VerifiedDiscovery: off}), WithTrustPolicy(own)}, verified: true, ownPolicy: true},
+		{name: "explicit policy beats discovery on", opts: []Option{st(identity.Stance{VerifiedDiscovery: on}), WithTrustPolicy(own)}, verified: true, ownPolicy: true},
+		{name: "explicit policy beats discovery on, other order", opts: []Option{WithTrustPolicy(own), st(identity.Stance{VerifiedDiscovery: on})}, verified: true, ownPolicy: true},
+		{name: "explicit verification beats heartbeats off", opts: []Option{st(identity.Stance{HeartbeatVerification: off}),
+			WithTracker(WithHeartbeatVerification(identity.LiveOptions{Nonces: identity.NewNonceSet(identity.NonceSetOptions{})}, false))}, beats: true},
+		{name: "explicit verification beats heartbeats off, other order", opts: []Option{
+			WithTracker(WithHeartbeatVerification(identity.LiveOptions{Nonces: identity.NewNonceSet(identity.NonceSetOptions{})}, false)),
+			st(identity.Stance{HeartbeatVerification: off})}, beats: true},
+		{name: "tracker stance beats the client's", opts: []Option{st(identity.Stance{VerifiedDiscovery: on, HeartbeatVerification: on}),
+			WithTracker(WithTrackerStance(identity.Stance{HeartbeatVerification: off}))}, verified: true},
+		{name: "invalid discovery", opts: []Option{st(identity.Stance{VerifiedDiscovery: 3})}, wantErr: true},
+		{name: "invalid signing", opts: []Option{st(identity.Stance{Signing: 3})}, wantErr: true},
+		{name: "invalid RequireSigner", opts: []Option{st(identity.Stance{RequireSigner: 3})}, wantErr: true},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
@@ -120,6 +126,23 @@ func TestWithStance_Client(t *testing.T) {
 	}
 }
 
+// TestWithStance_ClientRequireSignerOffWarnsOnce asserts that signing on without
+// a signer and RequireSigner off logs one warning to the configured logger, does
+// and does not panic without a logger.
+func TestWithStance_ClientRequireSignerOffWarnsOnce(t *testing.T) {
+	s := WithStance(identity.Stance{Signing: identity.On, RequireSigner: identity.Off})
+	var buf bytes.Buffer
+	if _, err := newStanceClient(t, s, WithLogger(slog.New(slog.NewTextHandler(&buf, nil)))); err != nil {
+		t.Fatal(err)
+	}
+	if n := strings.Count(buf.String(), "level=WARN"); n != 1 || !strings.Contains(buf.String(), "no Signer") {
+		t.Fatalf("%d warnings, want 1: %s", n, buf.String())
+	}
+	if _, err := newStanceClient(t, s); err != nil {
+		t.Fatal(err)
+	}
+}
+
 // TestWithStance_ClientWarnsOnlyToTheConfiguredLogger asserts that an unchosen
 // stance logs one warning per process to a logger the program set, never when
 // no logger was set, and not when a stance or a trust policy was chosen.
@@ -127,7 +150,7 @@ func TestWithStance_ClientWarnsOnlyToTheConfiguredLogger(t *testing.T) {
 	logTo := func(buf *bytes.Buffer) Option {
 		return WithLogger(slog.New(slog.NewTextHandler(buf, nil)))
 	}
-	warnings := func(buf *bytes.Buffer) int { return strings.Count(buf.String(), "no security stance was chosen") }
+	warnings := func(buf *bytes.Buffer) int { return strings.Count(buf.String(), "no security settings were chosen") }
 
 	t.Run("once, to the configured logger", func(t *testing.T) {
 		resetStanceWarning()
@@ -140,7 +163,7 @@ func TestWithStance_ClientWarnsOnlyToTheConfiguredLogger(t *testing.T) {
 		if n := warnings(&buf); n != 1 {
 			t.Fatalf("%d warnings, want 1: %s", n, buf.String())
 		}
-		for _, want := range []string{"level=WARN", "relaxed", "WithStance"} {
+		for _, want := range []string{"level=WARN", "SDK defaults", "WithStance"} {
 			if !strings.Contains(buf.String(), want) {
 				t.Errorf("warning lacks %q: %s", want, buf.String())
 			}
@@ -173,7 +196,7 @@ func TestWithStance_ClientWarnsOnlyToTheConfiguredLogger(t *testing.T) {
 		}
 	})
 	for name, opts := range map[string][]Option{
-		"stance chosen": {WithStance(identity.Stance{Profile: identity.Relaxed})},
+		"stance chosen": {WithStance(identity.Stance{SignedSenders: identity.Off})},
 		"trust policy":  {WithTrustPolicy(TrustPolicy{Agents: []identity.AgentID{"acc.UOWN"}})},
 	} {
 		t.Run(name+", no warning", func(t *testing.T) {
@@ -224,10 +247,9 @@ func TestWithTrackerStance_Heartbeats(t *testing.T) {
 		good, bad, bare bool
 	}{
 		{"no stance", nil, true, true, true},
-		{"relaxed", []TrackerOption{WithTrackerStance(identity.Stance{Profile: identity.Relaxed})}, true, true, true},
-		{"strict", []TrackerOption{WithTrackerStance(identity.Stance{Profile: identity.Strict})}, true, false, true},
-		{"strict, heartbeats off", []TrackerOption{WithTrackerStance(identity.Stance{Profile: identity.Strict, HeartbeatVerification: identity.Off})}, true, true, true},
-		{"relaxed, heartbeats on", []TrackerOption{WithTrackerStance(identity.Stance{Profile: identity.Relaxed, HeartbeatVerification: identity.On})}, true, false, true},
+		{"heartbeats unset is the default", []TrackerOption{WithTrackerStance(identity.Stance{Signing: identity.Off})}, true, true, true},
+		{"heartbeats on", []TrackerOption{WithTrackerStance(identity.Stance{HeartbeatVerification: identity.On})}, true, false, true},
+		{"heartbeats off", []TrackerOption{WithTrackerStance(identity.Stance{HeartbeatVerification: identity.Off})}, true, true, true},
 		{"explicit verification beats heartbeats off", []TrackerOption{WithTrackerStance(identity.Stance{HeartbeatVerification: identity.Off}), live}, true, false, true},
 		{"explicit verification, other order", []TrackerOption{live, WithTrackerStance(identity.Stance{HeartbeatVerification: identity.Off})}, true, false, true},
 	}
@@ -250,7 +272,7 @@ func TestWithTrackerStance_Heartbeats(t *testing.T) {
 			}
 		})
 	}
-	for name, s := range map[string]identity.Stance{"profile": {Profile: 9}, "setting": {HeartbeatVerification: 9}} {
+	for name, s := range map[string]identity.Stance{"heartbeats": {HeartbeatVerification: 3}, "signing": {Signing: 3}} {
 		if _, err := NewHeartbeatTracker(new(nats.Conn), WithTrackerStance(s)); err == nil {
 			t.Errorf("an invalid %s was accepted", name)
 		}

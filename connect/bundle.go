@@ -69,18 +69,18 @@ type bundleConfig struct {
 // WithSignedIdentity makes [ResolveBundle] return a Signer derived from the
 // same credential read as the connection options (SAP §13.4, §13.6). It fails,
 // matching [ErrNoUserSeed], if the source holds no user seed. Without it and
-// without a [WithStance] that turns signing on, the default is no signer
-// ("off"). It wins over a stance that turns signing off. See parity row 1.8.
+// without a [WithStance] that sets Signing On, there is no signer
+// ([identity.DefaultSigning]). It wins over a stance that sets Signing Off. See
+// parity row 1.8.
 func WithSignedIdentity() BundleOption { return func(c *bundleConfig) { c.signed = true } }
 
 // WithStance sets the security stance (see [identity.Stance]). [ResolveBundle]
-// reads one check of it: Signing makes the bundle carry the Signer when the
-// source holds a user seed, as [WithSignedIdentity] does. Unlike
-// WithSignedIdentity, a signing that came only from the profile and finds no
-// seed yields no Signer and no error; an explicit Signing On fails with
-// [ErrNoUserSeed] like WithSignedIdentity. An invalid stance fails
-// ResolveBundle with an error that matches [ErrContext]. The default is
-// [identity.DefaultProfile]. SDK policy; outside SAP.
+// reads one check of it: Signing On makes the bundle carry the Signer, as
+// [WithSignedIdentity] does, and fails with [ErrNoUserSeed] when the source
+// holds no user seed. Unset and Off yield no Signer; the default is
+// [identity.DefaultSigning]. RequireSigner has no effect here. An invalid
+// stance fails ResolveBundle with an error that matches [ErrContext]. SDK
+// policy; outside SAP.
 func WithStance(s identity.Stance) BundleOption { return func(c *bundleConfig) { c.stance = s } }
 
 // WithBundleContextOptions passes context-location options (such as
@@ -99,8 +99,7 @@ func WithBundleContextOptions(opts ...ContextOption) BundleOption {
 type Bundle struct {
 	Connection
 	// Signer is non-nil only with [WithSignedIdentity] or a [WithStance] that
-	// turns signing on, and only when the source holds a user seed. It is the same key
-	// the connection authenticates with.
+	// sets Signing On. It is the same key the connection authenticates with.
 	Signer identity.Signer
 
 	auth   identity.Signer // the connection's own signer; wiped by Wipe
@@ -161,10 +160,8 @@ func ResolveBundle(ctx context.Context, src Source, opts ...BundleOption) (*Bund
 	if serr != nil {
 		return nil, ctxErrWrap("", serr, "invalid security stance")
 	}
-	// Explicit signing (WithSignedIdentity, or Signing On) fails without a seed;
-	// signing from the profile alone yields no signer instead.
+	// Signing On in the stance or WithSignedIdentity fails without a seed.
 	wantSigner := cfg.signed || eff.Signing
-	mustSign := cfg.signed || (eff.Signing && eff.Explicit.Signing)
 	if err := ctx.Err(); err != nil {
 		// Match both ErrContext and context.Canceled / DeadlineExceeded.
 		return nil, ctxErrWrap("", err, "resolving the connection source was canceled")
@@ -182,7 +179,7 @@ func ResolveBundle(ctx context.Context, src Source, opts ...BundleOption) (*Bund
 			return nil, err
 		}
 		conn, signer = s.conn, s.signer
-		if mustSign && signer == nil {
+		if wantSigner && signer == nil {
 			return nil, noSeedError(s.name)
 		}
 	} else {
@@ -208,7 +205,7 @@ func ResolveBundle(ctx context.Context, src Source, opts ...BundleOption) (*Bund
 		default:
 			conn.Options = append(conn.Options, ua.options()...)
 		}
-		if mustSign && signer == nil {
+		if wantSigner && signer == nil {
 			return nil, noSeedError("")
 		}
 	}

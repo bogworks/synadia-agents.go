@@ -320,13 +320,16 @@ func WithMinSenderTrust(t identity.MinSenderTrust) Option {
 }
 
 // WithStance sets the security stance (see [identity.Stance]). The host reads
-// two checks of it: SignedSenders makes the prompt endpoint require a signed
-// sender, as [WithMinSenderTrust] with identity.TrustSigned does, and Signing
-// makes [New] fail unless [WithIdentity] gave a Signer (the error matches
-// [ErrConfig]). An explicit [WithMinSenderTrust] wins over SignedSenders. The
-// default is [identity.DefaultProfile]. When no stance is chosen and no
-// min_sender_trust is set, a logger set with [WithLogger] gets one warning per
-// process that says so. SDK policy.
+// three checks of it. SignedSenders makes the prompt endpoint require a signed
+// sender, as [WithMinSenderTrust] with identity.TrustSigned does; an explicit
+// [WithMinSenderTrust] wins over it, and the default is
+// [identity.DefaultSignedSenders]. Signing says the host signs; the default is
+// [identity.DefaultSigning]. With signing on and no Signer from [WithIdentity],
+// RequireSigner decides: On makes [New] fail with an error that matches
+// [ErrConfig], Off makes [New] succeed and log one warning to the logger set
+// with [WithLogger]; the default is [identity.DefaultRequireSigner]. When no
+// setting is chosen and no min_sender_trust is set, a logger set with
+// [WithLogger] gets one warning per process that says so. SDK policy.
 func WithStance(s identity.Stance) Option {
 	return func(c *config) error {
 		if _, err := stance.Resolve(s); err != nil {

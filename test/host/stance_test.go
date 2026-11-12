@@ -11,10 +11,10 @@ import (
 	"github.com/bogworks/synadia-agents.go/identity"
 )
 
-// TestStance_PromptEndpoint asserts F1: under the strict profile the prompt
+// TestStance_PromptEndpoint asserts F1: with SignedSenders on the prompt
 // endpoint advertises min_sender_trust signed and refuses an unsigned prompt
-// with 401, while under relaxed it advertises any and serves it; a signed
-// prompt is served under both; relaxed with signing on still serves unsigned
+// with 401, while with it off or unset it advertises any and serves it; a signed
+// prompt is served in every case; signing on alone still serves unsigned
 // senders; and an explicit WithMinSenderTrust wins over the stance.
 func TestStance_PromptEndpoint(t *testing.T) {
 	env := startNkeyServer(t)
@@ -28,15 +28,14 @@ func TestStance_PromptEndpoint(t *testing.T) {
 		unsigned  int // expected code for an unsigned prompt, 0 = served
 	}{
 		{"no stance", nil, "any", 0},
-		{"relaxed", []host.Option{host.WithStance(identity.Stance{Profile: identity.Relaxed})}, "any", 0},
-		{"strict", []host.Option{host.WithStance(identity.Stance{Profile: identity.Strict}), withSigner}, "signed", 401},
-		{"strict, senders off", []host.Option{host.WithStance(identity.Stance{Profile: identity.Strict, SignedSenders: identity.Off}), withSigner}, "any", 0},
-		{"strict, signing off", []host.Option{host.WithStance(identity.Stance{Profile: identity.Strict, Signing: identity.Off})}, "signed", 401},
-		{"strict, other checks off", []host.Option{host.WithStance(identity.Stance{Profile: identity.Strict, VerifiedDiscovery: identity.Off, HeartbeatVerification: identity.Off}), withSigner}, "signed", 401},
-		{"relaxed, signing on", []host.Option{host.WithStance(identity.Stance{Profile: identity.Relaxed, Signing: identity.On}), withSigner}, "any", 0},
-		{"relaxed, senders on", []host.Option{host.WithStance(identity.Stance{Profile: identity.Relaxed, SignedSenders: identity.On})}, "signed", 401},
-		{"explicit any beats strict", []host.Option{host.WithStance(identity.Stance{Profile: identity.Strict}), withSigner, host.WithMinSenderTrust(identity.TrustAny)}, "any", 0},
-		{"explicit signed beats relaxed", []host.Option{host.WithMinSenderTrust(identity.TrustSigned), host.WithStance(identity.Stance{Profile: identity.Relaxed})}, "signed", 401},
+		{"senders unset", []host.Option{host.WithStance(identity.Stance{Signing: identity.Off})}, "any", 0},
+		{"senders on", []host.Option{host.WithStance(identity.Stance{SignedSenders: identity.On})}, "signed", 401},
+		{"senders on, signing on", []host.Option{host.WithStance(identity.Stance{SignedSenders: identity.On, Signing: identity.On}), withSigner}, "signed", 401},
+		{"senders off", []host.Option{host.WithStance(identity.Stance{SignedSenders: identity.Off})}, "any", 0},
+		{"signing on only", []host.Option{host.WithStance(identity.Stance{Signing: identity.On}), withSigner}, "any", 0},
+		{"signing on without a signer, RequireSigner off", []host.Option{host.WithStance(identity.Stance{SignedSenders: identity.On, Signing: identity.On, RequireSigner: identity.Off})}, "signed", 401},
+		{"explicit any beats senders on", []host.Option{host.WithStance(identity.Stance{SignedSenders: identity.On}), host.WithMinSenderTrust(identity.TrustAny)}, "any", 0},
+		{"explicit signed beats senders off", []host.Option{host.WithMinSenderTrust(identity.TrustSigned), host.WithStance(identity.Stance{SignedSenders: identity.Off})}, "signed", 401},
 	}
 	for i, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {

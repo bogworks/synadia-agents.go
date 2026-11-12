@@ -77,13 +77,18 @@ func New(nc *nats.Conn, opts ...Option) (*Client, error) {
 		return nil, fmt.Errorf("caller: %w", err)
 	}
 	if eff.Signing && (cfg.ident == nil || cfg.ident.Signer == nil) {
-		return nil, errors.New("caller: the security stance requires signing, but WithIdentity gave no Signer")
+		if eff.RequireSigner {
+			return nil, errors.New("caller: the security stance turns signing on, but WithIdentity gave no Signer")
+		}
+		if cfg.logger != nil {
+			cfg.logger.Warn("signing is on but WithIdentity gave no Signer; the client cannot sign its requests")
+		}
 	}
 	if cfg.trust == nil && eff.VerifiedDiscovery {
 		cfg.trust = &TrustPolicy{Accept: func(identity.AgentID, agents.AgentInfo) bool { return true }}
 	}
-	if cfg.trust == nil && !eff.Chosen {
-		stance.WarnUnchosen(&warnStanceOnce, cfg.logger, "caller", eff)
+	if cfg.trust == nil && !stance.Chosen(cfg.stance) {
+		stance.WarnUnchosen(&warnStanceOnce, cfg.logger, "caller")
 	}
 	c := &Client{nc: nc, cfg: cfg, done: make(chan struct{})}
 	c.log = cfg.logger

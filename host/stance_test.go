@@ -44,14 +44,15 @@ func newStanceHost(t *testing.T, opts ...Option) (*Host, error) {
 }
 
 // TestWithStance_SignedSendersAndSigning asserts F1 and the signer requirement:
-// the prompt endpoint advertises and enforces the level the profile gives, an
-// explicit WithMinSenderTrust wins whatever the order, and a stance that turns
-// signing on makes New fail without a signer.
+// the prompt endpoint advertises and enforces the level the SignedSenders
+// setting gives, an explicit WithMinSenderTrust wins whatever the order, and
+// signing on makes New fail without a signer unless RequireSigner is off.
 func TestWithStance_SignedSendersAndSigning(t *testing.T) {
 	signer := stanceSigner(t)
 	withSigner := WithIdentity(IdentityOptions{Signer: signer})
 	noSigner := WithIdentity(IdentityOptions{})
 	st := func(s identity.Stance) Option { return WithStance(s) }
+	on, off := identity.On, identity.Off
 	tests := []struct {
 		name    string
 		opts    []Option
@@ -59,22 +60,24 @@ func TestWithStance_SignedSendersAndSigning(t *testing.T) {
 		wantErr bool
 	}{
 		{"no stance", nil, identity.TrustAny, false},
-		{"relaxed", []Option{st(identity.Stance{Profile: identity.Relaxed})}, identity.TrustAny, false},
-		{"strict with signer", []Option{st(identity.Stance{Profile: identity.Strict}), withSigner}, identity.TrustSigned, false},
-		{"strict without identity", []Option{st(identity.Stance{Profile: identity.Strict})}, "", true},
-		{"strict with identity but no signer", []Option{st(identity.Stance{Profile: identity.Strict}), noSigner}, "", true},
-		{"strict, signing off, no signer", []Option{st(identity.Stance{Profile: identity.Strict, Signing: identity.Off})}, identity.TrustSigned, false},
-		{"strict, senders off, with signer", []Option{st(identity.Stance{Profile: identity.Strict, SignedSenders: identity.Off}), withSigner}, identity.TrustAny, false},
-		{"strict, other checks off", []Option{st(identity.Stance{Profile: identity.Strict, VerifiedDiscovery: identity.Off, HeartbeatVerification: identity.Off}), withSigner}, identity.TrustSigned, false},
-		{"relaxed, signing on, with signer", []Option{st(identity.Stance{Profile: identity.Relaxed, Signing: identity.On}), withSigner}, identity.TrustAny, false},
-		{"relaxed, signing on, no signer", []Option{st(identity.Stance{Profile: identity.Relaxed, Signing: identity.On})}, "", true},
-		{"relaxed, senders on", []Option{st(identity.Stance{Profile: identity.Relaxed, SignedSenders: identity.On})}, identity.TrustSigned, false},
-		{"explicit any beats strict", []Option{st(identity.Stance{Profile: identity.Strict}), withSigner, WithMinSenderTrust(identity.TrustAny)}, identity.TrustAny, false},
-		{"explicit any beats strict, other order", []Option{WithMinSenderTrust(identity.TrustAny), withSigner, st(identity.Stance{Profile: identity.Strict})}, identity.TrustAny, false},
-		{"explicit signed beats relaxed", []Option{WithMinSenderTrust(identity.TrustSigned), st(identity.Stance{Profile: identity.Relaxed})}, identity.TrustSigned, false},
-		{"explicit signed beats senders off", []Option{st(identity.Stance{SignedSenders: identity.Off}), WithMinSenderTrust(identity.TrustSigned)}, identity.TrustSigned, false},
-		{"invalid profile", []Option{st(identity.Stance{Profile: 9})}, "", true},
-		{"invalid setting", []Option{st(identity.Stance{HeartbeatVerification: 9})}, "", true},
+		{"senders unset is the default", []Option{st(identity.Stance{Signing: off})}, identity.TrustAny, false},
+		{"senders on", []Option{st(identity.Stance{SignedSenders: on})}, identity.TrustSigned, false},
+		{"senders off", []Option{st(identity.Stance{SignedSenders: off})}, identity.TrustAny, false},
+		{"signing on with signer", []Option{st(identity.Stance{Signing: on}), withSigner}, identity.TrustAny, false},
+		{"signing on without identity", []Option{st(identity.Stance{Signing: on})}, "", true},
+		{"signing on with identity but no signer", []Option{st(identity.Stance{Signing: on}), noSigner}, "", true},
+		{"signing on, RequireSigner on, no signer", []Option{st(identity.Stance{Signing: on, RequireSigner: on})}, "", true},
+		{"signing on, RequireSigner off, no signer", []Option{st(identity.Stance{Signing: on, RequireSigner: off})}, identity.TrustAny, false},
+		{"signing off, RequireSigner on, no signer", []Option{st(identity.Stance{Signing: off, RequireSigner: on})}, identity.TrustAny, false},
+		{"signing unset, no signer", []Option{st(identity.Stance{SignedSenders: on})}, identity.TrustSigned, false},
+		{"explicit any beats senders on", []Option{st(identity.Stance{SignedSenders: on}), WithMinSenderTrust(identity.TrustAny)}, identity.TrustAny, false},
+		{"explicit any beats senders on, other order", []Option{WithMinSenderTrust(identity.TrustAny), st(identity.Stance{SignedSenders: on})}, identity.TrustAny, false},
+		{"explicit signed beats senders off", []Option{st(identity.Stance{SignedSenders: off}), WithMinSenderTrust(identity.TrustSigned)}, identity.TrustSigned, false},
+		{"explicit signed beats senders off, other order", []Option{WithMinSenderTrust(identity.TrustSigned), st(identity.Stance{SignedSenders: off})}, identity.TrustSigned, false},
+		{"invalid senders", []Option{st(identity.Stance{SignedSenders: 3})}, "", true},
+		{"invalid signing", []Option{st(identity.Stance{Signing: 3})}, "", true},
+		{"invalid RequireSigner", []Option{st(identity.Stance{RequireSigner: 3})}, "", true},
+		{"invalid setting", []Option{st(identity.Stance{HeartbeatVerification: 3})}, "", true},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
@@ -98,6 +101,31 @@ func TestWithStance_SignedSendersAndSigning(t *testing.T) {
 	}
 }
 
+// TestWithStance_RequireSignerOffWarnsOnce asserts that signing on without a
+// signer and RequireSigner off logs one warning to the configured logger, and
+// does not panic without a logger.
+func TestWithStance_RequireSignerOffWarnsOnce(t *testing.T) {
+	s := WithStance(identity.Stance{Signing: identity.On, RequireSigner: identity.Off})
+	var buf bytes.Buffer
+	if _, err := newStanceHost(t, s, WithLogger(slog.New(slog.NewTextHandler(&buf, nil)))); err != nil {
+		t.Fatal(err)
+	}
+	if n := strings.Count(buf.String(), "level=WARN"); n != 1 || !strings.Contains(buf.String(), "no Signer") {
+		t.Fatalf("%d warnings, want 1: %s", n, buf.String())
+	}
+	if _, err := newStanceHost(t, s); err != nil {
+		t.Fatal(err)
+	}
+	var quiet bytes.Buffer
+	withSigner := WithIdentity(IdentityOptions{Signer: stanceSigner(t)})
+	if _, err := newStanceHost(t, s, withSigner, WithLogger(slog.New(slog.NewTextHandler(&quiet, nil)))); err != nil {
+		t.Fatal(err)
+	}
+	if quiet.Len() != 0 {
+		t.Fatalf("a signer was given, but got %q", quiet.String())
+	}
+}
+
 // TestWithStance_WarnsOnlyToTheConfiguredLogger asserts that an unchosen stance
 // logs one warning per process to a logger the program set, never when no
 // logger was set, and not when a stance or a min_sender_trust was chosen.
@@ -105,7 +133,7 @@ func TestWithStance_WarnsOnlyToTheConfiguredLogger(t *testing.T) {
 	logTo := func(buf *bytes.Buffer) Option {
 		return WithLogger(slog.New(slog.NewTextHandler(buf, nil)))
 	}
-	warnings := func(buf *bytes.Buffer) int { return strings.Count(buf.String(), "no security stance was chosen") }
+	warnings := func(buf *bytes.Buffer) int { return strings.Count(buf.String(), "no security settings were chosen") }
 
 	t.Run("once, to the configured logger", func(t *testing.T) {
 		resetStanceWarning()
@@ -118,7 +146,7 @@ func TestWithStance_WarnsOnlyToTheConfiguredLogger(t *testing.T) {
 		if n := warnings(&buf); n != 1 {
 			t.Fatalf("%d warnings, want 1: %s", n, buf.String())
 		}
-		for _, want := range []string{"level=WARN", "relaxed", "WithStance"} {
+		for _, want := range []string{"level=WARN", "SDK defaults", "WithStance"} {
 			if !strings.Contains(buf.String(), want) {
 				t.Errorf("warning lacks %q: %s", want, buf.String())
 			}
@@ -151,7 +179,7 @@ func TestWithStance_WarnsOnlyToTheConfiguredLogger(t *testing.T) {
 		}
 	})
 	for name, opts := range map[string][]Option{
-		"stance chosen":      {WithStance(identity.Stance{Profile: identity.Relaxed})},
+		"stance chosen":      {WithStance(identity.Stance{SignedSenders: identity.Off})},
 		"min trust explicit": {WithMinSenderTrust(identity.TrustAny)},
 	} {
 		t.Run(name+", no warning", func(t *testing.T) {
