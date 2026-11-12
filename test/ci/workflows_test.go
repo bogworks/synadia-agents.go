@@ -54,6 +54,7 @@ var jobWrites = map[string]bool{
 var shaPin = regexp.MustCompile(`@[0-9a-f]{40}$`)
 
 type step struct {
+	Name string            `yaml:"name"`
 	ID   string            `yaml:"id"`
 	Uses string            `yaml:"uses"`
 	With map[string]any    `yaml:"with"`
@@ -1137,5 +1138,95 @@ func TestDocsGuard_NamedTestsMustRun(t *testing.T) {
 	}
 	if n == 0 {
 		t.Error("docs-guard names no test with -run")
+	}
+}
+
+// TestDocsGuard_StepsFailWhenACallFails runs each docs-guard script under bash with a stub `go` first on PATH, so a
+// failing `go test` (or a named test that never printed PASS) cannot be masked by the lines after it.
+func TestDocsGuard_StepsFailWhenACallFails(t *testing.T) {
+	raw, err := os.ReadFile("../../.github/workflows/go-sdk.yml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var wf workflow
+	if err := yaml.Unmarshal(raw, &wf); err != nil {
+		t.Fatal(err)
+	}
+	// The stub prints `--- PASS: <name> ` for a -run call unless STUB_NO_PASS is set, and exits 1 for the call
+	// STUB_FAIL names ("run" for a -run call, "docs" for the ./docs/... call).
+	const stub = `#!/bin/sh
+case "$*" in
+*-run*)
+  name=$(printf '%s' "$*" | sed -n "s/.*-run '\{0,1\}^\([A-Za-z0-9_]*\)\$.*/\1/p")
+  [ -n "$STUB_NO_PASS" ] || echo "--- PASS: $name (0.00s)"
+  [ "$STUB_FAIL" = run ] && exit 1
+  ;;
+*./docs/...*)
+  [ "$STUB_FAIL" = docs ] && exit 1
+  ;;
+esac
+exit 0
+`
+	cases := []struct {
+		step    string
+		name    string
+		fail    string
+		noPass  bool
+		wantErr bool
+	}{
+		{"Docs tests (root module)", "ok", "", false, false},
+		{"Docs tests (root module)", "run call fails but prints PASS", "run", false, true},
+		{"Docs tests (root module)", "test missing", "", true, true},
+		{"Docs tests (integration module)", "ok", "", false, false},
+		{"Docs tests (integration module)", "docs call fails", "docs", false, true},
+		{"Docs tests (integration module)", "run call fails but prints PASS", "run", false, true},
+		{"Docs tests (integration module)", "test missing", "", true, true},
+	}
+	seen := map[string]bool{}
+	for _, s := range wf.Jobs["docs-guard"].Steps {
+		if !strings.HasPrefix(s.Name, "Docs tests") {
+			continue
+		}
+		seen[s.Name] = true
+		var first string
+		for _, l := range strings.Split(s.Run, "\n") {
+			if l = strings.TrimSpace(l); l != "" && !strings.HasPrefix(l, "#") {
+				first = l
+				break
+			}
+		}
+		if first != "set -euo pipefail" {
+			t.Errorf("%s: first command is %q, want `set -euo pipefail`", s.Name, first)
+		}
+		for _, c := range cases {
+			if c.step != s.Name {
+				continue
+			}
+			t.Run(s.Name+"/"+c.name, func(t *testing.T) {
+				dir := t.TempDir()
+				bin := filepath.Join(dir, "bin")
+				if err := os.Mkdir(bin, 0o750); err != nil {
+					t.Fatal(err)
+				}
+				if err := os.WriteFile(filepath.Join(bin, "go"), []byte(stub), 0o700); err != nil { //nolint:gosec // the stub must be executable
+					t.Fatal(err)
+				}
+				cmd := exec.Command("bash", "-c", s.Run)
+				cmd.Dir = dir
+				cmd.Env = append(os.Environ(), "PATH="+bin+string(os.PathListSeparator)+os.Getenv("PATH"), "RUNNER_TEMP="+dir, "STUB_FAIL="+c.fail)
+				if c.noPass {
+					cmd.Env = append(cmd.Env, "STUB_NO_PASS=1")
+				}
+				out, err := cmd.CombinedOutput()
+				if (err != nil) != c.wantErr {
+					t.Errorf("exit error = %v, want failure %v\n%s", err, c.wantErr, out)
+				}
+			})
+		}
+	}
+	for _, name := range []string{"Docs tests (root module)", "Docs tests (integration module)"} {
+		if !seen[name] {
+			t.Errorf("docs-guard has no step %q", name)
+		}
 	}
 }

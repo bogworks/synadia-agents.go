@@ -353,13 +353,13 @@ jobs:
       - name: Docs tests (root module)
         run: |
           # go test -run passes when nothing matches, so require the named test to have run and passed.
-          set -o pipefail
+          set -euo pipefail
           go test -count=1 -v -run '^TestRepositoryADRsPass$' ./internal/cmd/adrlint/ | tee "$RUNNER_TEMP/adrs.txt"
           grep -q '^--- PASS: TestRepositoryADRsPass ' "$RUNNER_TEMP/adrs.txt"
       - name: Docs tests (integration module)
         working-directory: test
         run: |
-          set -o pipefail
+          set -euo pipefail
           go test -count=1 ./docs/...
           go test -count=1 -v -run '^TestQuickstart_ReadmeMatchesExample$' ./examples/ | tee "$RUNNER_TEMP/quickstart.txt"
           grep -q '^--- PASS: TestQuickstart_ReadmeMatchesExample ' "$RUNNER_TEMP/quickstart.txt"
