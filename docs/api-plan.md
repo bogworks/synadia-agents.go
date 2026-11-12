@@ -1105,7 +1105,7 @@ their prompt's scope, and `Execute` outside any scope uses the helper's shared o
 ```go
 type ContextFile struct{ Name, Path string; Fields map[string]any }
 func ReadContext(selector string) (ContextFile, error)         // "current" resolves via $NATS_CONTEXT or context.txt
-func LoadContext(selector string) (Connection, error)
+func LoadContext(ctx context.Context, selector string) (Connection, error)
 func ParseURL(url string) (Connection, error)                  // userinfo: token, or user:pass; credentials redacted in errors
 
 type Connection struct{ URL string; Options []nats.Option }
@@ -1119,7 +1119,7 @@ func (b *Bundle) Wipe()                                        // call only afte
 
 func ReconnectDefaults() []nats.Option                         // MaxReconnects(-1), ReconnectWait(2s), ReconnectJitter(200ms, 1s), RetryOnFailedConnect(true)
 func WithAgentReconnectDefaults(user ...nats.Option) []nats.Option // defaults first, the caller's options override
-func SignerFromContext(selector string) (identity.Signer, error)
+func SignerFromContext(ctx context.Context, selector string) (identity.Signer, error)
 
 var ErrContext error
 ```

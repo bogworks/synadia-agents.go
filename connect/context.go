@@ -670,8 +670,8 @@ func tlsOptions(ctx context.Context, cf ContextFile, relax bool) ([]nats.Option,
 // Key files are read once. The returned options keep the decoded key in memory
 // for reconnects; use [ResolveBundle] when the program needs to [Bundle.Wipe]
 // it. See parity row 1.4; outside SAP (deviation D-1).
-func LoadContext(selector string, opts ...ContextOption) (Connection, error) {
-	s, err := loadSnapshot(context.Background(), selector, opts)
+func LoadContext(ctx context.Context, selector string, opts ...ContextOption) (Connection, error) {
+	s, err := loadSnapshot(ctx, selector, opts)
 	if err != nil {
 		return Connection{}, err
 	}
@@ -691,7 +691,7 @@ func LoadContext(selector string, opts ...ContextOption) (Connection, error) {
 // an error matching [ErrNoUserSeed] and [ErrContext]. To connect and sign from
 // one read, use [ResolveBundle] instead. See SAP §13.6; parity row 10.10;
 // outside SAP (deviation D-1).
-func SignerFromContext(selector string, opts ...ContextOption) (identity.Signer, error) {
+func SignerFromContext(ctx context.Context, selector string, opts ...ContextOption) (identity.Signer, error) {
 	cf, err := ReadContext(selector, opts...)
 	if err != nil {
 		return nil, err
@@ -713,8 +713,6 @@ func SignerFromContext(selector string, opts ...ContextOption) (identity.Signer,
 		return nil, err
 	}
 	relax := newContextConfig(opts).insecureKeyFiles
-	// This exported function takes no context, so the key-file read has none to honor.
-	ctx := context.Background()
 	var a auth
 	switch {
 	case creds != "":

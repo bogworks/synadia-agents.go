@@ -238,7 +238,7 @@ func TestReadContext_ConfigDirLookup(t *testing.T) {
 			for k, v := range tc.env {
 				t.Setenv(k, v)
 			}
-			c, err := connect.LoadContext("c", tc.opts...)
+			c, err := connect.LoadContext(t.Context(), "c", tc.opts...)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -444,7 +444,7 @@ func TestLoadContext_Auth(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			e.context("c", tc.fields)
-			c, err := connect.LoadContext("c")
+			c, err := connect.LoadContext(t.Context(), "c")
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -463,7 +463,7 @@ func TestLoadContext_PathExpansion(t *testing.T) {
 
 	t.Run("tilde expands to HOME", func(t *testing.T) {
 		e.context("c", map[string]any{"url": serverURL, "nkey": "~/keys/u.nk"})
-		c, err := connect.LoadContext("c")
+		c, err := connect.LoadContext(t.Context(), "c")
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -474,7 +474,7 @@ func TestLoadContext_PathExpansion(t *testing.T) {
 	t.Run("relative resolves against the working directory", func(t *testing.T) {
 		t.Chdir(filepath.Join(e.home, "keys"))
 		e.context("c", map[string]any{"url": serverURL, "nkey": "u.nk"})
-		c, err := connect.LoadContext("c")
+		c, err := connect.LoadContext(t.Context(), "c")
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -486,12 +486,12 @@ func TestLoadContext_PathExpansion(t *testing.T) {
 		t.Chdir(t.TempDir())
 		e.write(filepath.Join(e.dir, "context", "u.nk"), u.seed)
 		e.context("c", map[string]any{"url": serverURL, "nkey": "u.nk"})
-		_, err := connect.LoadContext("c")
+		_, err := connect.LoadContext(t.Context(), "c")
 		_ = wantContextErr(t, err)
 	})
 	t.Run("a bare tilde-user path is not expanded", func(t *testing.T) {
 		e.context("c", map[string]any{"url": serverURL, "nkey": "~keys/u.nk"})
-		_, err := connect.LoadContext("c")
+		_, err := connect.LoadContext(t.Context(), "c")
 		_ = wantContextErr(t, err)
 	})
 }
@@ -535,7 +535,7 @@ func TestLoadContext_Errors(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			e.context("c", tc.fields)
-			_, err := connect.LoadContext("c")
+			_, err := connect.LoadContext(t.Context(), "c")
 			ce := wantContextErr(t, err)
 			if ce.Context != "c" {
 				t.Errorf("Context = %q, want c", ce.Context)
@@ -588,7 +588,7 @@ func TestLoadContext_TLS(t *testing.T) {
 
 	t.Run("cert key ca", func(t *testing.T) {
 		e.context("c", map[string]any{"url": "tls://127.0.0.1:4222", "cert": certPath, "key": keyPath, "ca": certPath, "tls_first": true})
-		c, err := connect.LoadContext("c")
+		c, err := connect.LoadContext(t.Context(), "c")
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -599,7 +599,7 @@ func TestLoadContext_TLS(t *testing.T) {
 	})
 	t.Run("tilde paths", func(t *testing.T) {
 		e.context("c", map[string]any{"url": "tls://127.0.0.1:4222", "cert": "~/tls/cert.pem", "key": "~/tls/key.pem"})
-		c, err := connect.LoadContext("c")
+		c, err := connect.LoadContext(t.Context(), "c")
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -609,7 +609,7 @@ func TestLoadContext_TLS(t *testing.T) {
 	})
 	t.Run("ca only", func(t *testing.T) {
 		e.context("c", map[string]any{"url": "tls://127.0.0.1:4222", "ca": certPath})
-		c, err := connect.LoadContext("c")
+		c, err := connect.LoadContext(t.Context(), "c")
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -619,7 +619,7 @@ func TestLoadContext_TLS(t *testing.T) {
 	})
 	t.Run("cert and key that do not pair", func(t *testing.T) {
 		e.context("c", map[string]any{"url": "tls://127.0.0.1:4222", "cert": certPath, "key": certPath})
-		_, err := connect.LoadContext("c")
+		_, err := connect.LoadContext(t.Context(), "c")
 		_ = wantContextErr(t, err)
 	})
 }
@@ -848,7 +848,7 @@ func TestSignerFromContext(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			e.context("c", tc.fields)
-			s, err := connect.SignerFromContext("c")
+			s, err := connect.SignerFromContext(t.Context(), "c")
 			if tc.noSeed {
 				_ = wantContextErr(t, err)
 				if !errors.Is(err, connect.ErrNoUserSeed) {
@@ -875,12 +875,12 @@ func TestSignerFromContext(t *testing.T) {
 		})
 	}
 	t.Run("missing context", func(t *testing.T) {
-		_, err := connect.SignerFromContext("nope")
+		_, err := connect.SignerFromContext(t.Context(), "nope")
 		_ = wantContextErr(t, err)
 	})
 	t.Run("bad seed does not leak", func(t *testing.T) {
 		e.context("c", map[string]any{"url": serverURL, "user_seed": "SUASECRETNOTASEED"})
-		_, err := connect.SignerFromContext("c")
+		_, err := connect.SignerFromContext(t.Context(), "c")
 		_ = wantContextErr(t, err)
 		if strings.Contains(err.Error(), "SECRETNOTASEED") {
 			t.Errorf("error leaks the seed: %v", err)
@@ -924,7 +924,7 @@ func TestLoneUserSeed_ConnectionMatchesSigner(t *testing.T) {
 	e.context("none", map[string]any{"url": serverURL})
 	e.context("tokened", map[string]any{"url": serverURL, "user_seed": u.seed, "token": "T"})
 
-	s, err := connect.SignerFromContext("lone")
+	s, err := connect.SignerFromContext(t.Context(), "lone")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -941,7 +941,7 @@ func TestLoneUserSeed_ConnectionMatchesSigner(t *testing.T) {
 		}
 	}
 	t.Run("LoadContext", func(t *testing.T) {
-		c, err := connect.LoadContext("lone")
+		c, err := connect.LoadContext(t.Context(), "lone")
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -967,10 +967,10 @@ func TestLoneUserSeed_ConnectionMatchesSigner(t *testing.T) {
 		check(t, applied(t, b.Options))
 	})
 	t.Run("no seed, no signer", func(t *testing.T) {
-		if s, err := connect.SignerFromContext("none"); err == nil || s != nil || !errors.Is(err, connect.ErrNoUserSeed) {
+		if s, err := connect.SignerFromContext(t.Context(), "none"); err == nil || s != nil || !errors.Is(err, connect.ErrNoUserSeed) {
 			t.Fatalf("signer = %v, err = %v", s, err)
 		}
-		c, err := connect.LoadContext("none")
+		c, err := connect.LoadContext(t.Context(), "none")
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -979,14 +979,14 @@ func TestLoneUserSeed_ConnectionMatchesSigner(t *testing.T) {
 		}
 	})
 	t.Run("seed beside a token: connection uses the token, signer refuses", func(t *testing.T) {
-		c, err := connect.LoadContext("tokened")
+		c, err := connect.LoadContext(t.Context(), "tokened")
 		if err != nil {
 			t.Fatal(err)
 		}
 		if o := applied(t, c.Options); o.Token != "T" || o.Nkey != "" {
 			t.Errorf("token=%q nkey=%q", o.Token, o.Nkey)
 		}
-		if s, err := connect.SignerFromContext("tokened"); err == nil || s != nil {
+		if s, err := connect.SignerFromContext(t.Context(), "tokened"); err == nil || s != nil {
 			t.Errorf("signer = %v, err = %v", s, err)
 		}
 	})

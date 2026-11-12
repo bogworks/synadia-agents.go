@@ -179,7 +179,7 @@ func TestSignerFromContext_RefusesIdentityDifferentFromConnection(t *testing.T) 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			e.context("c", tc.fields)
-			s, err := connect.SignerFromContext("c")
+			s, err := connect.SignerFromContext(t.Context(), "c")
 			if tc.wantOK {
 				if err != nil || s.PublicKey() != u.pub {
 					t.Fatalf("err = %v", err)
@@ -248,7 +248,7 @@ func TestKeyFilePermissions(t *testing.T) {
 			t.Run(fmt.Sprintf("%s %04o", k.name, m.mode), func(t *testing.T) {
 				p := writeMode(t, filepath.Join(e.home, "keys", k.name+fmt.Sprintf("%04o", m.mode)), k.body, m.mode)
 				e.context("c", k.fields(p))
-				_, err := connect.LoadContext("c")
+				_, err := connect.LoadContext(t.Context(), "c")
 				if !m.reject {
 					if err != nil {
 						t.Fatalf("mode %04o refused: %v", m.mode, err)
@@ -263,7 +263,7 @@ func TestKeyFilePermissions(t *testing.T) {
 					t.Errorf("error leaks the seed: %v", err)
 				}
 				// The relax option accepts the file.
-				if _, err := connect.LoadContext("c", connect.WithInsecureKeyFilePermissions()); err != nil {
+				if _, err := connect.LoadContext(t.Context(), "c", connect.WithInsecureKeyFilePermissions()); err != nil {
 					t.Errorf("relaxed load failed: %v", err)
 				}
 				// So does a bundle through its context options.
@@ -274,7 +274,7 @@ func TestKeyFilePermissions(t *testing.T) {
 					connect.WithBundleContextOptions(connect.WithInsecureKeyFilePermissions())); err != nil {
 					t.Errorf("relaxed bundle failed: %v", err)
 				}
-				if _, err := connect.SignerFromContext("c"); err == nil {
+				if _, err := connect.SignerFromContext(t.Context(), "c"); err == nil {
 					t.Error("SignerFromContext accepted an insecure key file")
 				}
 			})
@@ -300,7 +300,7 @@ func TestKeyFilePermissions(t *testing.T) {
 		cert := writeMode(t, filepath.Join(e.home, "tls", "c.crt"), certPEM, 0o644) // public: any mode
 		key := writeMode(t, filepath.Join(e.home, "tls", "c.key"), keyPEM, 0o644)
 		e.context("t", map[string]any{"url": serverURL, "cert": cert, "key": key})
-		_, err := connect.LoadContext("t")
+		_, err := connect.LoadContext(t.Context(), "t")
 		_ = wantContextErr(t, err)
 		if !strings.Contains(err.Error(), "0600") || !strings.Contains(err.Error(), key) {
 			t.Errorf("err = %v", err)
@@ -308,13 +308,13 @@ func TestKeyFilePermissions(t *testing.T) {
 		if strings.Contains(err.Error(), "PRIVATE KEY") {
 			t.Errorf("error quotes key material: %v", err)
 		}
-		if _, err := connect.LoadContext("t", connect.WithInsecureKeyFilePermissions()); err != nil {
+		if _, err := connect.LoadContext(t.Context(), "t", connect.WithInsecureKeyFilePermissions()); err != nil {
 			t.Errorf("relaxed: %v", err)
 		}
 		if err := os.Chmod(key, 0o600); err != nil {
 			t.Fatal(err)
 		}
-		if _, err := connect.LoadContext("t"); err != nil {
+		if _, err := connect.LoadContext(t.Context(), "t"); err != nil {
 			t.Errorf("0600 key refused: %v", err)
 		}
 	})
@@ -322,7 +322,7 @@ func TestKeyFilePermissions(t *testing.T) {
 	t.Run("CA file may be public", func(t *testing.T) {
 		ca := writeMode(t, filepath.Join(e.home, "tls", "ca.pem"), certPEM, 0o644)
 		e.context("ca", map[string]any{"url": serverURL, "ca": ca})
-		if _, err := connect.LoadContext("ca"); err != nil {
+		if _, err := connect.LoadContext(t.Context(), "ca"); err != nil {
 			t.Errorf("public CA refused: %v", err)
 		}
 	})
