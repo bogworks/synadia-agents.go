@@ -66,4 +66,6 @@
 // cannot (SAP §13.9). It never signs a reply, and it sends no header from an
 // unknown identity (SAP §13.4). [Client.ResolveSender] is the reverse lookup of
 // SAP §13.10.
+//
+// See docs/secure-configuration.md for the trust policy and verified discovery.
 package caller
