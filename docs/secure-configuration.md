@@ -74,7 +74,7 @@ An explicit option always wins over the stance for its own check, whatever the o
 
 When a program sets no check and no explicit option for the check (`WithMinSenderTrust` on a host, `WithTrustPolicy` on a client), a logger set with `WithLogger` gets one warning per process that says the SDK defaults apply. The SDK never logs to the default logger, so a program with no logger sees nothing.
 
-The defaults are those of v0.1.0 today, except `RequireSigner`, and they may change in a later release. Set a check to be sure of the posture you get. See [ADR-0003](decisions/0003-a-security-stance-holds-concrete-per-check-settings.md).
+The defaults are those of v0.1.0 today, except `RequireSigner`, and they may change in a later release. Set a check to be sure of the posture you get. See [ADR-0004](decisions/0004-a-security-stance-holds-concrete-per-check-settings.md).
 
 ## Extra endpoints are outside the gate
 

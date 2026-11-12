@@ -13,7 +13,7 @@ any discovery reply until it is given `WithTrustPolicy`, a heartbeat tracker ver
 `WithHeartbeatVerification`, and a connection yields a signer only with `WithSignedIdentity`. A program that wants the
 secure posture must find and set four options in three packages, and one it forgets stays open. The product owner first
 ruled: "Signed on strict mode, unsigned on relaxed. Separate override setting for this in case people want relaxed mode
-with signing." A later ruling (see the amendment) removed named modes from the SDK. How does a program choose its posture
+with signing." A later ruling (see Changes from ADR-0003) removed named modes from the SDK. How does a program choose its posture
 once, and what applies when it chooses nothing?
 
 ## Decision Drivers
@@ -103,9 +103,9 @@ warnings.
 
 * [docs/secure-configuration.md](../secure-configuration.md).
 
-## Amendment, 2026-11-12
+## Changes from ADR-0003
 
-The first version of this record chose "a profile type with per-check overrides", with `Relaxed` and `Strict`
+ADR-0003 chose "a profile type with per-check overrides", with `Relaxed` and `Strict`
 profiles and a relaxed default. The owner ruled that the SDK never interprets named profiles. The deployment around the SDK
 decides policy and passes concrete settings. The code was unreleased, so the change is breaking and clean:
 

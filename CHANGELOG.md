@@ -17,7 +17,7 @@ SAP revision it implements and its conformance catalog result.
   `connect.WithStance`. The SDK interprets no named profile. Each check has its own default, an exported constant
   (`identity.DefaultSignedSenders` and the others), and `Stance.Resolved` returns the settings in force. The defaults
   are those of v0.1.0, except `RequireSigner`, and they may change; a program that sets no check and has a logger
-  gets one warning. See ADR-0003.
+  gets one warning. See ADR-0004, which supersedes ADR-0003.
 
 ## [0.1.0] - 2026-11-12
 
