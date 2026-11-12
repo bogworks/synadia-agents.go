@@ -271,6 +271,9 @@ jobs:
         with:
           go-version: '1.27.4'
           cache: false
+      # Fail fast, before the heavy run, if a patch no longer applies.
+      - name: Check that every patch applies
+        run: go run ./internal/cmd/mutate -check
       - name: Mutation run
         run: go run ./internal/cmd/mutate
 

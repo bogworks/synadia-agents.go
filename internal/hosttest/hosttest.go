@@ -27,4 +27,4 @@ type RawHandler func(ctx context.Context, req micro.Request, sender *identity.Se
 // host.Option, returned as any, that installs a raw prompt handler. With it
 // the handler passed to host.New may be nil. A nil f makes the option fail
 // host.New.
-var RawOption = func(RawHandler) any { panic("hosttest: package host is not linked") }
+var RawOption = func(RawHandler) any { panic("hosttest: package host is not linked") } //nolint:forbidigo // using this package without linking host is a programming error

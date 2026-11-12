@@ -204,7 +204,7 @@ func (g *Gate) classifyDeferred(msg Message) (*Sender, func() *Error, error) {
 func (g *Gate) AdmitPrompt(ctx context.Context, msg Message) Admission {
 	sender, commit, err := g.classifyDeferred(msg)
 	if err != nil {
-		return g.refuse(msg, err.(*Error)) //nolint:errcheck // invariant: sender verification returns only *Error
+		return g.refuse(msg, toError(err))
 	}
 
 	if g.min == TrustSigned && TrustOf(sender) != TrustVerified {
@@ -259,8 +259,8 @@ func (StatusResult) Answerable() bool { return true }
 func (g *Gate) ClassifyStatus(msg Message) StatusResult {
 	sender, err := g.Classify(msg)
 	if err != nil {
-		rej := err.(*Error) //nolint:errcheck // invariant: sender verification returns only *Error
-		g.logWarn("status request: Agent-Sender rejected (reply sent anyway)", msg, rej.Code, rej.Detail)
+		rej := toError(err)
+		g.logWarn("status request: Agent-Sender rejected, reply sent anyway", msg, rej.Code, rej.Detail)
 		return StatusResult{Rejection: rej}
 	}
 	return StatusResult{Sender: sender}
@@ -271,9 +271,20 @@ func (g *Gate) refuse(msg Message, e *Error) Admission {
 	return Admission{Err: e}
 }
 
-func (g *Gate) logWarn(text string, msg Message, code int, reason string) {
+// toError returns err as an *Error. Sender verification returns only *Error;
+// should that invariant ever break, the result is a generic 500 rather than a
+// panic.
+func toError(err error) *Error {
+	var e *Error
+	if errors.As(err, &e) {
+		return e
+	}
+	return newError(500, ErrAdmission, DescriptionServerError, err.Error())
+}
+
+func (g *Gate) logWarn(event string, msg Message, code int, reason string) {
 	if g.log == nil {
 		return
 	}
-	g.log.Warn(text, slog.String("subject", msg.Subject), slog.Int("code", code), slog.String("reason", reason))
+	g.log.Warn("gate refusal", slog.String("event", event), slog.String("subject", msg.Subject), slog.Int("code", code), slog.String("reason", reason))
 }
