@@ -953,6 +953,27 @@ func TestCancel_OpenCallKeepsPartialAndRefusesQuestion(t *testing.T) {
 	}
 }
 
+// The refusal of an open question does not depend on the caller's context: a
+// cancel_agent whose context is already canceled still refuses it.
+func TestCancel_RefusesQuestionAfterCallerContextCanceled(t *testing.T) {
+	tg := echoTarget()
+	h := newHarness(t, []*fakeTarget{tg})
+	q := newFakeQuestion("permission?")
+	id := str(h.do(ToolPromptAgent, obj{"address": tg.subject, "prompt": "x", "wait": false}), "call_id")
+	tg.stream(t, 0).ask(q)
+	wantState(t, h.do(ToolWaitAgent, obj{"call_ids": []string{id}}), "input_required")
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	r := h.run(ctx, ToolCancelAgent, obj{"call_ids": []string{id}})
+	if c0 := r["calls"].([]any)[0].(obj); str(c0, "state") != "cancelled" { //nolint:misspell // the wire value of the state
+		t.Fatalf("%v", r)
+	}
+	if got := q.got(t); got != QuestionRefusal {
+		t.Errorf("refusal %q", got)
+	}
+}
+
 func TestCancel_BlockingPromptAbortedByContext(t *testing.T) {
 	tg := echoTarget()
 	h := newHarness(t, []*fakeTarget{tg})

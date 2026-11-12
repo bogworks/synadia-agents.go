@@ -155,7 +155,7 @@ func New(nc *nats.Conn, subject agents.AgentSubject, handler PromptHandler, opts
 			return nil, err
 		}
 	}
-	if handler == nil && cfg.raw == nil {
+	if handler == nil && cfg.hooks.Raw == nil {
 		return nil, fmt.Errorf("%w: nil handler", ErrConfig)
 	}
 	if err := agents.ValidateInterval(cfg.hbInterval, cfg.subSecond); err != nil {
