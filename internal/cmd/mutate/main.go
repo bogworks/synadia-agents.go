@@ -72,10 +72,15 @@ type result struct {
 	took     time.Duration
 }
 
+// defaultJobs is how many mutations run at once when -j is not given: half the CPUs this process may use, at least 2.
+// GOMAXPROCS, not NumCPU: on a runner container capped to 2 CPUs on a 32-core host NumCPU says 32, and 16 parallel go
+// test runs on 2 CPUs ran into the harness deadline (2026-11-14, 30 of 57 mutations errored, mutation run failed).
+func defaultJobs() int { return max(2, runtime.GOMAXPROCS(0)/2) }
+
 func main() {
 	root := flag.String("root", "", "repository root (default: found from the working directory)")
 	only := flag.String("only", "", "comma-separated fault ids to run (default: all)")
-	jobs := flag.Int("j", max(1, runtime.NumCPU()/2), "mutations run in parallel")
+	jobs := flag.Int("j", defaultJobs(), "mutations run in parallel")
 	timeout := flag.Duration("timeout", 2*time.Minute, "go test -timeout for each package")
 	check := flag.Bool("check", false, "only verify that every patch applies cleanly; run no tests")
 	flag.Parse()
