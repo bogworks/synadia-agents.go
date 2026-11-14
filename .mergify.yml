@@ -49,16 +49,16 @@ queue_rules:
       - -conflict
       - label != hold
       - check-success = codex-review
-      - check-success = pr-check
-      - check-success = label-reset
-      - check-success = adr-lint
-      - check-success = interop-check
+      - check-success = @github-actions/pr-check
+      - check-success = @github-actions/label-reset
+      - check-success = @github-actions/adr-lint
+      - check-success = @github-actions/interop-check
       - or:
           - approved-reviews-by = randybias
           - label = lead-approved
     merge_conditions:
-      - check-success = pr-check
-      - check-success = interop-check
+      - check-success = @github-actions/pr-check
+      - check-success = @github-actions/interop-check
     batch_size:
       min: 1
       max: 5
