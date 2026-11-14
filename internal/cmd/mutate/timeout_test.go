@@ -7,6 +7,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -70,5 +71,17 @@ func TestFailure_DeadlineIsNotABuildError(t *testing.T) {
 	err = failure("test/host", nil, "", "undefined: x")
 	if err == nil || !strings.Contains(err.Error(), "build error?") || !strings.Contains(err.Error(), "undefined: x") {
 		t.Errorf("real failure: %v, want a build error carrying the output", err)
+	}
+}
+
+func TestDefaultJobsFollowsGOMAXPROCS(t *testing.T) {
+	old := runtime.GOMAXPROCS(2)
+	defer runtime.GOMAXPROCS(old)
+	if got := defaultJobs(); got != 2 {
+		t.Fatalf("2 CPUs: %d jobs, want 2 (not NumCPU/2)", got)
+	}
+	runtime.GOMAXPROCS(32)
+	if got := defaultJobs(); got != 16 {
+		t.Fatalf("32 CPUs: %d jobs, want 16", got)
 	}
 }
