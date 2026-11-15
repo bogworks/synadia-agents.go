@@ -13,7 +13,6 @@ import (
 
 	agents "github.com/bogworks/synadia-agents.go"
 	"github.com/bogworks/synadia-agents.go/identity"
-	"github.com/bogworks/synadia-agents.go/internal/stance"
 	"github.com/nats-io/nats.go"
 )
 
@@ -50,9 +49,6 @@ type Client struct {
 	rejected  atomic.Uint64
 }
 
-// warnStanceOnce limits the unchosen-stance warning to one per process.
-var warnStanceOnce sync.Once
-
 // New returns a Client on nc. It makes no network call: the reply subscription
 // is created by the first prompt, discovery or request, and flushed before the
 // first publish that names it. The caller keeps ownership of nc. See SAP §10.1.
@@ -72,32 +68,13 @@ func New(nc *nats.Conn, opts ...Option) (*Client, error) {
 			return nil, err
 		}
 	}
-	eff, err := stance.Resolve(cfg.stance)
-	if err != nil {
-		return nil, fmt.Errorf("caller: %w", err)
-	}
-	if eff.Signing && (cfg.ident == nil || cfg.ident.Signer == nil) {
-		if eff.RequireSigner {
-			return nil, errors.New("caller: the security stance turns signing on, but WithIdentity gave no Signer")
-		}
-		if cfg.logger != nil {
-			cfg.logger.Warn("signing is on but WithIdentity gave no Signer; the client cannot sign its requests")
-		}
-	}
-	if cfg.trust == nil && eff.VerifiedDiscovery {
-		cfg.trust = &TrustPolicy{Accept: func(identity.AgentID, agents.AgentInfo) bool { return true }}
-	}
-	if cfg.trust == nil && !stance.Chosen(cfg.stance) {
-		stance.WarnUnchosen(&warnStanceOnce, cfg.logger, "caller")
-	}
 	c := &Client{nc: nc, cfg: cfg, done: make(chan struct{})}
 	c.log = cfg.logger
 	if c.log == nil {
 		c.log = slog.New(slog.DiscardHandler)
 	}
 	c.mux = newMux(c, cfg.inboxPrefix)
-	// The client's stance first, so a stance in the tracker options replaces it.
-	topts := append([]TrackerOption{WithTrackerLogger(c.log), WithTrackerStance(cfg.stance)}, cfg.trackerOpts...)
+	topts := append([]TrackerOption{WithTrackerLogger(c.log)}, cfg.trackerOpts...)
 	tr, err := NewHeartbeatTracker(nc, topts...)
 	if err != nil {
 		return nil, err

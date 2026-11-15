@@ -8,17 +8,6 @@ SAP revision it implements and its conformance catalog result.
 
 ## [Unreleased]
 
-### Added
-
-- A security stance, `identity.Stance`, that holds one concrete setting (`Unset`, `On` or `Off`) for each identity check:
-  `SignedSenders` on a host, `VerifiedDiscovery` and `HeartbeatVerification` on a caller, `Signing`, and
-  `RequireSigner`, which decides whether `host.New` and `caller.New` fail or log one warning when signing is on and no
-  signer was given. It is taken through `host.WithStance`, `caller.WithStance`, `caller.WithTrackerStance` and
-  `connect.WithStance`. The SDK interprets no named profile. Each check has its own default, an exported constant
-  (`identity.DefaultSignedSenders` and the others), and `Stance.Resolved` returns the settings in force. The defaults
-  are those of v0.1.0, except `RequireSigner`, and they may change; a program that sets no check and has a logger
-  gets one warning. See ADR-0004, which supersedes ADR-0003.
-
 ## [0.1.0] - 2026-11-12
 
 The first release. SAP revision: 0.3 (spec commit `c48cea5f`). Conformance: every obligation in
