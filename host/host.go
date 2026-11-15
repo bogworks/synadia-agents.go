@@ -15,7 +15,6 @@ import (
 
 	agents "github.com/bogworks/synadia-agents.go"
 	"github.com/bogworks/synadia-agents.go/identity"
-	"github.com/bogworks/synadia-agents.go/internal/stance"
 	"github.com/nats-io/nats.go"
 	"github.com/nats-io/nats.go/micro"
 )
@@ -145,9 +144,6 @@ type Host struct {
 
 type infoKey struct{}
 
-// warnStanceOnce limits the unchosen-stance warning to one per process.
-var warnStanceOnce sync.Once
-
 // New validates the configuration and returns a host. Nothing is registered
 // until [Host.Start]. subject names the instance (agents.NewAgentSubject) and
 // handler serves its prompts. The host does not close nc.
@@ -172,24 +168,6 @@ func New(nc *nats.Conn, subject agents.AgentSubject, handler PromptHandler, opts
 	}
 	if err := agents.ValidateInterval(cfg.hbInterval, cfg.subSecond); err != nil {
 		return nil, fmt.Errorf("%w: %w", ErrConfig, err)
-	}
-	eff, err := stance.Resolve(cfg.stance)
-	if err != nil {
-		return nil, fmt.Errorf("%w: %w", ErrConfig, err)
-	}
-	if eff.Signing && (cfg.identity == nil || cfg.identity.Signer == nil) {
-		if eff.RequireSigner {
-			return nil, fmt.Errorf("%w: the security stance turns signing on, but WithIdentity gave no Signer", ErrConfig)
-		}
-		if cfg.logger != nil {
-			cfg.logger.Warn("signing is on but WithIdentity gave no Signer; the host cannot sign its heartbeats")
-		}
-	}
-	if !cfg.minTrustSet && eff.SignedSenders {
-		cfg.minTrust = identity.TrustSigned
-	}
-	if !cfg.minTrustSet && !stance.Chosen(cfg.stance) {
-		stance.WarnUnchosen(&warnStanceOnce, cfg.logger, "host")
 	}
 	log := cfg.logger
 	if log == nil {
