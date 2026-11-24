@@ -29,7 +29,7 @@ func randToken(n int) string {
 // 130 bits. Each route token must be unguessable on its own, so it carries at
 // least 128 bits. The client-id token before it is shared by all of a client's
 // requests and is visible to every agent the client prompts, so it cannot be
-// what keeps one reply stream from another. (SDK policy; SAP leaves the form
+// what keeps one reply stream from another. (SDK policy, ADR-0005; SAP leaves the form
 // of a reply subject to the caller.)
 const routeTokenLen = 26
 
