@@ -1,5 +1,5 @@
 ---
-status: accepted
+status: superseded by ADR-0006
 date: 2026-11-12
 decision-makers: Project maintainers
 ---
@@ -120,3 +120,5 @@ decides policy and passes concrete settings. The code was unreleased, so the cha
 The names `host.WithStance`, `caller.WithStance`, `caller.WithTrackerStance` and `connect.WithStance` and the rule that an
 explicit option wins over the stance are unchanged. A deployment that wants a strict posture sets `SignedSenders`,
 `VerifiedDiscovery`, `HeartbeatVerification` and `Signing` to `On` itself.
+
+Superseded by [ADR 0006](0006-the-sdk-carries-no-security-stance-a-posture-belongs-to-the-application.md)

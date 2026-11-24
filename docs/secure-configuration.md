@@ -1,12 +1,25 @@
 # Secure configuration
 
-In v0.1.0 none of these settings is on by default: you opt in to each one. A [security stance](#security-stance-strict-and-relaxed) turns the main ones on together.
+In v0.1.0 none of these settings is on by default: you opt in to each one.
 
 This page lists the options that make a caller and a host refuse senders and agents they cannot verify. The defaults are open: a host serves any sender, and a client trusts any discovery reply.
 
+The SDK carries no security stance. It exposes the checks of SAP as separate options, and the posture of a program, which of them to turn on, belongs to the application. [ADR-0006](decisions/0006-the-sdk-carries-no-security-stance-a-posture-belongs-to-the-application.md) records this. A program that wants every check sets each option below itself. The table lists them:
+
+| Check | Option | Default |
+|---|---|---|
+| Sign requests and heartbeats | `connect.WithSignedIdentity`, then `host.WithIdentity` or `caller.WithIdentity` with the `Signer` | no signer |
+| Host serves only signed senders | `host.WithMinSenderTrust(identity.TrustSigned)` | `identity.TrustAny` |
+| Host decides which senders may prompt | `host.WithAdmission` | every sender the trust level admits |
+| Client trusts only verified agents | `caller.WithTrustPolicy` (Go only) | every discovery reply |
+| Tracker verifies heartbeats | `caller.WithHeartbeatVerification` (through `caller.WithTracker`) (Go only) | verifies nothing |
+
+**Go only.** `caller.WithTrustPolicy` and `caller.WithHeartbeatVerification` have no counterpart in the TypeScript and Python SDKs. Their discovery records report whether `id_sig` verified, but offer no filter, allowlist or refusal at prompt time, and their trackers do not verify heartbeats. SAP requires neither: which verified senders to accept remains the deployment's decision (SAP §10.1), and §13.11 requires no subscriber to verify heartbeats. A program that must behave the same in every language makes these checks in its own code.
+| Operator attests service imports | `host.WithOperatorAttested(true)` | off |
+
 The examples are in `host/example_secure_test.go` and `caller/example_secure_test.go`. They need a NATS server, so they compile but do not run in the root module. The `TestSecureExamples_*` tests in `test/examples` run the same code against an embedded server, and `TestSecureExamples_MatchRunners` fails if an example and the code run diverge.
 
-## Caller: trust policy
+## Caller: trust policy (Go only)
 
 By default a client does not verify the agents it discovers. `caller.WithTrustPolicy` makes verified discovery the default:
 
@@ -37,44 +50,13 @@ host.WithAdmission(func(ctx context.Context, s *identity.Sender, _ *host.Request
 
 The hook runs for every classified prompt request and never for status. Returning false is answered 403 for a verified sender and 401 for a claimed or absent one. Returning an error is answered 500 and the request is not served. `s` is nil for an absent sender. A claimed sender has no `ID`, so never grant on one. See `ExampleWithAdmission`.
 
-## Security stance
+## Caller: heartbeat verification (Go only)
 
-A stance gathers the identity checks in one value, so a program chooses its posture once. `identity.Stance` holds one setting per check, and the SDK never interprets a named profile: the program, or the deployment around it, decides its policy and passes concrete settings. Each package takes the stance through its own option: `host.WithStance`, `caller.WithStance`, `caller.WithTrackerStance` and `connect.WithStance`.
+By default the heartbeat tracker verifies nothing. `caller.WithHeartbeatVerification(opts, requireSigned)` makes it verify the `Agent-Sender` header of every heartbeat as a live message and discard a heartbeat whose signature fails. With `requireSigned`, a heartbeat that is not verified (absent or claimed) is discarded too. `opts` must carry a replay set (`identity.LiveOptions.Nonces`). A client passes it to its tracker with `caller.WithTracker`.
 
-Each setting is `identity.On`, `identity.Off` or `identity.Unset`. `Unset`, the zero value, means the SDK default of that check applies.
+## Signing
 
-| Check | Setting | Default | Where | What it does |
-|---|---|---|---|---|
-| Signed senders | `SignedSenders` | `identity.DefaultSignedSenders` (off) | host | The prompt endpoint's `min_sender_trust` becomes `signed` (SAP §13.9). An unsigned prompt is refused with 401. |
-| Verified discovery | `VerifiedDiscovery` | `identity.DefaultVerifiedDiscovery` (off) | caller | The client trusts any agent whose `id_sig` verifies, as a trust policy that accepts every verified signer does. It gates `Agent.Prompt` and `Agent.Status` with `caller.ErrUntrustedAgent` too. |
-| Heartbeat verification | `HeartbeatVerification` | `identity.DefaultHeartbeatVerification` (off) | heartbeat tracker | The tracker verifies every heartbeat that carries an `Agent-Sender` header and discards one that fails. A heartbeat with no header is kept. |
-| Signing | `Signing` | `identity.DefaultSigning` (off) | connect, caller, host | The program signs. `connect.ResolveBundle` yields the signer from the credentials' user seed, as `connect.WithSignedIdentity` does, and fails with `connect.ErrNoUserSeed` when there is none. `Unset` and `Off` yield no signer. |
-| Require signer | `RequireSigner` | `identity.DefaultRequireSigner` (on) | caller, host | With signing on and no `Signer` in `WithIdentity`, `On` makes `caller.New` and `host.New` fail, and `Off` lets them succeed and log one warning to the logger set with `WithLogger`. It has no effect when signing is off, and none on connect. |
-
-```go
-s := identity.Stance{
-	SignedSenders:         identity.On,
-	VerifiedDiscovery:     identity.On,
-	HeartbeatVerification: identity.On,
-	Signing:               identity.On,
-}
-b, err := connect.ResolveBundle(ctx, src, connect.WithStance(s))
-// dial b, then:
-h, err := host.New(nc, subject, handler, host.WithStance(s),
-	host.WithIdentity(host.IdentityOptions{Signer: b.Signer}))
-c, err := caller.New(nc, caller.WithStance(s),
-	caller.WithIdentity(caller.IdentityOptions{Signer: b.Signer}))
-```
-
-Signing is separate from the checks so that a program can sign without refusing anyone: `Signing: identity.On` alone signs, needs a signer, and still serves unsigned senders. The reverse works too: `SignedSenders: identity.On` with signing off needs no signer, which suits a program that only verifies. A program that signs only when it can sets `RequireSigner: identity.Off`: `New` succeeds without a signer and logs one warning, and a caller then fails each request to an endpoint that requires signed senders with `identity.ErrCannotSign`.
-
-`Stance.Resolved` returns the stance with every `Unset` replaced by its default, which is the way to print the settings in force. A value outside the constants is refused by the option.
-
-An explicit option always wins over the stance for its own check, whatever the order of the options: `host.WithMinSenderTrust`, `caller.WithTrustPolicy`, `caller.WithHeartbeatVerification` and `connect.WithSignedIdentity`. `caller.New` passes its stance to the tracker it builds unless `caller.WithTracker` sets one.
-
-When a program sets no check and no explicit option for the check (`WithMinSenderTrust` on a host, `WithTrustPolicy` on a client), a logger set with `WithLogger` gets one warning per process that says the SDK defaults apply. The SDK never logs to the default logger, so a program with no logger sees nothing.
-
-The defaults are those of v0.1.0 today, except `RequireSigner`, and they may change in a later release. Set a check to be sure of the posture you get. See [ADR-0004](decisions/0004-a-security-stance-holds-concrete-per-check-settings.md).
+`connect.WithSignedIdentity` makes `connect.ResolveBundle` return a `Signer` made from the user seed of the same credential read as the connection, and fails with `connect.ErrNoUserSeed` when the source holds none. Pass `Bundle.Signer` to `host.WithIdentity` or `caller.WithIdentity`. `host.New` and `caller.New` do not check that a signer was given. A caller that has none refuses locally to send to an endpoint that requires a signed sender.
 
 ## Extra endpoints are outside the gate
 

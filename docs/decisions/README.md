@@ -34,5 +34,6 @@ before pushing.
 | [0001](0001-record-architecture-decisions.md) | Record architecture decisions | accepted | 2026-11-11 |
 | [0002](0002-releases-ship-an-sbom-and-build-provenance-from-our-own-runners.md) | Releases ship an SBOM and build provenance from our own runners | accepted | 2026-11-12 |
 | [0003](0003-a-security-stance-selects-strict-or-relaxed-identity-checks.md) | A security stance selects strict or relaxed identity checks | superseded by ADR-0004 | 2026-11-12 |
-| [0004](0004-a-security-stance-holds-concrete-per-check-settings.md) | A security stance holds concrete per-check settings | accepted | 2026-11-12 |
+| [0004](0004-a-security-stance-holds-concrete-per-check-settings.md) | A security stance holds concrete per-check settings | superseded by ADR-0006 | 2026-11-12 |
 | [0005](0005-a-reply-route-token-carries-at-least-128-bits.md) | A reply route token carries at least 128 bits | accepted | 2026-11-24 |
+| [0006](0006-the-sdk-carries-no-security-stance-a-posture-belongs-to-the-application.md) | The SDK carries no security stance; a posture belongs to the application | accepted | 2026-11-15 |
