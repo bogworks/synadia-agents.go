@@ -25,6 +25,14 @@ func randToken(n int) string {
 	return strings.ToLower(tokenEnc.EncodeToString(b))[:n]
 }
 
+// routeTokenLen is the length of a reply route token: 26 base32 characters,
+// 130 bits. Each route token must be unguessable on its own, so it carries at
+// least 128 bits. The client-id token before it is shared by all of a client's
+// requests and is visible to every agent the client prompts, so it cannot be
+// what keeps one reply stream from another. (SDK policy; SAP leaves the form
+// of a reply subject to the caller.)
+const routeTokenLen = 26
+
 // route is one registered reply token: the bounded queue of one prompt, one
 // discovery or one request. The mux fills it; its owner drains it.
 type route struct {
@@ -108,7 +116,7 @@ func flush(ctx context.Context, nc *nats.Conn) error {
 // register adds a route with the given bounds. arrive, when not nil, runs after
 // each message is queued; stop, when not nil, runs when the client closes.
 func (m *mux) register(msgs int, maxBytes int64, arrive, stop func()) (*route, error) {
-	token := randToken(16)
+	token := randToken(routeTokenLen)
 	r := &route{
 		m:        m,
 		token:    token,
