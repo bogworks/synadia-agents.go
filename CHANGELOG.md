@@ -8,6 +8,11 @@ SAP revision it implements and its conformance catalog result.
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-11-24
+
+SAP revision: 0.3 (spec commit `c48cea5f`), unchanged. Conformance: unchanged from 0.1.0; every obligation in
+`conformance/catalog.json` is covered by a linked test, and the mutation run kills every fault (docs/releases/v0.1.1.md).
+
 ### Changed
 
 - A reply route token, the last token of a caller's reply subject, is now 26 base32 characters (130 bits) instead of
