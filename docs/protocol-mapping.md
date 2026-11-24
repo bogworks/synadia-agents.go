@@ -413,7 +413,6 @@ Discovery, prompting, the reply stream, queries, status, heartbeat tracking and 
 | `caller.WithResolveTTL` | func | §13.10 | WithResolveTTL sets how long the sender resolver reuses one enumeration (SAP §13.10 suggests a short cache). |
 | `caller.DefaultQueryReplyPolicy` | func | §7.1 | DefaultQueryReplyPolicy is the query reply policy a client uses unless [WithQueryReplyPolicy] replaces it. |
 | `caller.WithQueryReplyPolicy` | func | §7.1 | WithQueryReplyPolicy sets the policy that vets the agent-supplied reply_subject of every query before [Quer... |
-| `caller.WithStance` | func | SDK policy (no SAP section) | WithStance sets the security stance (see [identity.Stance]). |
 | `caller.WithTracker` | func | §8.5 | WithTracker passes options to the heartbeat tracker the client owns. |
 | `caller.ReservedHeader` | func | §9, §13.5 (extension point) | ReservedHeader reports whether name is a header the outgoing-header hook and interceptors may not set. |
 | `caller.TrustPolicy` | type | §13.10 | TrustPolicy says which agent identities a program trusts. |
@@ -441,7 +440,6 @@ Discovery, prompting, the reply stream, queries, status, heartbeat tracking and 
 | `caller.WithTrackerLogger` | func | §8.5 | WithTrackerLogger sets the tracker's logger; nil is silent. |
 | `caller.WithTrackerMaxInstances` | func | §8.5 | WithTrackerMaxInstances bounds how many instances the tracker remembers. |
 | `caller.WithHeartbeatVerification` | func | §13.7, §13.11 | WithHeartbeatVerification makes the tracker verify the Agent-Sender header of every heartbeat as a live mes... |
-| `caller.WithTrackerStance` | func | §8.5 | WithTrackerStance sets the security stance of the tracker (see [identity.Stance]). |
 | `caller.Beat` | type | §8.5 | Beat is one heartbeat as the tracker received it. |
 | `caller.Beat.Header` | method | §13.5 | Header returns a copy of the headers the heartbeat arrived with, so a program can read what SAP carries the... |
 | `caller.Liveness` | type | §8.2 | Liveness is the tracker's view of one instance. |
@@ -539,7 +537,6 @@ Registration as a micro service, prompt and status endpoints, the reply stream, 
 | `host.WithLogger` | func | §3 (SDK policy: lifecycle) | WithLogger sets the logger; nil is silent. |
 | `host.WithIdentity` | func | §13.10, §13.11 | WithIdentity enables the sender identity extension's registration side: the host learns its own agent ID, r... |
 | `host.WithMinSenderTrust` | func | §13.9 | WithMinSenderTrust sets the min_sender_trust the prompt endpoint advertises and enforces (SAP §13.9). |
-| `host.WithStance` | func | SDK policy (no SAP section) | WithStance sets the security stance (see [identity.Stance]). |
 | `host.WithReplayWindow` | func | §13.7 | WithReplayWindow sets the timestamp skew and the nonce window of live verification; the default is identity... |
 | `host.WithMaxNonces` | func | §13.7 (SDK policy: replay bounds) | WithMaxNonces bounds the replay set; the default is identity.DefaultMaxNonces. |
 | `host.WithMaxNoncesPerSender` | func | §13.7 (SDK policy: replay bounds) | WithMaxNoncesPerSender sets the per-sender quota of the replay set; the default is identity.DefaultMaxNonce... |
@@ -705,18 +702,6 @@ The optional sender identity extension: agent IDs, the `Agent-Sender` header, si
 | `identity.SignerFromCreds` | func | §13.4 | SignerFromCreds builds a [JWTSigner] from the text of a NATS credentials file: the user JWT and the user seed. |
 | `identity.SignerFromSeedAndJWT` | func | §13.6 | SignerFromSeedAndJWT is [SignerFromSeed] with a user JWT, for a program that holds the seed and the JWT apart. |
 | `identity.IdentityFromJWT` | func | §13.4 | IdentityFromJWT returns the agent ID a user JWT carries: sub is the user public NKEY, and the account is na... |
-| `identity.Setting` | type | SDK policy (no SAP section) | Setting is the value of one check of a [Stance]. |
-| `identity.Unset` | const | SDK policy (no SAP section) | Unset means the program did not choose: the SDK default of the check applies (see [DefaultSignedSenders] an... |
-| `identity.On` | const | SDK policy (no SAP section) | On turns the check on. |
-| `identity.Off` | const | SDK policy (no SAP section) | Off turns the check off. |
-| `identity.Setting.String` | method | SDK policy (no SAP section) | String returns "unset", "on" or "off". |
-| `identity.DefaultSignedSenders` | const | SDK policy (no SAP section) | DefaultSignedSenders is the default of [Stance.SignedSenders]: off, so a host serves unsigned senders. |
-| `identity.DefaultVerifiedDiscovery` | const | SDK policy (no SAP section) | DefaultVerifiedDiscovery is the default of [Stance.VerifiedDiscovery]: off, so a client trusts discovery re... |
-| `identity.DefaultHeartbeatVerification` | const | SDK policy (no SAP section) | DefaultHeartbeatVerification is the default of [Stance.HeartbeatVerification]: off, so a tracker verifies n... |
-| `identity.DefaultSigning` | const | SDK policy (no SAP section) | DefaultSigning is the default of [Stance.Signing]: off, so the program does not sign. |
-| `identity.DefaultRequireSigner` | const | SDK policy (no SAP section) | DefaultRequireSigner is the default of [Stance.RequireSigner]: on, so host.New and caller.New fail when sig... |
-| `identity.Stance` | type | §13 | Stance is the security stance of a program: one [Setting] per check. |
-| `identity.Stance.Resolved` | method | §13 | Resolved returns s with every Unset check replaced by its default, so a program can print the settings that... |
 | `identity.MetadataKeyMinSenderTrust` | const | §13.9 | MetadataKeyMinSenderTrust is the key of the prompt endpoint metadata that declares what the endpoint requir... |
 | `identity.MetadataKeyUserNKey` | const | §13.10 | Registration metadata keys of the agent ID, next to agent, owner and protocol_version. |
 | `identity.MetadataKeyAccount` | const | §13.10 | Registration metadata keys of the agent ID, next to agent, owner and protocol_version. |
@@ -757,7 +742,6 @@ Reads NATS CLI contexts and credential files into connection options and, option
 | `connect.Source.Validate` | method | outside SAP: connection helper | Validate reports why the source is ambiguous or empty. |
 | `connect.BundleOption` | type | outside SAP: connection helper | BundleOption configures [ResolveBundle]. |
 | `connect.WithSignedIdentity` | func | §13.4, §13.6 | WithSignedIdentity makes [ResolveBundle] return a Signer derived from the same credential read as the conne... |
-| `connect.WithStance` | func | outside SAP: connection helper | WithStance sets the security stance (see [identity.Stance]). |
 | `connect.WithBundleContextOptions` | func | outside SAP: connection helper | WithBundleContextOptions passes context-location options (such as [WithConfigDir]) to the context read of [... |
 | `connect.Bundle` | type | §13.4 | Bundle is a connection and, when requested, a signer, both made from one read of the credential files, so a... |
 | `connect.Bundle.Wipe` | method | §13.4 | Wipe clears the retained key material and drops the options. |
