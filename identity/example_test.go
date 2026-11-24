@@ -36,31 +36,3 @@ func ExampleParseAgentID() {
 	// true $G <nil>
 	// true
 }
-
-func ExampleStance() {
-	// Each check is its own setting; the zero value is Unset, which takes the
-	// SDK default of that check.
-	s := identity.Stance{
-		SignedSenders: identity.On,
-		Signing:       identity.On,
-	}
-	fmt.Println(s.SignedSenders, s.Signing, s.HeartbeatVerification)
-	// Output:
-	// on on unset
-}
-
-func ExampleStance_Resolved() {
-	// Resolved replaces every Unset check with its SDK default.
-	s := identity.Stance{SignedSenders: identity.On}.Resolved()
-	fmt.Println("signed senders:", s.SignedSenders)
-	fmt.Println("verified discovery:", s.VerifiedDiscovery)
-	fmt.Println("heartbeat verification:", s.HeartbeatVerification)
-	fmt.Println("signing:", s.Signing)
-	fmt.Println("require signer:", s.RequireSigner)
-	// Output:
-	// signed senders: on
-	// verified discovery: off
-	// heartbeat verification: off
-	// signing: off
-	// require signer: on
-}

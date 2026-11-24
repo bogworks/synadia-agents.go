@@ -14,7 +14,6 @@ import (
 	agents "github.com/bogworks/synadia-agents.go"
 	"github.com/bogworks/synadia-agents.go/identity"
 	"github.com/bogworks/synadia-agents.go/internal/hosttest"
-	"github.com/bogworks/synadia-agents.go/internal/stance"
 	"github.com/nats-io/nats.go/micro"
 )
 
@@ -112,8 +111,6 @@ type config struct {
 	logger           *slog.Logger
 	identity         *IdentityOptions
 	minTrust         identity.MinSenderTrust
-	minTrustSet      bool
-	stance           identity.Stance
 	replayWindow     time.Duration
 	maxNonces        int
 	maxPerSender     int
@@ -304,38 +301,14 @@ func WithIdentity(o IdentityOptions) Option {
 }
 
 // WithMinSenderTrust sets the min_sender_trust the prompt endpoint advertises
-// and enforces (SAP §13.9). The default is [DefaultMinSenderTrust], or
-// identity.TrustSigned when [WithStance] turns SignedSenders on; it is always
-// advertised, so a host that implements the extension declares it. An explicit
-// call wins over the stance, whatever the order of the options.
+// and enforces (SAP §13.9). The default is [DefaultMinSenderTrust]; it is
+// always advertised, so a host that implements the extension declares it.
 func WithMinSenderTrust(t identity.MinSenderTrust) Option {
 	return func(c *config) error {
 		if t != identity.TrustAny && t != identity.TrustSigned {
 			return fmt.Errorf("%w: min_sender_trust must be %q or %q", ErrConfig, identity.TrustAny, identity.TrustSigned)
 		}
 		c.minTrust = t
-		c.minTrustSet = true
-		return nil
-	}
-}
-
-// WithStance sets the security stance (see [identity.Stance]). The host reads
-// three checks of it. SignedSenders makes the prompt endpoint require a signed
-// sender, as [WithMinSenderTrust] with identity.TrustSigned does; an explicit
-// [WithMinSenderTrust] wins over it, and the default is
-// [identity.DefaultSignedSenders]. Signing says the host signs; the default is
-// [identity.DefaultSigning]. With signing on and no Signer from [WithIdentity],
-// RequireSigner decides: On makes [New] fail with an error that matches
-// [ErrConfig], Off makes [New] succeed and log one warning to the logger set
-// with [WithLogger]; the default is [identity.DefaultRequireSigner]. When no
-// setting is chosen and no min_sender_trust is set, a logger set with
-// [WithLogger] gets one warning per process that says so. SDK policy.
-func WithStance(s identity.Stance) Option {
-	return func(c *config) error {
-		if _, err := stance.Resolve(s); err != nil {
-			return fmt.Errorf("%w: %w", ErrConfig, err)
-		}
-		c.stance = s
 		return nil
 	}
 }
