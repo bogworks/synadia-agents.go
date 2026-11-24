@@ -19,6 +19,12 @@ SAP revision it implements and its conformance catalog result.
   are those of v0.1.0, except `RequireSigner`, and they may change; a program that sets no check and has a logger
   gets one warning. See ADR-0004, which supersedes ADR-0003.
 
+### Changed
+
+- A reply route token, the last token of a caller's reply subject, is now 26 base32 characters (130 bits) instead of
+  16 (80 bits), so each route is unguessable on its own. The subject layout `{prefix}.{client-id}.{route-token}` is
+  unchanged. See issue #81.
+
 ## [0.1.0] - 2026-11-12
 
 The first release. SAP revision: 0.3 (spec commit `c48cea5f`). Conformance: every obligation in

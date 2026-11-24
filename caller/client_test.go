@@ -220,3 +220,47 @@ func TestAttachmentFromFile(t *testing.T) {
 		t.Fatal("a missing file")
 	}
 }
+
+// TestMux_RouteTokenEntropy: each reply route subject is the mux prefix, the
+// client id and a route token of routeTokenLen lowercase base32 characters
+// (at least 128 bits), and tokens do not repeat.
+func TestMux_RouteTokenEntropy(t *testing.T) {
+	if routeTokenLen*5 < 128 {
+		t.Fatalf("routeTokenLen %d gives %d bits, want at least 128", routeTokenLen, routeTokenLen*5)
+	}
+	c := offlineClient(t)
+	const alphabet = "abcdefghijklmnopqrstuvwxyz234567"
+	clientID := c.mux.prefix[strings.LastIndex(c.mux.prefix, ".")+1:]
+	tests := []struct {
+		name   string
+		routes int
+	}{
+		{"one", 1},
+		{"many", 2000},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			seen := map[string]bool{}
+			for range tc.routes {
+				r, err := c.mux.register(1, 1, nil, nil)
+				if err != nil {
+					t.Fatal(err)
+				}
+				if r.subject != c.mux.prefix+"."+r.token {
+					t.Fatalf("subject %q is not prefix.token", r.subject)
+				}
+				parts := strings.Split(r.subject, ".")
+				if len(parts) != strings.Count(c.mux.prefix, ".")+2 || parts[len(parts)-2] != clientID {
+					t.Fatalf("subject %q does not have layout {prefix}.{client-id}.{route-token}", r.subject)
+				}
+				if len(r.token) != routeTokenLen || strings.Trim(r.token, alphabet) != "" {
+					t.Fatalf("token %q is not %d base32 characters", r.token, routeTokenLen)
+				}
+				if seen[r.token] {
+					t.Fatalf("token %q repeated", r.token)
+				}
+				seen[r.token] = true
+			}
+		})
+	}
+}
