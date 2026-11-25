@@ -37,3 +37,4 @@ before pushing.
 | [0004](0004-a-security-stance-holds-concrete-per-check-settings.md) | A security stance holds concrete per-check settings | superseded by ADR-0006 | 2026-11-12 |
 | [0005](0005-a-reply-route-token-carries-at-least-128-bits.md) | A reply route token carries at least 128 bits | accepted | 2026-11-24 |
 | [0006](0006-the-sdk-carries-no-security-stance-a-posture-belongs-to-the-application.md) | The SDK carries no security stance; a posture belongs to the application | accepted | 2026-11-15 |
+| [0007](0007-the-client-id-is-shared-by-a-clients-requests-and-is-not-a-secret.md) | The client id is shared by a client's requests and is not a secret | accepted | 2026-11-25 |
