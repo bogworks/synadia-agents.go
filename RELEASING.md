@@ -41,8 +41,13 @@ Verify a downloaded file, and its provenance, with:
 
 ```
 sha256sum -c SHA256SUMS --ignore-missing
-gh attestation verify <file> --repo bogworks/synadia-agents.go
+gh attestation verify <file> --repo bogworks/synadia-agents.go \
+  --signer-workflow bogworks/synadia-agents.go/.github/workflows/release.yml
 ```
+
+`--signer-workflow` accepts only an attestation made by the release workflow;
+without it, an attestation from any workflow in the repository would pass. It
+needs gh 2.102.0 or newer (GHSA-wjmr-j3rp-mh2g).
 
 The attestation says only that this workflow, at this tag, on a runner the
 maintainers operate, built those bytes. It does not say the runner was
